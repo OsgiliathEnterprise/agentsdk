@@ -92,7 +92,7 @@ dependencies {
     "implementation"(platform("dev.langchain4j:langchain4j-bom:1.11.0"))
 
     // ACP LangGraph LangChain Bridge (published to local Maven)
-    implementation("net.osgiliath.ai:acp-langraph-langchain-bridge:1.0.10")
+    implementation("net.osgiliath.ai:acp-langraph-langchain-bridge:1.0.13")
 
     // Official ACP Kotlin SDK from JetBrains
     // Provides built-in protocol handling, STDIO transport, and session management
@@ -154,10 +154,48 @@ tasks.withType<Jar> {
 tasks.withType<org.springframework.boot.gradle.tasks.run.BootRun> {
     standardInput = System.`in`
 }
+// This module is published as a library, not an executable Spring Boot app.
+tasks.named("bootJar") {
+    enabled = false
+}
+
+tasks.named<Jar>("jar") {
+    enabled = true
+}
+
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
             from(components["java"])
+           pom {
+                name.set("agent-sdk")
+                description.set("Agent creation helper library for ACP-LangGraph-LangChain integration")
+                url.set("https://github.com/OsgiliathEnterprise/agent-sdk")
+                licenses {
+                    license {
+                        name.set("Apache License, Version 2.0")
+                        url.set("https://www.apache.org/licenses/LICENSE-2.0")
+                        distribution.set("repo")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("charliemordant")
+                        name.set("Charlie Mordant")
+                    }
+                }
+                scm {
+                    connection.set("scm:git:https://github.com/OsgiliathEnterprise/agent-sdk.git")
+                    developerConnection.set("scm:git:ssh://git@github.com/OsgiliathEnterprise/agent-sdk.git")
+                    url.set("https://github.com/OsgiliathEnterprise/agent-sdk")
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = "staging"
+            url = layout.buildDirectory.dir("staging-deploy").get().asFile.toURI()
         }
     }
 }
