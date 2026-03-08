@@ -1,0 +1,26 @@
+# LangChain4j Local LLM Configuration (LM Studio)
+# LM Studio exposes an OpenAI-compatible API on localhost:1234
+# Application Configuration
+spring:
+  application:
+    name: agent-sdk
+  main:
+    banner-mode: off
+    web-application-type: none
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger{36} - %msg%n"
+  exception-conversion-word: "%wEx"
+# Log to stderr to avoid interfering with JSON-RPC on stdout
+  level:
+    root: INFO
+    net.osgiliath.erp.codeprompt: DEBUG
+
+# MCP Server Properties
+mcp:
+  server:
+    name: agent-sdk
+    version: 0.1.0
+    protocol-version: 2024-11-05
+    supported-protocol-versions:
+      - 2024-11-05

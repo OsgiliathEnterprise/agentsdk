@@ -1,0 +1,9 @@
+agents:
+  root:
+    model: qwen3
+    instruction: |
+      Just answer 'Ping', nothing else.
+models:
+  qwen3:
+    provider: dmr
+    model: ai/qwen3:4B-UD-Q4_K_XL

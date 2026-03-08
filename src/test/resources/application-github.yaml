@@ -1,0 +1,46 @@
+# GitHub Models configuration for CI or explicit local github profile runs
+langchain4j:
+  open-ai:
+    chat-model:
+      base-url: https://models.inference.ai.azure.com
+      model-name: gpt-5-nano
+      log-requests: true
+      log-responses: true
+      timeout: 3000s
+      api-key: ${MODEL_TOKEN}
+      supported-capabilities: response_format_json_schema
+      strict-json-schema: true
+    streaming-chat-model:
+      base-url: https://models.inference.ai.azure.com
+      model-name: gpt-5-nano
+      log-requests: true
+      log-responses: true
+      timeout: 3000s
+      api-key: ${MODEL_TOKEN}
+
+# Application configuration
+spring:
+  application:
+    name: codeprompt-framework
+  main:
+    allow-bean-definition-overriding: true
+    banner-mode: off
+    web-application-type: none
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger{36} - %msg%n"
+  exception-conversion-word: "%wEx"
+  # Log to stderr to avoid interfering with JSON-RPC on stdout
+  level:
+    root: INFO
+    net.osgiliath.erp.codeprompt: DEBUG
+
+# MCP Server properties
+mcp:
+  server:
+    name: code-prompt-framework
+    version: 0.1.0
+    protocol-version: 2024-11-05
+    supported-protocol-versions:
+      - 2024-11-05

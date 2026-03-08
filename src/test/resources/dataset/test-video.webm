@@ -1,0 +1,2 @@
+This is a placeholder for a video file. In real tests, you would use an actual video file.
+For unit testing purposes, we can mock the video mime type.

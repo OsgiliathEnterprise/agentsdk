@@ -1,0 +1,47 @@
+environment:
+  properties:
+    gitRootSearch: false
+
+project:
+  name: agent-sdk
+  versionPattern: SEMVER
+  description: SDK to create Langchain agents parsing files, calling cagent CLI, and more.
+  copyright: 2025 Charlie Mordant
+  authors:
+    - Charlie Mordant
+  license: Apache-2.0
+  inceptionYear: 2025
+  java:
+    groupId: net.osgiliath.ai
+    version: 21
+  links:
+    homepage: https://github.com/OsgiliathEnterprise/agent-sdk
+  snapshot:
+    pattern: .*-SNAPSHOT
+
+platform:
+  replacements:
+    aarch_64: aarch64
+
+release:
+  github:
+    enabled: false
+    skipRelease: true
+    skipTag: true
+    overwrite: false
+
+signing:
+  active: ALWAYS
+  armored: true
+  verify: false
+
+deploy:
+  maven:
+    mavenCentral:
+      sonatype:
+        active: ALWAYS
+        url: https://central.sonatype.com/api/v1/publisher
+        stagingRepositories:
+          - build/staging-deploy
+        applyMavenCentralRules: true
+        verifyPom: true
