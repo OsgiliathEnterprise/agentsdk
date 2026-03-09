@@ -10,6 +10,7 @@ on:
 env:
   BRIDGE_VERSION: "1.0.13"
   SPRING_PROFILES_ACTIVE: github
+  MODEL_TOKEN: ${{ secrets.MODEL_TOKEN }}
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
