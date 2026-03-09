@@ -92,7 +92,7 @@ dependencies {
     "implementation"(platform("dev.langchain4j:langchain4j-bom:1.11.0"))
 
     // ACP LangGraph LangChain Bridge (published to local Maven)
-    implementation("net.osgiliath.ai:acp-langraph-langchain-bridge:1.0-SNAPSHOT")
+    implementation("net.osgiliath.ai:acp-langraph-langchain-bridge:1.0.13")
 
     // Official ACP Kotlin SDK from JetBrains
     // Provides built-in protocol handling, STDIO transport, and session management
