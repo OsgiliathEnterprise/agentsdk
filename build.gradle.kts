@@ -92,7 +92,9 @@ dependencies {
     "implementation"(platform("dev.langchain4j:langchain4j-bom:1.11.0"))
 
     // ACP LangGraph LangChain Bridge (published to local Maven)
-    implementation("net.osgiliath.ai:acp-langraph-langchain-bridge:1.0.13")
+    // Version can be overridden in CI with -PbridgeVersion=1.0.13 or BRIDGE_VERSION env var
+    val bridgeVersion = (findProperty("bridgeVersion") as String?) ?: System.getenv("BRIDGE_VERSION") ?: "1.0-SNAPSHOT"
+    implementation("net.osgiliath.ai:acp-langraph-langchain-bridge:$bridgeVersion")
 
     // Official ACP Kotlin SDK from JetBrains
     // Provides built-in protocol handling, STDIO transport, and session management
