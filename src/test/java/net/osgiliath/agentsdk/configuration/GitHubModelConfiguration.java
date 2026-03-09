@@ -56,20 +56,5 @@ public class GitHubModelConfiguration {
         .strictTools(true)
         .build();
     }
- @Bean(TOOL_PROVIDER_FULL)
-    public McpToolProvider toolProviderFull() {
-        return McpToolProvider.builder()
-        .mcpClients(List.of())
-        .build();
-    }
-
-
-    @Bean(TOOL_PROVIDER_NONE)
-    @Primary
-    public McpToolProvider toolProviderNo() {
-        return McpToolProvider.builder()
-        .mcpClients(List.of())
-        .build();
-    }
 
 }

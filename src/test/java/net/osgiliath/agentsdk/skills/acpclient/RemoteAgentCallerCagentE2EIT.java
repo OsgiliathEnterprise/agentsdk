@@ -1,5 +1,6 @@
 package net.osgiliath.agentsdk.skills.acpclient;
 
+import dev.langchain4j.mcp.McpToolProvider;
 import net.osgiliath.acplanggraphlangchainbridge.acp.AcpAgentSupportBridge;
 import net.osgiliath.agentsdk.AgentSdkApplication;
 
@@ -18,6 +19,8 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
+import static net.osgiliath.agentsdk.configuration.LangChain4jConfig.TOOL_PROVIDER_FULL;
+import static net.osgiliath.agentsdk.configuration.LangChain4jConfig.TOOL_PROVIDER_NONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -32,6 +35,10 @@ class RemoteAgentCallerCagentE2EIT {
 
     @MockitoBean
     private CommandLineRunner commandLineRunner;
+    @MockitoBean(TOOL_PROVIDER_FULL)
+    private McpToolProvider toolProviderFull;
+    @MockitoBean(TOOL_PROVIDER_NONE)
+    private McpToolProvider toolProviderNo;
 
     @Autowired
     private RemoteAgentCaller remoteAgentCaller;

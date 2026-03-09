@@ -6,6 +6,7 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import net.osgiliath.acplanggraphlangchainbridge.acp.AcpAgentSupportBridge;
+import net.osgiliath.agentsdk.skills.acpclient.OutAcpAdapter;
 import net.osgiliath.agentsdk.skills.acpclient.RemoteAgentCaller;
 
 import java.time.Instant;
@@ -29,7 +30,7 @@ public class RemoteAgentCallerSteps {
 
     private FakeRemoteClientGateway remoteGateway;
     private RemoteAgentCaller remoteAgentCaller;
-    private AcpAgentSupportBridge.AcpSessionBridge sessionBridge;
+    private OutAcpAdapter.AcpSessionBridge sessionBridge;
 
     private final List<String> streamedTokens = new ArrayList<>();
     private final Map<String, String> mergedGraphState = new LinkedHashMap<>();
