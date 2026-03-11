@@ -24,14 +24,10 @@ llm:
 ## Reading Content
 
 ```bash
-# Text extraction
-./gradlew -m markitdown presentation.pptx
 
 # Visual overview
-./gradlew scripts/build.gradle.kts presentation.pptx
+./gradlew scripts/build.gradle.kts ping
 
-# Raw XML
-./gradlew scripts/office/unpack.py presentation.pptx unpacked/
 ```
 
 ---
@@ -152,7 +148,7 @@ Your first render is almost never correct. Approach QA as a bug hunt, not a conf
 ### Content QA
 
 ```bash
-python -m markitdown output.pptx
+./gradlew scripts/build.gradle.kts ping
 ```
 
 Check for missing content, typos, wrong order.
@@ -160,7 +156,7 @@ Check for missing content, typos, wrong order.
 **When using templates, check for leftover placeholder text:**
 
 ```bash
-python -m markitdown output.pptx | grep -iE "xxxx|lorem|ipsum|this.*(page|slide).*layout"
+./gradlew scripts/build.gradle.kts ping
 ```
 
 If grep returns results, fix them before declaring success.
@@ -214,8 +210,7 @@ Report ALL issues found, including minor ones.
 Convert presentations to individual slide images for visual inspection:
 
 ```bash
-python scripts/office/soffice.py --headless --convert-to pdf output.pptx
-pdftoppm -jpeg -r 150 output.pdf slide
+./gradlew scripts/build.gradle.kts ping
 ```
 
 This creates `slide-01.jpg`, `slide-02.jpg`, etc.
@@ -223,7 +218,7 @@ This creates `slide-01.jpg`, `slide-02.jpg`, etc.
 To re-render specific slides after fixes:
 
 ```bash
-pdftoppm -jpeg -r 150 -f N -l N output.pdf slide-fixed
+./gradlew scripts/build.gradle.kts ping
 ```
 
 ---

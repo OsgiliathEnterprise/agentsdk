@@ -1,4 +1,6 @@
-Scenario: SC1 - skill headers should be parsed name, description, dependency, mcp servers, llms
+Feature: Skills Parsing
+
+  Scenario: SC1 - skill headers should be parsed name, description, dependency, mcp servers, llms
   Given a skill file at "agent-sdk/src/test/resources/dataset/markdown/skills/sample-skill/SKILL.md"
   When the skill parser reads the front matter header
   Then the parsed headers should contain:
@@ -17,6 +19,7 @@ Scenario: SC2 - markdown links should be followed and parsed
     | uri                    |
     | examples/faq-answers.md |
     | agents/grader.md        |
+  And the uri reference [sample-skill](examples/faq-answers.md) should be resolved in the content
 
 Scenario: SC3 - assets uris should be stored
   Given a parsed skill from "agent-sdk/src/test/resources/dataset/markdown/skills/sample-skill/SKILL.md"
