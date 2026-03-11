@@ -1,4 +1,7 @@
-package net.osgiliath.agentsdk.utils.markdown;
+package net.osgiliath.agentsdk.skills.parser;
+
+import net.osgiliath.agentsdk.utils.markdown.AbstractMarkdownHeaders;
+import net.osgiliath.agentsdk.utils.markdown.MarkdownHeader;
 
 import java.util.List;
 
