@@ -59,9 +59,7 @@ public class SkillParserImpl implements SkillParser {
         List<SkillScriptCommand> scriptCommands = extractScriptCommands(normalized);
 
         SkillContentSections content = buildContent(markdownFile, skillRoot);
-        String aggregateDocument = buildAggregateDocument(headers, assets, templates, scriptCommands, content);
-
-        return new Skill(headers, assets, templates, scriptCommands, content, aggregateDocument);
+        return new Skill(headers, assets, templates, scriptCommands, content);
     }
 
     private Path validateSkillFile(Path skillFile) {
@@ -238,92 +236,6 @@ public class SkillParserImpl implements SkillParser {
         }
     }
 
-    private String buildAggregateDocument(
-        SkillsHeaders headers,
-        List<SkillAsset> assets,
-        List<SkillTemplate> templates,
-        List<SkillScriptCommand> scriptCommands,
-        SkillContentSections content
-    ) {
-        StringBuilder builder = new StringBuilder();
-        appendHeaders(builder, headers);
-        appendSections(builder, content.sections());
-        appendAssets(builder, assets);
-        appendTemplates(builder, templates);
-        appendScriptCommands(builder, scriptCommands);
-        return builder.toString().trim();
-    }
-
-    private void appendHeaders(StringBuilder builder, SkillsHeaders headers) {
-        builder.append("# Skill").append(System.lineSeparator());
-        builder.append("name: ").append(headers.name().value()).append(System.lineSeparator());
-        builder.append("description: ").append(headers.description().value()).append(System.lineSeparator());
-        appendOptionalList(builder, "dependencies", headers.dependencies().value());
-        appendOptionalList(builder, "mcp", headers.mcp().value());
-        appendOptionalList(builder, "llm", headers.llm().value());
-        builder.append(System.lineSeparator());
-    }
-
-    private void appendOptionalList(StringBuilder builder, String key, List<String> values) {
-        if (!values.isEmpty()) {
-            builder.append(key).append(": ").append(String.join(", ", values)).append(System.lineSeparator());
-        }
-    }
-
-    private void appendSections(StringBuilder builder, List<MarkdownSection> sections) {
-        for (MarkdownSection section : sections) {
-            appendSection(builder, section, 2);
-        }
-    }
-
-    private void appendSection(StringBuilder builder, MarkdownSection section, int level) {
-        String heading = "#".repeat(Math.max(1, level));
-        String title = section.getTitle() == null || section.getTitle().isBlank() ? "Section" : section.getTitle();
-        builder.append(heading).append(' ').append(title).append(System.lineSeparator());
-
-        String content = section.getContent() == null ? "" : section.getContent().trim();
-        if (!content.isBlank()) {
-            builder.append(content).append(System.lineSeparator());
-        }
-        builder.append(System.lineSeparator());
-
-        for (MarkdownSection subSection : section.getSubSections()) {
-            appendSection(builder, subSection, level + 1);
-        }
-    }
-
-    private void appendAssets(StringBuilder builder, List<SkillAsset> assets) {
-        if (assets.isEmpty()) {
-            return;
-        }
-        builder.append("## Assets").append(System.lineSeparator());
-        for (SkillAsset asset : assets) {
-            builder.append("- ").append(asset.uri()).append(System.lineSeparator());
-        }
-        builder.append(System.lineSeparator());
-    }
-
-    private void appendTemplates(StringBuilder builder, List<SkillTemplate> templates) {
-        if (templates.isEmpty()) {
-            return;
-        }
-        builder.append("## Templates").append(System.lineSeparator());
-        for (SkillTemplate template : templates) {
-            builder.append("- ").append(template.uri()).append(System.lineSeparator());
-        }
-        builder.append(System.lineSeparator());
-    }
-
-    private void appendScriptCommands(StringBuilder builder, List<SkillScriptCommand> scriptCommands) {
-        if (scriptCommands.isEmpty()) {
-            return;
-        }
-        builder.append("## Script Commands").append(System.lineSeparator());
-        for (SkillScriptCommand command : scriptCommands) {
-            builder.append("- ").append(command.commandLine()).append(System.lineSeparator());
-        }
-        builder.append(System.lineSeparator());
-    }
 
     private Node parseDocument(String source) {
         return commonMarkParser.parse(source == null ? "" : source);
