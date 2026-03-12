@@ -15,16 +15,16 @@ public class SkillRendererImpl implements SkillRenderer {
         StringBuilder builder = new StringBuilder();
         builder.append("{\n");
         builder.append("  headers: {\n");
-        builder.append("    name: \"").append(escape(skill.headers().name().value())).append("\",\n");
-        builder.append("    description: \"").append(escape(skill.headers().description().value())).append("\",\n");
-        builder.append("    dependencies: ").append(skill.headers().dependencies().value()).append(",\n");
-        builder.append("    mcp: ").append(skill.headers().mcp().value()).append(",\n");
-        builder.append("    llm: ").append(skill.headers().llm().value()).append("\n");
+        builder.append("    name: \"").append(escape(skill.getName())).append("\",\n");
+        builder.append("    description: \"").append(escape(skill.getDescription())).append("\",\n");
+        builder.append("    dependencies: ").append(skill.getDependencies()).append(",\n");
+        builder.append("    mcp: ").append(skill.getMcps()).append(",\n");
+        builder.append("    llm: ").append(skill.getLlms()).append("\n");
         builder.append("  },\n");
-        builder.append("  assets: ").append(skill.assets().stream().map(SkillAsset::uri).toList()).append(",\n");
-        builder.append("  templates: ").append(skill.templates().stream().map(SkillTemplate::uri).toList()).append(",\n");
-        builder.append("  scriptCommands: ").append(skill.scriptCommands().stream().map(SkillScriptCommand::commandLine).toList()).append(",\n");
-        builder.append("  contentSections: ").append(skill.content().sections().size()).append("\n");
+        builder.append("  assets: ").append(skill.getAssets().stream().map(SkillAsset::uri).toList()).append(",\n");
+        builder.append("  templates: ").append(skill.getTemplates().stream().map(SkillTemplate::uri).toList()).append(",\n");
+        builder.append("  scriptCommands: ").append(skill.getCommands().stream().map(SkillScriptCommand::commandLine).toList()).append(",\n");
+        builder.append("  contentSections: ").append(skill.getLevel1Content().size()).append("\n");
         builder.append("}\n");
         return builder.toString();
     }
@@ -34,21 +34,21 @@ public class SkillRendererImpl implements SkillRenderer {
         Objects.requireNonNull(skill, "skill must not be null");
 
         StringBuilder builder = new StringBuilder();
-        appendHeaders(builder, skill.headers());
-        appendSections(builder, skill.content().sections());
-        appendAssets(builder, skill.assets());
-        appendTemplates(builder, skill.templates());
-        appendScriptCommands(builder, skill.scriptCommands());
+        appendHeaders(builder, skill);
+        appendSections(builder, skill.getLevel1Content());
+        appendAssets(builder, skill.getAssets());
+        appendTemplates(builder, skill.getTemplates());
+        appendScriptCommands(builder, skill.getCommands());
         return builder.toString().trim();
     }
 
-    private void appendHeaders(StringBuilder builder, SkillsHeaders headers) {
+    private void appendHeaders(StringBuilder builder, Skill skill) {
         builder.append("# Skill").append(System.lineSeparator());
-        builder.append("name: ").append(headers.name().value()).append(System.lineSeparator());
-        builder.append("description: ").append(headers.description().value()).append(System.lineSeparator());
-        appendOptionalList(builder, "dependencies", headers.dependencies().value());
-        appendOptionalList(builder, "mcp", headers.mcp().value());
-        appendOptionalList(builder, "llm", headers.llm().value());
+        builder.append("name: ").append(skill.getName()).append(System.lineSeparator());
+        builder.append("description: ").append(skill.getDescription()).append(System.lineSeparator());
+        appendOptionalList(builder, "dependencies", skill.getDependencies());
+        appendOptionalList(builder, "mcp", skill.getMcps());
+        appendOptionalList(builder, "llm", skill.getLlms());
         builder.append(System.lineSeparator());
     }
 
@@ -117,4 +117,3 @@ public class SkillRendererImpl implements SkillRenderer {
         return input.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }
-

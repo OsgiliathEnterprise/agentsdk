@@ -38,7 +38,7 @@ class SkillParserTest {
     void shouldParseSkillName() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        assertThat(skill.headers().name().value())
+        assertThat(skill.getName())
             .isEqualTo("implements features file");
     }
 
@@ -46,7 +46,7 @@ class SkillParserTest {
     void shouldParseSkillDescription() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        assertThat(skill.headers().description().value())
+        assertThat(skill.getDescription())
             .isEqualTo("You're a Gherkin scenario writer. You will be given a feature file and a user story and you will have to write the Gherkin scenarios to define acceptance criteria.");
     }
 
@@ -54,7 +54,7 @@ class SkillParserTest {
     void shouldParseDependencies() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        assertThat(skill.headers().dependencies().value())
+        assertThat(skill.getDependencies())
             .containsExactly("python>=3.8", "pandas>=1.5.0", "matplotlib");
     }
 
@@ -62,7 +62,7 @@ class SkillParserTest {
     void shouldParseMcpServers() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        assertThat(skill.headers().mcp().value())
+        assertThat(skill.getMcps())
             .containsExactly("server-name-1", "server-name-2");
     }
 
@@ -70,7 +70,7 @@ class SkillParserTest {
     void shouldParseLlmModels() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        assertThat(skill.headers().llm().value())
+        assertThat(skill.getLlms())
             .containsExactly("claude-3-5-sonnet-20241022");
     }
 
@@ -88,7 +88,7 @@ class SkillParserTest {
     void shouldRegisterNonMarkdownLinksAsAssets() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        assertThat(skill.assets()).map(SkillAsset::uri)
+        assertThat(skill.getAssets()).map(SkillAsset::uri)
             .containsExactly("assets/eval_review.html");
     }
 
@@ -96,7 +96,7 @@ class SkillParserTest {
     void shouldNotIncludeMarkdownLinksInAssets() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        assertThat(skill.assets()).map(SkillAsset::uri)
+        assertThat(skill.getAssets()).map(SkillAsset::uri)
             .noneMatch(uri -> uri.endsWith(".md"));
     }
 
@@ -106,7 +106,7 @@ class SkillParserTest {
     void shouldRegisterTemplateUris() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        assertThat(skill.templates()).map(SkillTemplate::uri)
+        assertThat(skill.getTemplates()).map(SkillTemplate::uri)
             .containsExactly("templates/generator_template.js");
     }
 
@@ -114,7 +114,7 @@ class SkillParserTest {
     void shouldUseRelativeUriForTemplates() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        assertThat(skill.templates()).map(SkillTemplate::uri)
+        assertThat(skill.getTemplates()).map(SkillTemplate::uri)
             .allMatch(uri -> !Path.of(uri).isAbsolute());
     }
 
@@ -124,14 +124,14 @@ class SkillParserTest {
     void shouldExtractScriptCommandsFromFencedCodeBlocks() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        assertThat(skill.scriptCommands()).isNotEmpty();
+        assertThat(skill.getCommands()).isNotEmpty();
     }
 
     @Test
     void shouldExtractGradlewCommand() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        assertThat(skill.scriptCommands())
+        assertThat(skill.getCommands())
             .contains(new SkillScriptCommand("./gradlew", "./gradlew scripts/build.gradle.kts ping"));
     }
 
@@ -141,8 +141,8 @@ class SkillParserTest {
 
         // The skill has several fenced code blocks, each containing the same gradlew line;
         // the parser deduplicates by sectionKey so we get at least one command.
-        assertThat(skill.scriptCommands()).hasSizeGreaterThanOrEqualTo(1);
-        assertThat(skill.scriptCommands())
+        assertThat(skill.getCommands()).hasSizeGreaterThanOrEqualTo(1);
+        assertThat(skill.getCommands())
             .allMatch(cmd -> !cmd.executable().isBlank());
     }
 
@@ -150,7 +150,7 @@ class SkillParserTest {
     void shouldNotHaveBlankExecutableOrCommandLine() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        assertThat(skill.scriptCommands())
+        assertThat(skill.getCommands())
             .allMatch(cmd -> !cmd.executable().isBlank() && !cmd.commandLine().isBlank());
     }
 
@@ -160,7 +160,7 @@ class SkillParserTest {
     void shouldParseTopLevelContentSections() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        List<String> titles = skill.content().sections().stream()
+        List<String> titles = skill.getLevel1Content().stream()
             .map(MarkdownSection::getTitle)
             .toList();
 
@@ -171,7 +171,7 @@ class SkillParserTest {
     void shouldIncludeLinkedMarkdownContentSections() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        List<String> titles = skill.content().sections().stream()
+        List<String> titles = skill.getLevel1Content().stream()
             .map(MarkdownSection::getTitle)
             .toList();
 
@@ -182,7 +182,7 @@ class SkillParserTest {
     void shouldIncludeGraderAgentSection() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        List<String> titles = skill.content().sections().stream()
+        List<String> titles = skill.getLevel1Content().stream()
             .map(MarkdownSection::getTitle)
             .toList();
 
@@ -193,7 +193,7 @@ class SkillParserTest {
     void shouldIncludeReferenceDocumentSections() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        List<String> titles = skill.content().sections().stream()
+        List<String> titles = skill.getLevel1Content().stream()
             .map(MarkdownSection::getTitle)
             .toList();
 
@@ -204,7 +204,7 @@ class SkillParserTest {
     void shouldNotDuplicateSectionsFromRepeatedLinks() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        long instructionSectionCount = skill.content().sections().stream()
+        long instructionSectionCount = skill.getLevel1Content().stream()
             .filter(s -> "Instructions".equals(s.getTitle()))
             .count();
 
@@ -215,7 +215,7 @@ class SkillParserTest {
     void shouldExposeSubSectionsUnderTopLevelSection() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        MarkdownSection pptxSkill = skill.content().sections().stream()
+        MarkdownSection pptxSkill = skill.getLevel1Content().stream()
             .filter(s -> "PPTX Skill".equals(s.getTitle()))
             .findFirst()
             .orElseThrow();
@@ -227,7 +227,7 @@ class SkillParserTest {
     void shouldResolveSubSectionByTitle() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        MarkdownSection pptxSkill = skill.content().sections().stream()
+        MarkdownSection pptxSkill = skill.getLevel1Content().stream()
             .filter(s -> "PPTX Skill".equals(s.getTitle()))
             .findFirst()
             .orElseThrow();
@@ -239,7 +239,7 @@ class SkillParserTest {
     void shouldHaveContentInSubSections() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        MarkdownSection instructions = skill.content().sections().stream()
+        MarkdownSection instructions = skill.getLevel1Content().stream()
             .filter(s -> "Instructions".equals(s.getTitle()))
             .findFirst()
             .orElseThrow();
@@ -263,5 +263,4 @@ class SkillParserTest {
             .isInstanceOf(NullPointerException.class);
     }
 }
-
 
