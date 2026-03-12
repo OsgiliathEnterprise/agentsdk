@@ -12,4 +12,3 @@ public record SkillScriptCommand(String executable, String commandLine) {
         Objects.requireNonNull(commandLine, "commandLine must not be null");
     }
 }
-

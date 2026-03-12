@@ -13,4 +13,3 @@ public record SkillHeader(String key, Object value) implements MarkdownHeader {
         Objects.requireNonNull(key, "key must not be null");
     }
 }
-

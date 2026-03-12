@@ -13,28 +13,38 @@ import java.util.stream.Stream;
 
 /**
  * Strongly typed front-matter headers for a skill markdown document.
- * {@code name} and {@code description} are required; all other headers default to an empty list when absent.
+ * name and description are required; optional headers default to empty value objects when absent.
  */
 public record SkillsHeaders(
-    String name,
-    String description,
-    List<String> dependencies,
-    List<String> mcp,
-    List<String> llm
+    SkillNameHeader name,
+    SkillDescriptionHeader description,
+    SkillDependenciesHeader dependencies,
+    SkillMcpHeader mcp,
+    SkillLlmHeader llm
 ) implements MarkdownHeaders {
-
-    private static final String NAME = "name";
-    private static final String DESCRIPTION = "description";
-    private static final String DEPENDENCIES = "dependencies";
-    private static final String MCP = "mcp";
-    private static final String LLM = "llm";
 
     public SkillsHeaders {
         Objects.requireNonNull(name, "name must not be null");
         Objects.requireNonNull(description, "description must not be null");
-        dependencies = List.copyOf(Objects.requireNonNull(dependencies, DEPENDENCIES + " must not be null"));
-        mcp          = List.copyOf(Objects.requireNonNull(mcp,          MCP          + " must not be null"));
-        llm          = List.copyOf(Objects.requireNonNull(llm,          LLM          + " must not be null"));
+        Objects.requireNonNull(dependencies, "dependencies must not be null");
+        Objects.requireNonNull(mcp, "mcp must not be null");
+        Objects.requireNonNull(llm, "llm must not be null");
+    }
+
+    public SkillsHeaders(
+        String name,
+        String description,
+        List<String> dependencies,
+        List<String> mcp,
+        List<String> llm
+    ) {
+        this(
+            new SkillNameHeader(name),
+            new SkillDescriptionHeader(description),
+            new SkillDependenciesHeader(dependencies),
+            new SkillMcpHeader(mcp),
+            new SkillLlmHeader(llm)
+        );
     }
 
     public static SkillsHeaders from(List<MarkdownHeader> headers) {
@@ -42,37 +52,44 @@ public record SkillsHeaders(
         Map<String, Object> values = new LinkedHashMap<>();
         headers.forEach(h -> values.put(h.key(), h.value()));
         return new SkillsHeaders(
-            requiredString(values, NAME),
-            requiredString(values, DESCRIPTION),
-            toStringList(values.get(DEPENDENCIES)),
-            toStringList(values.get(MCP)),
-            toStringList(values.get(LLM))
+            new SkillNameHeader(requiredString(values, SkillNameHeader.KEY)),
+            new SkillDescriptionHeader(requiredString(values, SkillDescriptionHeader.KEY)),
+            new SkillDependenciesHeader(toStringList(values.get(SkillDependenciesHeader.KEY))),
+            new SkillMcpHeader(toStringList(values.get(SkillMcpHeader.KEY))),
+            new SkillLlmHeader(toStringList(values.get(SkillLlmHeader.KEY)))
         );
     }
 
-    // ---- MarkdownHeaders compat ----
-
     @Override
     public List<String> headerKeys() {
-        Stream<String> required = Stream.of(NAME, DESCRIPTION);
-        Stream<String> optional = Stream.of(DEPENDENCIES, MCP, LLM)
-            .filter(key -> !((List<?>) header(key).orElse(List.of())).isEmpty());
+        Stream<String> required = Stream.of(SkillNameHeader.KEY, SkillDescriptionHeader.KEY);
+        Stream<String> optional = Stream.of(
+                Map.entry(SkillDependenciesHeader.KEY, dependencies.value()),
+                Map.entry(SkillMcpHeader.KEY, mcp.value()),
+                Map.entry(SkillLlmHeader.KEY, llm.value())
+            )
+            .filter(entry -> !entry.getValue().isEmpty())
+            .map(Map.Entry::getKey);
         return Stream.concat(required, optional).toList();
     }
 
     @Override
     public Optional<Object> header(String headerKey) {
         return switch (headerKey) {
-            case NAME         -> Optional.of(name);
-            case DESCRIPTION  -> Optional.of(description);
-            case DEPENDENCIES -> dependencies.isEmpty() ? Optional.empty() : Optional.of(dependencies);
-            case MCP          -> mcp.isEmpty()          ? Optional.empty() : Optional.of(mcp);
-            case LLM          -> llm.isEmpty()          ? Optional.empty() : Optional.of(llm);
-            default           -> Optional.empty();
+            case SkillNameHeader.KEY -> Optional.of(name.value());
+            case SkillDescriptionHeader.KEY -> Optional.of(description.value());
+            case SkillDependenciesHeader.KEY -> dependencies.value().isEmpty()
+                ? Optional.empty()
+                : Optional.of(dependencies.value());
+            case SkillMcpHeader.KEY -> mcp.value().isEmpty()
+                ? Optional.empty()
+                : Optional.of(mcp.value());
+            case SkillLlmHeader.KEY -> llm.value().isEmpty()
+                ? Optional.empty()
+                : Optional.of(llm.value());
+            default -> Optional.empty();
         };
     }
-
-    // ---- helpers ----
 
     private static String requiredString(Map<String, Object> values, String key) {
         Object value = values.get(key);
@@ -87,13 +104,19 @@ public record SkillsHeaders(
     }
 
     private static List<String> toStringList(Object value) {
-        if (value == null) return List.of();
+        if (value == null) {
+            return List.of();
+        }
         if (value instanceof List<?> list) {
             return list.stream()
-                .map(String::valueOf).map(String::trim)
-                .filter(s -> !s.isEmpty()).toList();
+                .map(String::valueOf)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
         }
         return Arrays.stream(String.valueOf(value).split(","))
-            .map(String::trim).filter(s -> !s.isEmpty()).toList();
+            .map(String::trim)
+            .filter(s -> !s.isEmpty())
+            .toList();
     }
 }

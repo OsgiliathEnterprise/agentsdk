@@ -14,4 +14,3 @@ public record SkillReference(String uri, MarkdownFile document) {
         Objects.requireNonNull(document, "document must not be null");
     }
 }
-

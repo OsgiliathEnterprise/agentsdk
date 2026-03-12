@@ -15,4 +15,3 @@ public record SkillContentSections(List<MarkdownSection> sections) {
         sections = List.copyOf(sections);
     }
 }
-

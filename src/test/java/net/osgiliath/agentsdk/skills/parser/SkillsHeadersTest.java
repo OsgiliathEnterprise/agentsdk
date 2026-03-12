@@ -22,11 +22,11 @@ class SkillsHeadersTest {
 
         SkillsHeaders parsed = SkillsHeaders.from(headers);
 
-        assertThat(parsed.name()).isEqualTo("implements features file");
-        assertThat(parsed.description()).isEqualTo("gherkin writer");
-        assertThat(parsed.dependencies()).containsExactly("python>=3.8", "pandas>=1.5.0", "matplotlib");
-        assertThat(parsed.mcp()).containsExactly("server-name-1", "server-name-2");
-        assertThat(parsed.llm()).containsExactly("claude-3-5-sonnet-20241022");
+        assertThat(parsed.name().value()).isEqualTo("implements features file");
+        assertThat(parsed.description().value()).isEqualTo("gherkin writer");
+        assertThat(parsed.dependencies().value()).containsExactly("python>=3.8", "pandas>=1.5.0", "matplotlib");
+        assertThat(parsed.mcp().value()).containsExactly("server-name-1", "server-name-2");
+        assertThat(parsed.llm().value()).containsExactly("claude-3-5-sonnet-20241022");
     }
 
     @Test
@@ -38,9 +38,9 @@ class SkillsHeadersTest {
 
         SkillsHeaders parsed = SkillsHeaders.from(headers);
 
-        assertThat(parsed.dependencies()).isEmpty();
-        assertThat(parsed.mcp()).isEmpty();
-        assertThat(parsed.llm()).isEmpty();
+        assertThat(parsed.dependencies().value()).isEmpty();
+        assertThat(parsed.mcp().value()).isEmpty();
+        assertThat(parsed.llm().value()).isEmpty();
     }
 
     @Test

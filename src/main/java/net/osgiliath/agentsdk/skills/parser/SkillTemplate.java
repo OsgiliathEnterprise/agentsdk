@@ -11,4 +11,3 @@ public record SkillTemplate(String uri) {
         Objects.requireNonNull(uri, "uri must not be null");
     }
 }
-

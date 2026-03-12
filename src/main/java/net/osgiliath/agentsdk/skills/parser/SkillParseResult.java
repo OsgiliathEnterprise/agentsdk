@@ -25,11 +25,10 @@ public record SkillParseResult(
         Objects.requireNonNull(templates, "templates must not be null");
         Objects.requireNonNull(content, "content must not be null");
 
-        links = List.copyOf(links);
-        assets = List.copyOf(assets);
+        links      = List.copyOf(links);
+        assets     = List.copyOf(assets);
         references = List.copyOf(references);
-        scripts = List.copyOf(scripts);
-        templates = List.copyOf(templates);
+        scripts    = List.copyOf(scripts);
+        templates  = List.copyOf(templates);
     }
 }
-
