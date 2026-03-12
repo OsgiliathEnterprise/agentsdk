@@ -219,7 +219,7 @@ public class SkillsParsingSteps {
     public void aFullyParsedSkillWithAllComponents() {
         safely(() -> {
             skillFilePath = resolveFromProject(
-                "agent-sdk/src/test/resources/dataset/markdown/skills/sample-skill/SKILL.md");
+                "./src/test/resources/dataset/markdown/skills/sample-skill/SKILL.md");
             skill = skillParser.getSkill(skillFilePath);
         });
     }
