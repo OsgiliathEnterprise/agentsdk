@@ -12,8 +12,7 @@ public record Skill(
     List<SkillAsset> assets,
     List<SkillTemplate> templates,
     List<SkillScriptCommand> scriptCommands,
-    SkillContentSections content,
-    String aggregateDocument
+    SkillContentSections content
 ) {
 
     public Skill {
@@ -22,11 +21,9 @@ public record Skill(
         Objects.requireNonNull(templates, "templates must not be null");
         Objects.requireNonNull(scriptCommands, "scriptCommands must not be null");
         Objects.requireNonNull(content, "content must not be null");
-        Objects.requireNonNull(aggregateDocument, "aggregateDocument must not be null");
 
         assets = List.copyOf(assets);
         templates = List.copyOf(templates);
         scriptCommands = List.copyOf(scriptCommands);
     }
 }
-

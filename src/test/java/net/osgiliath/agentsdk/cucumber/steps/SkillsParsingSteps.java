@@ -10,6 +10,7 @@ import net.osgiliath.agentsdk.skills.parser.SkillAsset;
 import net.osgiliath.agentsdk.skills.parser.SkillParser;
 import net.osgiliath.agentsdk.skills.parser.SkillScriptCommand;
 import net.osgiliath.agentsdk.skills.parser.SkillTemplate;
+import net.osgiliath.agentsdk.skills.parser.SkillRenderer;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.net.URISyntaxException;
@@ -28,9 +29,15 @@ public class SkillsParsingSteps {
     @Autowired
     private SkillParser skillParser;
 
+    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
+    @Autowired
+    private SkillRenderer skillRenderer;
+
     private Path skillFilePath;
     private Path skillDatasetRoot;
     private Skill skill;
+    private String renderedFlatDocument;
+    private String renderedStructuredDocument;
     private Throwable stepError;
 
     private static final String EXPECTED_NAME = "implements features file";
@@ -40,14 +47,14 @@ public class SkillsParsingSteps {
     private static final List<String> EXPECTED_LLM = List.of("claude-3-5-sonnet-20241022");
     private static final List<String> EXPECTED_ASSET_URIS = List.of("assets/eval_review.html");
     private static final List<String> EXPECTED_TEMPLATE_URIS = List.of("templates/generator_template.js");
-    private static final List<SkillScriptCommand> EXPECTED_SCRIPT_COMMANDS =
-        List.of(new SkillScriptCommand("./gradlew", "./gradlew scripts/build.gradle.kts ping"));
 
     @Before
     public void resetScenarioState() {
         skillFilePath = null;
         skillDatasetRoot = null;
         skill = null;
+        renderedFlatDocument = null;
+        renderedStructuredDocument = null;
         stepError = null;
     }
 
@@ -95,21 +102,20 @@ public class SkillsParsingSteps {
     public void linkedMarkdownFilesShouldBeLoadedAndParsed() {
         assertNoSetupError();
         assertThat(skill.content().sections()).isNotEmpty();
-        assertThat(skill.aggregateDocument()).contains("## Instructions");
-        assertThat(skill.aggregateDocument()).contains("## Grader Agent");
+        assertThat(flatDocument()).contains("## Instructions");
+        assertThat(flatDocument()).contains("## Grader Agent");
     }
 
     @Then("the following linked markdown files should be followed:")
     public void theFollowingLinkedMarkdownFilesShouldBeFollowed(DataTable dataTable) {
         assertNoSetupError();
-        String aggregate = skill.aggregateDocument();
-        firstColumnValues(dataTable, "uri").forEach(uri -> assertThat(aggregate).contains(uri));
+        firstColumnValues(dataTable, "uri").forEach(uri -> assertThat(flatDocument()).contains(uri));
     }
 
     @Then("the uri reference {string} should be resolved in the content")
     public void theUriReferenceShouldBeResolvedInTheContent(String uriReference) {
         assertNoSetupError();
-        assertThat(skill.aggregateDocument()).contains(uriReference);
+        assertThat(flatDocument()).contains(uriReference);
     }
 
     @Then("^the uri reference \\[sample-skill\\]\\(examples/faq-answers\\.md\\) should be resolved in the content$")
@@ -158,15 +164,15 @@ public class SkillsParsingSteps {
     @Then("reference markdown documents should be parsed")
     public void referenceMarkdownDocumentsShouldBeParsed() {
         assertNoSetupError();
-        assertThat(skill.aggregateDocument()).contains("MCP Server Evaluation Guide");
-        assertThat(skill.aggregateDocument()).contains("This document provides guidance on creating comprehensive evaluations for MCP servers.");
+        assertThat(flatDocument()).contains("MCP Server Evaluation Guide");
+        assertThat(flatDocument()).contains("This document provides guidance on creating comprehensive evaluations for MCP servers.");
     }
 
     @Then("{string} should be present in parsed references")
     public void shouldBePresentInParsedReferences(String referenceUri) {
         assertNoSetupError();
         assertThat(referenceUri).contains("reference/");
-        assertThat(skill.aggregateDocument()).contains("MCP Server Evaluation Guide");
+        assertThat(flatDocument()).contains("MCP Server Evaluation Guide");
     }
 
     @When("command blocks are extracted from skill instructions")
@@ -263,31 +269,39 @@ public class SkillsParsingSteps {
 
     @When("the aggregate document builder runs")
     public void theAggregateDocumentBuilderRuns() {
-        safely(() -> assertThat(skill.aggregateDocument()).isNotNull());
+        safely(() -> {
+            renderedFlatDocument = skillRenderer.renderFlat(skill);
+            renderedStructuredDocument = skillRenderer.renderStructured(skill);
+        });
     }
 
     @Then("a non-empty aggregate document should be created")
     public void aNonEmptyAggregateDocumentShouldBeCreated() {
         assertNoSetupError();
-        assertThat(skill.aggregateDocument()).isNotBlank();
+        assertThat(renderedFlatDocument).isNotBlank();
     }
 
     @Then("the aggregate document should include headers and composed content sections")
     public void theAggregateDocumentShouldIncludeHeadersAndComposedContentSections() {
         assertNoSetupError();
-        assertThat(skill.aggregateDocument()).contains(skill.headers().name().value());
-        assertThat(skill.aggregateDocument()).contains(skill.headers().description().value());
-        assertThat(skill.aggregateDocument()).contains("## PPTX Skill");
-        assertThat(skill.aggregateDocument()).contains("## Instructions");
-        assertThat(skill.aggregateDocument()).contains("## MCP Server Evaluation Guide");
+        assertThat(renderedFlatDocument).contains(skill.headers().name().value());
+        assertThat(renderedFlatDocument).contains(skill.headers().description().value());
+        assertThat(renderedFlatDocument).contains("## PPTX Skill");
+        assertThat(renderedFlatDocument).contains("## Instructions");
+        assertThat(renderedFlatDocument).contains("## MCP Server Evaluation Guide");
+        assertThat(renderedStructuredDocument).contains("headers:");
+        assertThat(renderedStructuredDocument).contains("contentSections:");
     }
 
     @Then("duplicate linked content should not be duplicated in the aggregate output")
     public void duplicateLinkedContentShouldNotBeDuplicatedInTheAggregateOutput() {
         assertNoSetupError();
-        String aggregate = skill.aggregateDocument();
         String anchorPhrase = "You are an assistant for answering questions";
-        assertThat(countOccurrences(aggregate, anchorPhrase)).isEqualTo(1);
+        assertThat(countOccurrences(renderedFlatDocument, anchorPhrase)).isEqualTo(1);
+    }
+
+    private String flatDocument() {
+        return skillRenderer.renderFlat(skill);
     }
 
     private List<String> firstColumnValues(DataTable table, String headerName) {
