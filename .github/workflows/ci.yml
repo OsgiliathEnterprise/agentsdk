@@ -110,7 +110,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Download build folder
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: build-folder
           path: .
@@ -248,7 +248,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Download build folder from test job
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: build-folder-tested
           path: .
@@ -346,7 +346,7 @@ jobs:
 
       - name: Create PR summary comment
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
