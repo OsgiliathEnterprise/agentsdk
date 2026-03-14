@@ -154,8 +154,10 @@ tasks.withType<org.springframework.boot.gradle.tasks.run.BootRun> {
     standardInput = System.`in`
 }
 
-tasks.named("bootJar") {
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
+    // This module is published as a library; avoid resolving runtimeClasspath via bootJar in CI.
     enabled = false
+    classpath = files()
 }
 
 tasks.named<Jar>("jar") {
