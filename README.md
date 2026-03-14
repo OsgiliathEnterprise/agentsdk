@@ -1,5 +1,5 @@
 # Agent SDK
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=OsgiliathEnterprise_agent-sdk&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=OsgiliathEnterprise_agent-sdk)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=OsgiliathEnterprise_agentsdk&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=OsgiliathEnterprise_agentsdk)
 ![Maven Central Version](https://img.shields.io/maven-central/v/net.osgiliath.ai/agent-sdk)
 
 A Spring Boot library that helps you build ACP-aware LLM agents with **LangChain4j** and **LangGraph4j**. It provides reusable parsing, rendering, and ACP client utilities so applications can define agents/skills in Markdown and invoke remote STDIO agents.
