@@ -150,7 +150,7 @@ class SkillParserTest {
     void shouldNotHaveBlankExecutableOrCommandLine() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        assertThat(skill.getCommands())
+        assertThat(skill.getCommands()).isNotEmpty()
             .allMatch(cmd -> !cmd.executable().isBlank() && !cmd.commandLine().isBlank());
     }
 
