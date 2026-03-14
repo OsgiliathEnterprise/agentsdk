@@ -20,6 +20,16 @@ public record AgentHeaders(
     List<String> skills
 ) implements MarkdownHeaders {
 
+    public static final String NAME = "name";
+    public static final String DESCRIPTION = "description";
+    public static final String ARGUMENT_HINT = "argument-hint";
+    public static final String TOOLS = "tools";
+    public static final String USER_INVOKABLE = "user-invokable";
+    public static final String DISABLE_MODEL_INVOCATION = "disable-model-invocation";
+    public static final String SUBAGENTS = "subagents";
+    public static final String HANDOFFS = "handoffs";
+    public static final String SKILLS = "skills";
+
     public AgentHeaders {
         Objects.requireNonNull(name, "name must not be null");
         Objects.requireNonNull(description, "description must not be null");
@@ -48,30 +58,30 @@ public record AgentHeaders(
     @Override
     public List<String> headerKeys() {
         return List.of(
-            "name",
-            "description",
-            "argument-hint",
-            "tools",
-            "user-invokable",
-            "disable-model-invocation",
-            "subagents",
-            "handoffs",
-            "skills"
+                NAME,
+                DESCRIPTION,
+                ARGUMENT_HINT,
+                TOOLS,
+                USER_INVOKABLE,
+                DISABLE_MODEL_INVOCATION,
+                SUBAGENTS,
+                HANDOFFS,
+                SKILLS
         );
     }
 
     @Override
     public Optional<Object> header(String headerKey) {
         return switch (headerKey) {
-            case "name" -> Optional.of(name);
-            case "description" -> Optional.of(description);
-            case "argument-hint" -> Optional.of(argumentHint);
-            case "tools" -> Optional.of(tools);
-            case "user-invokable" -> Optional.of(userInvokable);
-            case "disable-model-invocation" -> Optional.of(disableModelInvocation);
-            case "subagents", "agents" -> Optional.of(subagents);
-            case "handoffs" -> Optional.of(handoffs);
-            case "skills" -> Optional.of(skills);
+            case NAME -> Optional.of(name);
+            case DESCRIPTION -> Optional.of(description);
+            case ARGUMENT_HINT -> Optional.of(argumentHint);
+            case TOOLS -> Optional.of(tools);
+            case USER_INVOKABLE -> Optional.of(userInvokable);
+            case DISABLE_MODEL_INVOCATION -> Optional.of(disableModelInvocation);
+            case SUBAGENTS, "agents" -> Optional.of(subagents);
+            case HANDOFFS -> Optional.of(handoffs);
+            case SKILLS -> Optional.of(skills);
             default -> Optional.empty();
         };
     }
@@ -79,15 +89,15 @@ public record AgentHeaders(
     public static AgentHeaders fromRawHeaders(Map<String, Object> rawHeaders) {
         Map<String, Object> values = new LinkedHashMap<>(rawHeaders);
         return new AgentHeaders(
-            requiredString(values, "name"),
-            requiredString(values, "description"),
-            asString(values.get("argument-hint")),
-            asStringList(values.get("tools")),
-            asBoolean(values.get("user-invokable")),
-            asBoolean(values.get("disable-model-invocation")),
+            requiredString(values, NAME),
+            requiredString(values, DESCRIPTION),
+            asString(values.get(ARGUMENT_HINT)),
+            asStringList(values.get(TOOLS)),
+            asBoolean(values.get(USER_INVOKABLE)),
+            asBoolean(values.get(DISABLE_MODEL_INVOCATION)),
             asStringList(values.get("agents")),
-            asHandoffs(values.get("handoffs")),
-            asStringList(values.get("skills"))
+            asHandoffs(values.get(HANDOFFS)),
+            asStringList(values.get(SKILLS))
         );
     }
 

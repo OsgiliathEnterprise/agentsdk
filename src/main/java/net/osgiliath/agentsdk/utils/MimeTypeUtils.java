@@ -56,16 +56,16 @@ public class MimeTypeUtils {
         if (MimeTypeUtils.isTextualMimeType(resourceLinkContent.mimeType())) {
             StringBuilder sb = new StringBuilder();
             String name = resourceLinkContent.name();
-            sb.append("---- File ----").append(" ---\n");
-            sb.append("--- Metadata ---").append("\n");
-            sb.append("Name: ").append(name).append(" ---\n");
-            sb.append("Uri: ").append(resourceLinkContent.uri()).append(" ---\n");
-            sb.append("MimeType: ").append(resourceLinkContent.mimeType()).append(" ---\n");
-            sb.append("--- Metadata End ---").append("\n");
-            sb.append("--- Content Start ---").append("\n");
-            sb.append(new String(data)).append("\n");
-            sb.append("--- Content End ---");
-            sb.append("---- End file ----").append(" ---\n");
+            sb.append("---- File ----").append(System.lineSeparator());
+            sb.append("--- Metadata ---").append(System.lineSeparator());
+            sb.append("Name: ").append(name).append(System.lineSeparator());
+            sb.append("Uri: ").append(resourceLinkContent.uri()).append(System.lineSeparator());
+            sb.append("MimeType: ").append(resourceLinkContent.mimeType()).append(System.lineSeparator());
+            sb.append("--- Metadata End ---").append(System.lineSeparator());
+            sb.append("--- Content Start ---").append(System.lineSeparator());
+            sb.append(new String(data)).append(System.lineSeparator());
+            sb.append("--- Content End ---").append(System.lineSeparator());
+            sb.append("---- End file ----").append(System.lineSeparator());
             return TextContent.from(sb.toString());
         } else if (MimeTypeUtils.isPdfMimeType(resourceLinkContent.mimeType())) {
             return PdfFileContent.from(resourceLinkContent.uri().toString());

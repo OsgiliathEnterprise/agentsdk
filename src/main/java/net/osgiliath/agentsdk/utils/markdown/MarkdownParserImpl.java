@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.Map;
 
@@ -132,6 +133,39 @@ public class MarkdownParserImpl implements MarkdownParser {
     public Document toDocument(MarkdownFile markdownFile, boolean includeHeaders, boolean includeSections, boolean includeSamples) {
         StringBuilder builder = new StringBuilder();
 
+        appendHeaders(markdownFile, includeHeaders, builder);
+
+        if (markdownFile != null) {
+            List<MarkdownSection> mainSections = appendMainSections(markdownFile, includeSections, builder);
+
+            appendSampleSections(includeSamples, mainSections, builder);
+        }
+
+        return Document.from(builder.toString().trim());
+    }
+
+    private void appendSampleSections(boolean includeSamples, List<MarkdownSection> mainSections, StringBuilder builder) {
+        if (includeSamples) {
+            List<MarkdownSection> sampleSections = extractSampleSections(mainSections);
+            for (MarkdownSection section : sampleSections) {
+                appendSection(builder, section);
+            }
+        }
+    }
+
+    private List<MarkdownSection> appendMainSections(MarkdownFile markdownFile, boolean includeSections, StringBuilder builder) {
+        List<MarkdownSection> mainSections = markdownFile.getSubSections();
+
+        if (includeSections) {
+            List<MarkdownSection> mardownMainSections = markdownFile.getSubSections().stream().filter(section -> !section.getTitle().startsWith("Sample")).toList();
+            for (MarkdownSection section : mardownMainSections) {
+                appendSection(builder, section);
+            }
+        }
+        return mainSections;
+    }
+
+    private void appendHeaders(MarkdownFile markdownFile, boolean includeHeaders, StringBuilder builder) {
         if (includeHeaders && markdownFile != null && markdownFile.getHeaders() != null) {
             for (String key : markdownFile.getHeaders().headerKeys()) {
                 Object value = markdownFile.getHeaders().header(key).orElse("");
@@ -140,25 +174,6 @@ public class MarkdownParserImpl implements MarkdownParser {
                 }
             }
         }
-
-        if (markdownFile != null) {
-            List<MarkdownSection> mainSections = markdownFile.getSubSections();
-
-            if (includeSections) {
-                for (MarkdownSection section : mainSections) {
-                    appendSection(builder, section);
-                }
-            }
-
-            if (includeSamples) {
-                List<MarkdownSection> sampleSections = extractSampleSections(mainSections);
-                for (MarkdownSection section : sampleSections) {
-                    appendSection(builder, section);
-                }
-            }
-        }
-
-        return Document.from(builder.toString().trim());
     }
 
     private List<MarkdownSection> consolidateLinkedFiles(Path rootPath) {
@@ -297,7 +312,7 @@ public class MarkdownParserImpl implements MarkdownParser {
             for (Map.Entry<String, List<String>> entry : frontMatter.entrySet()) {
                 List<String> values = entry.getValue();
                 Object value = (values == null || values.isEmpty()) ? "" : String.join("\n", values);
-                logger.trace("Header: {} = {}", entry.getKey(), value.toString().length() + " bytes");
+                logger.trace("Header: {} = {} bytes", entry.getKey(), value.toString().length());
                 parsedHeaders.add(new SimpleMarkdownHeader(entry.getKey(), value));
             }
             logger.debug("Successfully parsed {} headers from YAML front matter", parsedHeaders.size());

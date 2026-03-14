@@ -7,7 +7,7 @@ import java.util.Objects;
 
 public record SkillMcpHeader(List<String> value) implements MarkdownHeader {
 
-    public static final String KEY = "mcp";
+    public static final String MCP = "mcp";
 
     public SkillMcpHeader {
         Objects.requireNonNull(value, "value must not be null");
@@ -16,7 +16,7 @@ public record SkillMcpHeader(List<String> value) implements MarkdownHeader {
 
     @Override
     public String key() {
-        return KEY;
+        return MCP;
     }
 }
 

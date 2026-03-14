@@ -224,5 +224,9 @@ sonar {
             "sonar.java.test.binaries",
             "${layout.buildDirectory.get()}/classes/java/test"
         )
+        property(
+            "sonar.exclusions",
+            "src/test/resources/dataset/**"
+        )
     }
 }

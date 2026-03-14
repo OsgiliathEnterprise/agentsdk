@@ -1,6 +1,5 @@
 package net.osgiliath.agentsdk;
 
-import net.osgiliath.agentsdk.configuration.LangChain4jConfig;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 

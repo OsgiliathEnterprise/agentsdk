@@ -300,7 +300,7 @@ public class SkillParserImpl implements SkillParser {
                 .filter(line -> !line.startsWith("#"))
                 .map(this::toCommand)
                 .flatMap(Optional::stream)
-                .collect(Collectors.toList());
+                .toList();
         }
 
         private Optional<SkillScriptCommand> toCommand(String line) {

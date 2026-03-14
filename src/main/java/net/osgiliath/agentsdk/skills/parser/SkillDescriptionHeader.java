@@ -6,7 +6,7 @@ import java.util.Objects;
 
 public record SkillDescriptionHeader(String value) implements MarkdownHeader {
 
-    public static final String KEY = "description";
+    public static final String DESCRIPTION = "description";
 
     public SkillDescriptionHeader {
         Objects.requireNonNull(value, "value must not be null");
@@ -18,7 +18,7 @@ public record SkillDescriptionHeader(String value) implements MarkdownHeader {
 
     @Override
     public String key() {
-        return KEY;
+        return DESCRIPTION;
     }
 }
 

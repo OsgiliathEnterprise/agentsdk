@@ -52,21 +52,21 @@ public record SkillsHeaders(
         Map<String, Object> values = new LinkedHashMap<>();
         headers.forEach(h -> values.put(h.key(), h.value()));
         return new SkillsHeaders(
-            new SkillNameHeader(requiredString(values, SkillNameHeader.KEY)),
-            new SkillDescriptionHeader(requiredString(values, SkillDescriptionHeader.KEY)),
-            new SkillDependenciesHeader(toStringList(values.get(SkillDependenciesHeader.KEY))),
-            new SkillMcpHeader(toStringList(values.get(SkillMcpHeader.KEY))),
-            new SkillLlmHeader(toStringList(values.get(SkillLlmHeader.KEY)))
+            new SkillNameHeader(requiredString(values, SkillNameHeader.NAME)),
+            new SkillDescriptionHeader(requiredString(values, SkillDescriptionHeader.DESCRIPTION)),
+            new SkillDependenciesHeader(toStringList(values.get(SkillDependenciesHeader.DEPENDENCIES))),
+            new SkillMcpHeader(toStringList(values.get(SkillMcpHeader.MCP))),
+            new SkillLlmHeader(toStringList(values.get(SkillLlmHeader.LLM)))
         );
     }
 
     @Override
     public List<String> headerKeys() {
-        Stream<String> required = Stream.of(SkillNameHeader.KEY, SkillDescriptionHeader.KEY);
+        Stream<String> required = Stream.of(SkillNameHeader.NAME, SkillDescriptionHeader.DESCRIPTION);
         Stream<String> optional = Stream.of(
-                Map.entry(SkillDependenciesHeader.KEY, dependencies.value()),
-                Map.entry(SkillMcpHeader.KEY, mcp.value()),
-                Map.entry(SkillLlmHeader.KEY, llm.value())
+                Map.entry(SkillDependenciesHeader.DEPENDENCIES, dependencies.value()),
+                Map.entry(SkillMcpHeader.MCP, mcp.value()),
+                Map.entry(SkillLlmHeader.LLM, llm.value())
             )
             .filter(entry -> !entry.getValue().isEmpty())
             .map(Map.Entry::getKey);
@@ -76,15 +76,15 @@ public record SkillsHeaders(
     @Override
     public Optional<Object> header(String headerKey) {
         return switch (headerKey) {
-            case SkillNameHeader.KEY -> Optional.of(name.value());
-            case SkillDescriptionHeader.KEY -> Optional.of(description.value());
-            case SkillDependenciesHeader.KEY -> dependencies.value().isEmpty()
+            case SkillNameHeader.NAME -> Optional.of(name.value());
+            case SkillDescriptionHeader.DESCRIPTION -> Optional.of(description.value());
+            case SkillDependenciesHeader.DEPENDENCIES -> dependencies.value().isEmpty()
                 ? Optional.empty()
                 : Optional.of(dependencies.value());
-            case SkillMcpHeader.KEY -> mcp.value().isEmpty()
+            case SkillMcpHeader.MCP -> mcp.value().isEmpty()
                 ? Optional.empty()
                 : Optional.of(mcp.value());
-            case SkillLlmHeader.KEY -> llm.value().isEmpty()
+            case SkillLlmHeader.LLM -> llm.value().isEmpty()
                 ? Optional.empty()
                 : Optional.of(llm.value());
             default -> Optional.empty();

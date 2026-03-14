@@ -7,7 +7,7 @@ import java.util.Objects;
 
 public record SkillDependenciesHeader(List<String> value) implements MarkdownHeader {
 
-    public static final String KEY = "dependencies";
+    public static final String DEPENDENCIES = "dependencies";
 
     public SkillDependenciesHeader {
         Objects.requireNonNull(value, "value must not be null");
@@ -16,7 +16,7 @@ public record SkillDependenciesHeader(List<String> value) implements MarkdownHea
 
     @Override
     public String key() {
-        return KEY;
+        return DEPENDENCIES;
     }
 }
 

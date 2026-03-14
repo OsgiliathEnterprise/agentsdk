@@ -2,7 +2,6 @@ package net.osgiliath.agentsdk.langgraph.edge;
 
 import dev.langchain4j.data.message.AiMessage;
 import net.osgiliath.acplanggraphlangchainbridge.langgraph.state.ChatState;
-
 import org.bsc.langgraph4j.action.EdgeAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +10,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class LLMToToolEdge implements EdgeAction<ChatState> {
     private static final Logger log = LoggerFactory.getLogger(LLMToToolEdge.class);
+
     /**
      * Conditional edge that inspects the last message after the agent node.
      * <ul>
@@ -23,16 +23,16 @@ public class LLMToToolEdge implements EdgeAction<ChatState> {
     public String apply(ChatState state) {
         var lastMessage = state.lastMessage()
                 .orElseThrow(() -> new IllegalStateException("last message not found!"));
+        String sessionId = state.sessionId();
 
-        log.debug("routeMessage: {}", lastMessage);
+        log.debug("routeMessage for session {}: {}", sessionId, lastMessage);
 
-        if (lastMessage instanceof AiMessage message) {
-            if (message.hasToolExecutionRequests()) {
-                return "next";
-            }
+        if (lastMessage instanceof AiMessage message && message.hasToolExecutionRequests()) {
+            log.debug("Routing session {} back to next tool-processing step", sessionId);
+            return "next";
         }
 
-        // No tool calls → we can finish (respond to the user)
+        log.debug("Routing session {} to exit", sessionId);
         return "exit";
     }
 }

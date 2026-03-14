@@ -2,7 +2,6 @@ package net.osgiliath.agentsdk.configuration;
 
 
 import com.openai.models.ChatModel;
-import dev.langchain4j.mcp.McpToolProvider;
 import dev.langchain4j.model.chat.Capability;
 import dev.langchain4j.model.openaiofficial.OpenAiOfficialChatModel;
 import dev.langchain4j.model.openaiofficial.OpenAiOfficialStreamingChatModel;
@@ -12,13 +11,9 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import static dev.langchain4j.model.chat.Capability.RESPONSE_FORMAT_JSON_SCHEMA;
-import static net.osgiliath.agentsdk.configuration.LangChain4jConfig.TOOL_PROVIDER_FULL;
-import static net.osgiliath.agentsdk.configuration.LangChain4jConfig.TOOL_PROVIDER_NONE;
-import static org.mockito.Mockito.mock;
 
 /**
  * Configuration for GitHub Models when the 'github' profile is active.

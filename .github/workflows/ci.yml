@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  BRIDGE_VERSION: "1.0.15"
+  BRIDGE_VERSION: "1.0.16"
   SPRING_PROFILES_ACTIVE: github
   MODEL_TOKEN: ${{ secrets.MODEL_TOKEN }}
 
@@ -41,6 +41,11 @@ jobs:
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
+
+      - name: Verify dependency verification config
+        run: |
+          test -f gradle/verification-metadata.xml
+          grep -E '^org\.gradle\.dependency\.verification=' gradle.properties
 
   build:
     runs-on: ubuntu-latest

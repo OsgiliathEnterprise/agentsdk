@@ -2,7 +2,6 @@ package net.osgiliath.agentsdk.cucumber;
 
 import com.agentclientprotocol.model.ContentBlock;
 import dev.langchain4j.mcp.McpToolProvider;
-import dev.langchain4j.mcp.client.McpClient;
 import io.cucumber.spring.CucumberContextConfiguration;
 import net.osgiliath.acplanggraphlangchainbridge.acp.AcpAgentSupportBridge;
 import net.osgiliath.agentsdk.AgentSdkApplication;
@@ -10,7 +9,6 @@ import net.osgiliath.agentsdk.AgentSdkApplication;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
