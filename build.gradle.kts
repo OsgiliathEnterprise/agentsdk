@@ -1,17 +1,21 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    id("org.springframework.boot") version "3.4.2"
-    id("io.spring.dependency-management") version "1.1.6"
-    id("org.jetbrains.gradle.plugin.idea-ext") version "1.1.9"
+    alias(libs.plugins.springBoot)
+    alias(libs.plugins.springDependencyManagement)
+    alias(libs.plugins.ideaExt)
     id("idea")
-    id("org.jetbrains.kotlin.plugin.serialization") version "2.1.10"
+    alias(libs.plugins.kotlinSerialization)
     `java-library`
-    id("org.jreleaser") version "1.15.0"
-    kotlin("jvm") version "2.1.10"
+    alias(libs.plugins.jreleaser)
+    alias(libs.plugins.sonarqube)
+    alias(libs.plugins.dependencycheck)
+    alias(libs.plugins.kotlinJvm)
     wrapper
     id("maven-publish")
+    jacoco
 }
+
 fun Project.secret(name: String): String? =
     (findProperty(name) as String?) ?: System.getenv(name)
 
@@ -23,28 +27,44 @@ tasks.wrapper {
     distributionType = Wrapper.DistributionType.BIN
 }
 
-tasks.withType<Test>().configureEach {
-        useJUnitPlatform()
-
-        // Add detailed test logging for debugging
-        testLogging {
-            events("passed", "skipped", "failed", "standardOut", "standardError")
-            exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
-            showExceptions = true
-            showCauses = true
-            showStackTraces = true
-        }
-
-        // Enable debug output
-        systemProperty("java.util.logging.config.file", "")
-    }
-// Override Spring Boot's JUnit version to match Cucumber 7.34.2 requirements
-ext {
-    set("junit-jupiter.version", "5.14.2")
-    set("commonmark.version", "0.27.1")
+configure<JacocoPluginExtension> {
+    toolVersion = libs.versions.jacoco.get()
 }
 
-// Explicitly configure Java toolchain for this module to ensure consistency
+tasks.withType<Test>().configureEach {
+    // Attach JaCoCo agent to every test task
+    configure<JacocoTaskExtension> {
+        isEnabled = true
+    }
+    finalizedBy(tasks.named("jacocoTestReport"))
+
+    useJUnitPlatform()
+
+    testLogging {
+        events("passed", "skipped", "failed", "standardOut", "standardError")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showExceptions = true
+        showCauses = true
+        showStackTraces = true
+    }
+
+    systemProperty("java.util.logging.config.file", "")
+}
+
+tasks.named<JacocoReport>("jacocoTestReport") {
+    dependsOn(tasks.withType<Test>())
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+}
+
+ext {
+    set("junit-jupiter.version", libs.versions.junitJupiter.get())
+    set("commonmark.version", libs.versions.commonmark.get())
+}
+
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(21))
@@ -53,100 +73,77 @@ java {
     withJavadocJar()
 }
 
-// Configure Kotlin to use the same Java toolchain
 kotlin {
     jvmToolchain(21)
 }
 
-// Configure Kotlin compiler options
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_21)
-        // Ensure compatibility with Java-only dependencies
         freeCompilerArgs.add("-Xjvm-default=all")
     }
 }
 
 configurations.all {
     resolutionStrategy {
-        force("org.jetbrains.kotlin:kotlin-stdlib:2.1.10")
-        force("org.jetbrains.kotlin:kotlin-stdlib-common:2.1.10")
-        force("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
-        force("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.9.0")
-        // Force JUnit Platform 5.14.2 to match Cucumber 7.34.2 requirements
-        force("org.junit.platform:junit-platform-engine:1.14.2")
-        force("org.junit.platform:junit-platform-commons:1.14.2")
-        force("org.junit.platform:junit-platform-suite:1.14.2")
-        force("org.junit.platform:junit-platform-suite-api:1.14.2")
-        force("org.junit.platform:junit-platform-suite-engine:1.14.2")
-        force("org.junit.platform:junit-platform-launcher:1.14.2")
-        force("org.junit.jupiter:junit-jupiter:5.14.2")
-        force("org.junit.jupiter:junit-jupiter-api:5.14.2")
-        force("org.junit.jupiter:junit-jupiter-engine:5.14.2")
+        force(libs.kotlinStdlib)
+        force(libs.kotlinStdlibCommon)
+        force(libs.kotlinxCoroutinesCore)
+        force(libs.kotlinxCoroutinesCoreJvm)
+        force(libs.junitPlatformSuite)
+        force(libs.junitPlatformLauncher)
+        force(libs.junitJupiter)
     }
 }
 
 dependencies {
-   "implementation"(platform("io.cucumber:cucumber-bom:7.34.2"))
-    "implementation"(platform("org.bsc.langgraph4j:langgraph4j-bom:1.8.3"))
-    "implementation"(platform("dev.langchain4j:langchain4j-bom:1.11.0"))
+    implementation(platform(libs.cucumberBom))
+    implementation(platform(libs.langgraph4jBom))
+    implementation(platform(libs.langchain4jBom))
 
-    // ACP LangGraph LangChain Bridge (published to local Maven)
-    // Version can be overridden in CI with -PbridgeVersion=1.0.13 or BRIDGE_VERSION env var
     val bridgeVersion = (findProperty("bridgeVersion") as String?) ?: System.getenv("BRIDGE_VERSION") ?: "1.0-SNAPSHOT"
     implementation("net.osgiliath.ai:acp-langraph-langchain-bridge:$bridgeVersion")
 
-    // Official ACP Kotlin SDK from JetBrains
-    // Provides built-in protocol handling, STDIO transport, and session management
-    implementation("com.agentclientprotocol:acp:0.15.3")
+    implementation(libs.acp)
 
-    // Kotlin stdlib (required by ACP SDK)
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.1.10")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-common:2.1.10")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.9.0")
+    implementation(libs.kotlinStdlib)
+    implementation(libs.kotlinStdlibCommon)
+    implementation(libs.kotlinxCoroutinesCore)
+    implementation(libs.kotlinxCoroutinesCoreJvm)
 
-    // LangChain4j Backend (Agent Orchestrator)
-    implementation("dev.langchain4j:langchain4j")
-    implementation("dev.langchain4j:langchain4j-spring-boot-starter")
-    implementation("dev.langchain4j:langchain4j-open-ai-spring-boot-starter")
-    implementation("dev.langchain4j:langchain4j-http-client-jdk")
-    implementation("dev.langchain4j:langchain4j-mcp")
-    implementation("dev.langchain4j:langchain4j-document-parser-markdown")
+    implementation(libs.langchain4j)
+    implementation(libs.langchain4jSpringBootStarter)
+    implementation(libs.langchain4jOpenAiSpringBootStarter)
+    implementation(libs.langchain4jHttpClientJdk)
+    implementation(libs.langchain4jMcp)
+    implementation(libs.langchain4jDocumentParserMarkdown)
 
-    // LangGraph4j (Agent State Management)
-    implementation("org.bsc.langgraph4j:langgraph4j-core")
-    implementation("org.bsc.langgraph4j:langgraph4j-langchain4j")
+    implementation(libs.langgraph4jCore)
+    implementation(libs.langgraph4jLangchain4j)
 
-    // CommonMark markdown parsing library with extensions
-    implementation("org.commonmark:commonmark:${property("commonmark.version")}")
-    implementation("org.commonmark:commonmark-ext-task-list-items:${property("commonmark.version")}")
-    implementation("org.commonmark:commonmark-ext-yaml-front-matter:${property("commonmark.version")}")
-    implementation("org.commonmark:commonmark-ext-autolink:${property("commonmark.version")}")
-    implementation("org.commonmark:commonmark-ext-gfm-tables:${property("commonmark.version")}")
-    implementation("org.commonmark:commonmark-ext-ins:${property("commonmark.version")}")
+    implementation(libs.commonmark)
+    implementation(libs.commonmarkExtTaskListItems)
+    implementation(libs.commonmarkExtYamlFrontMatter)
+    implementation(libs.commonmarkExtAutolink)
+    implementation(libs.commonmarkExtGfmTables)
+    implementation(libs.commonmarkExtIns)
 
-    testImplementation("org.springframework.boot:spring-boot-starter-test") {
-        // Exclude Spring Boot's JUnit Platform version management
+    testImplementation(libs.springBootStarterTest) {
         exclude(group = "org.junit.platform")
     }
 
+    testImplementation(platform(libs.junitBom))
+    testImplementation(libs.junitJupiter)
+    testRuntimeOnly(libs.junitPlatformLauncher)
+    testImplementation(libs.junitJupiterApi)
+    testImplementation(libs.awaitility)
 
-    // Import JUnit BOM AFTER Spring Boot to override its version management
-    testImplementation(platform("org.junit:junit-bom:5.14.2"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
-
-    // Testing utilities
-    testImplementation("org.awaitility:awaitility:4.2.2")
-
-    // Cucumber/Gherkin BDD Testing
-    testImplementation("io.cucumber:cucumber-java")
-    testImplementation("io.cucumber:cucumber-spring")
-    testImplementation("io.cucumber:cucumber-junit-platform-engine")
-    testImplementation("org.junit.platform:junit-platform-suite")
-    // testImplementation("org.testcontainers:testcontainers-ollama:2.0.2")
-    // testImplementation("dev.langchain4j:langchain4j-ollama-spring-boot-starter")
-    testImplementation("dev.langchain4j:langchain4j-open-ai-official")
+    testImplementation(libs.cucumberCore)
+    testImplementation(libs.cucumberJava)
+    testImplementation(libs.cucumberSpring)
+    testImplementation(libs.cucumberJunitPlatformEngine)
+    testImplementation(libs.junitPlatformSuite)
+    testImplementation(libs.langchain4jOpenAiOfficial)
 }
 
 tasks.withType<Jar> {
@@ -156,7 +153,7 @@ tasks.withType<Jar> {
 tasks.withType<org.springframework.boot.gradle.tasks.run.BootRun> {
     standardInput = System.`in`
 }
-// This module is published as a library, not an executable Spring Boot app.
+
 tasks.named("bootJar") {
     enabled = false
 }
@@ -169,7 +166,7 @@ publishing {
     publications {
         create<MavenPublication>("mavenJava") {
             from(components["java"])
-           pom {
+            pom {
                 name.set("agent-sdk")
                 description.set("Agent creation helper library for ACP-LangGraph-LangChain integration")
                 url.set("https://github.com/OsgiliathEnterprise/agent-sdk")
@@ -204,4 +201,26 @@ publishing {
 
 jreleaser {
     configFile.set(file("jreleaser.yml"))
+}
+
+sonar {
+    properties {
+        secret("SONAR_HOST_URL")?.let { property("sonar.host.url", it) }
+        secret("SONAR_TOKEN")?.let { property("sonar.token", it) }
+        secret("SONAR_ORGANIZATION")?.let { property("sonar.organization", it) }
+        secret("SONAR_PROJECT_KEY")?.let { property("sonar.projectKey", it) }
+        secret("SONAR_PROJECT_NAME")?.let { property("sonar.projectName", it) }
+        property(
+            "sonar.coverage.jacoco.xmlReportPaths",
+            "${layout.buildDirectory.get()}/reports/jacoco/test/jacocoTestReport.xml"
+        )
+        property(
+            "sonar.java.binaries",
+            "${layout.buildDirectory.get()}/classes/java/main,${layout.buildDirectory.get()}/classes/kotlin/main"
+        )
+        property(
+            "sonar.java.test.binaries",
+            "${layout.buildDirectory.get()}/classes/java/test,${layout.buildDirectory.get()}/classes/kotlin/test"
+        )
+    }
 }

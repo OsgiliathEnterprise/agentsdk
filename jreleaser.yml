@@ -25,10 +25,16 @@ platform:
 
 release:
   github:
-    enabled: false
-    skipRelease: true
+    enabled: true
+    draft: true
+    skipRelease: false
     skipTag: true
-    overwrite: false
+    overwrite: true
+    changelog:
+      formatted: ALWAYS
+      preset: conventional-commits
+      contributors:
+        format: '- {{contributorName}}{{#contributorUsernameAsLink}} ({{.}}){{/contributorUsernameAsLink}}'
 
 signing:
   active: ALWAYS
