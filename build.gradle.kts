@@ -220,7 +220,7 @@ sonar {
         )
         property(
             "sonar.java.test.binaries",
-            "${layout.buildDirectory.get()}/classes/java/test,${layout.buildDirectory.get()}/classes/kotlin/test"
+            "${layout.buildDirectory.get()}/classes/java/test"
         )
     }
 }
