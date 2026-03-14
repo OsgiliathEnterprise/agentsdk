@@ -1,5 +1,5 @@
 [versions]
-springBoot = "3.4.2"
+springBoot = "4.0.3"
 springDependencyManagement = "1.1.6"
 ideaExt = "1.1.9"
 kotlin = "2.2.20"
