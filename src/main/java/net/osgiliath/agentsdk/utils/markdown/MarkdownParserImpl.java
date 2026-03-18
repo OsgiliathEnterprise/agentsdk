@@ -394,44 +394,13 @@ public class MarkdownParserImpl implements MarkdownParser {
         return text.toString();
     }
 
+    /**
+     * Renders a commonmark {@link Node} tree to a Markdown-preserving text representation,
+     * used when extracting section content (headings already split out, double blank lines
+     * between blocks for readability).
+     */
     private void extractNodeTextForSectionRecursive(Node node, StringBuilder text) {
-        // Skip headings in section content
-        if (node instanceof Text textNode) {
-            text.append(textNode.getLiteral());
-        } else if (node instanceof SoftLineBreak || node instanceof HardLineBreak) {
-            text.append(System.lineSeparator());
-        } else if (node instanceof org.commonmark.node.Paragraph) {
-            Node child = node.getFirstChild();
-            while (child != null) {
-                extractNodeTextForSectionRecursive(child, text);
-                child = child.getNext();
-            }
-            text.append(System.lineSeparator()).append(System.lineSeparator());
-        } else if (node instanceof org.commonmark.node.Code codeNode) {
-            text.append("`").append(codeNode.getLiteral()).append("`");
-        } else if (node instanceof org.commonmark.node.FencedCodeBlock codeBlock) {
-            text.append("```");
-            if (codeBlock.getInfo() != null) {
-                text.append(codeBlock.getInfo());
-            }
-            text.append(System.lineSeparator());
-            text.append(codeBlock.getLiteral());
-            text.append("```").append(System.lineSeparator()).append(System.lineSeparator());
-        } else if (node instanceof Link link) {
-            text.append("[");
-            Node child = link.getFirstChild();
-            while (child != null) {
-                extractNodeTextForSectionRecursive(child, text);
-                child = child.getNext();
-            }
-            text.append("](").append(link.getDestination()).append(")");
-        } else if (node.getFirstChild() != null) {
-            Node child = node.getFirstChild();
-            while (child != null) {
-                extractNodeTextForSectionRecursive(child, text);
-                child = child.getNext();
-            }
-        }
+        renderNodeToText(node, text, false, System.lineSeparator() + System.lineSeparator());
     }
 
     private String extractHeadingText(Heading heading) {
@@ -446,26 +415,53 @@ public class MarkdownParserImpl implements MarkdownParser {
         return text.toString().trim();
     }
 
+    /**
+     * Renders a commonmark {@link Node} tree to a Markdown-preserving text representation,
+     * used when a file has no heading-based sections (the whole file becomes a single block).
+     * Heading markers are preserved so the structure remains readable.
+     */
     private void extractNodeTextRecursive(Node node, StringBuilder text) {
+        renderNodeToText(node, text, true, System.lineSeparator());
+    }
+
+    /**
+     * Shared Markdown-to-text renderer used by both {@link #extractNodeTextRecursive} and
+     * {@link #extractNodeTextForSectionRecursive}.
+     *
+     * <p>The two callers differ in two ways:
+     * <ul>
+     *   <li>{@code preserveHeadings} – when {@code true}, heading nodes are rendered with their
+     *       {@code #…} markers; when {@code false} they fall through to generic child traversal
+     *       (section content has already been split on headings, so re-emitting them is redundant).
+     *   <li>{@code blockSeparator} – the string appended after block-level elements (paragraphs,
+     *       fenced code blocks). Full-file rendering uses a single newline; section-content
+     *       rendering uses a double newline for readability.
+     * </ul>
+     *
+     * <p>Note: commonmark's built-in {@code TextContentRenderer} strips all markdown syntax
+     * (code fences, link targets, …), which does not meet our requirements of preserving
+     * those elements for downstream LLM consumption.
+     */
+    private void renderNodeToText(Node node, StringBuilder text, boolean preserveHeadings, String blockSeparator) {
         if (node instanceof Text textNode) {
             text.append(textNode.getLiteral());
-        } else if (node instanceof Heading heading) {
-            // Re-add heading markers so structure is preserved
-            int level = heading.getLevel();
-            text.append("#".repeat(level)).append(" ");
+        } else if (node instanceof SoftLineBreak || node instanceof HardLineBreak) {
+            text.append(System.lineSeparator());
+        } else if (preserveHeadings && node instanceof Heading heading) {
+            text.append("#".repeat(heading.getLevel())).append(" ");
             Node child = heading.getFirstChild();
             while (child != null) {
-                extractNodeTextRecursive(child, text);
+                renderNodeToText(child, text, preserveHeadings, blockSeparator);
                 child = child.getNext();
             }
             text.append(System.lineSeparator());
         } else if (node instanceof org.commonmark.node.Paragraph) {
             Node child = node.getFirstChild();
             while (child != null) {
-                extractNodeTextRecursive(child, text);
+                renderNodeToText(child, text, preserveHeadings, blockSeparator);
                 child = child.getNext();
             }
-            text.append(System.lineSeparator());
+            text.append(blockSeparator);
         } else if (node instanceof org.commonmark.node.Code codeNode) {
             text.append("`").append(codeNode.getLiteral()).append("`");
         } else if (node instanceof org.commonmark.node.FencedCodeBlock codeBlock) {
@@ -475,19 +471,19 @@ public class MarkdownParserImpl implements MarkdownParser {
             }
             text.append(System.lineSeparator());
             text.append(codeBlock.getLiteral());
-            text.append("```").append(System.lineSeparator());
+            text.append("```").append(blockSeparator);
         } else if (node instanceof Link link) {
             text.append("[");
             Node child = link.getFirstChild();
             while (child != null) {
-                extractNodeTextRecursive(child, text);
+                renderNodeToText(child, text, preserveHeadings, blockSeparator);
                 child = child.getNext();
             }
             text.append("](").append(link.getDestination()).append(")");
         } else if (node.getFirstChild() != null) {
             Node child = node.getFirstChild();
             while (child != null) {
-                extractNodeTextRecursive(child, text);
+                renderNodeToText(child, text, preserveHeadings, blockSeparator);
                 child = child.getNext();
             }
         }
