@@ -40,6 +40,7 @@ tasks.withType<Test>().configureEach {
 
     useJUnitPlatform()
 
+    // Add detailed test logging for debugging
     testLogging {
         events("passed", "skipped", "failed", "standardOut", "standardError")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
@@ -48,6 +49,7 @@ tasks.withType<Test>().configureEach {
         showStackTraces = true
     }
 
+    // Enable debug output
     systemProperty("java.util.logging.config.file", "")
 }
 
@@ -59,12 +61,13 @@ tasks.named<JacocoReport>("jacocoTestReport") {
         csv.required.set(false)
     }
 }
-
+// Override Spring Boot's JUnit version to match Cucumber requirements
 ext {
     set("junit-jupiter.version", libs.versions.junitJupiter.get())
     set("commonmark.version", libs.versions.commonmark.get())
 }
 
+// Explicitly configure Java toolchain for this module to ensure consistency
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(21))
@@ -73,13 +76,16 @@ java {
     withJavadocJar()
 }
 
+// Configure Kotlin to use the same Java toolchain
 kotlin {
     jvmToolchain(21)
 }
 
+// Configure Kotlin compiler options
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_21)
+        // Ensure compatibility with Java-only dependencies
         freeCompilerArgs.add("-Xjvm-default=all")
     }
 }
@@ -90,6 +96,7 @@ configurations.all {
         force(libs.kotlinStdlibCommon)
         force(libs.kotlinxCoroutinesCore)
         force(libs.kotlinxCoroutinesCoreJvm)
+        // Force JUnit Platform to match Cucumber requirements
         force(libs.junitPlatformSuite)
         force(libs.junitPlatformLauncher)
         force(libs.junitJupiter)
@@ -106,18 +113,23 @@ dependencies {
 
     implementation(libs.acp)
 
+    // Kotlin stdlib (required by ACP SDK)
     implementation(libs.kotlinStdlib)
     implementation(libs.kotlinStdlibCommon)
     implementation(libs.kotlinxCoroutinesCore)
     implementation(libs.kotlinxCoroutinesCoreJvm)
 
+    // LangChain4j Backend (Agent Orchestrator)
     implementation(libs.langchain4j)
     implementation(libs.langchain4jSpringBootStarter)
     implementation(libs.langchain4jOpenAiSpringBootStarter)
     implementation(libs.langchain4jHttpClientJdk)
     implementation(libs.langchain4jMcp)
     implementation(libs.langchain4jDocumentParserMarkdown)
+    implementation(libs.langchain4jMicrometerMetrics)
+    implementation(libs.langchain4jObservation)
 
+    // LangGraph4j (Agent State Management)
     implementation(libs.langgraph4jCore)
     implementation(libs.langgraph4jLangchain4j)
 
@@ -128,6 +140,8 @@ dependencies {
     implementation(libs.commonmarkExtGfmTables)
     implementation(libs.commonmarkExtIns)
 
+    implementation(libs.springBootStarterActuator)
+    implementation(libs.springBootStarterJson)
     testImplementation(libs.springBootStarterTest) {
         exclude(group = "org.junit.platform")
     }
@@ -138,6 +152,7 @@ dependencies {
     testImplementation(libs.junitJupiterApi)
     testImplementation(libs.awaitility)
 
+    // Cucumber/Gherkin BDD Testing
     testImplementation(libs.cucumberCore)
     testImplementation(libs.cucumberJava)
     testImplementation(libs.cucumberSpring)

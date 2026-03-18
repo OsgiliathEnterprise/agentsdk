@@ -1,14 +1,14 @@
-package net.osgiliath.agentsdk.skills.parser;
+package net.osgiliath.agentsdk.common.parsing;
 
 import net.osgiliath.agentsdk.utils.markdown.MarkdownHeader;
 
 import java.util.Objects;
 
-public record SkillDescriptionHeader(String value) implements MarkdownHeader {
+public record DescriptionHeader(String value) implements MarkdownHeader {
 
     public static final String DESCRIPTION = "description";
 
-    public SkillDescriptionHeader {
+    public DescriptionHeader {
         Objects.requireNonNull(value, "value must not be null");
         value = value.trim();
         if (value.isEmpty()) {

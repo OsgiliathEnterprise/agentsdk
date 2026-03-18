@@ -15,7 +15,11 @@ logging:
   level:
     root: INFO
     net.osgiliath.erp.codeprompt: DEBUG
-
+management:
+  endpoints:
+    web:
+      exposure:
+        include: metrics
 # MCP Server Properties
 mcp:
   server:

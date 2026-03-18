@@ -1,19 +1,20 @@
-package net.osgiliath.agentsdk.skills.parser;
+package net.osgiliath.agentsdk.agent.parser;
 
 import java.util.List;
 import java.util.Objects;
 
-public record SkillDependenciesHeader(List<String> value) implements SkillHeader {
+public record AgentSkillsHeader(List<String> value) implements AgentHeader {
 
-    public static final String DEPENDENCIES = "dependencies";
+    public static final String SKILLS = "skills";
 
-    public SkillDependenciesHeader {
+    public AgentSkillsHeader {
         Objects.requireNonNull(value, "value must not be null");
         value = value.stream().map(String::trim).filter(v -> !v.isEmpty()).toList();
     }
 
     @Override
     public String key() {
-        return DEPENDENCIES;
+        return SKILLS;
     }
 }
+

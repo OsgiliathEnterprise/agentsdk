@@ -56,43 +56,49 @@ public class AgentParsingSteps {
     @Then("the parsed agent name should be {string}")
     public void theParsedAgentNameShouldBe(String expectedName) {
         assertNoSetupError();
-        assertThat(parsedAgent.headers().name()).isEqualTo(expectedName);
+        assertThat(parsedAgent.headers().name().value()).isEqualTo(expectedName);
     }
 
     @Then("the parsed agent description should contain {string}")
     public void theParsedAgentDescriptionShouldContain(String expectedSnippet) {
         assertNoSetupError();
-        assertThat(parsedAgent.headers().description()).contains(expectedSnippet);
+        assertThat(parsedAgent.headers().description().value()).contains(expectedSnippet);
     }
 
     @Then("the parsed argument hint should be {string}")
     public void theParsedArgumentHintShouldBe(String expectedHint) {
         assertNoSetupError();
-        assertThat(parsedAgent.headers().argumentHint()).isEqualTo(expectedHint);
+        assertThat(parsedAgent.headers().argumentHint().value()).isEqualTo(expectedHint);
     }
 
     @Then("the parsed tools should include:")
     public void theParsedToolsShouldInclude(List<String> expectedTools) {
         assertNoSetupError();
-        assertThat(parsedAgent.headers().tools()).containsAll(expectedTools);
+        assertThat(parsedAgent.headers().mcp().value()).containsAll(expectedTools);
+    }
+
+    @Then("the parsed llm should include:")
+    public void theParsedLlmShouldInclude(List<String> expectedLlm) {
+        assertNoSetupError();
+        assertThat(parsedAgent.headers().llm().value()).containsAll(expectedLlm);
     }
 
     @Then("the parsed user-invokable flag should be {string}")
     public void theParsedUserInvokableFlagShouldBe(String expectedValue) {
         assertNoSetupError();
-        assertThat(parsedAgent.headers().userInvokable()).isEqualTo(Boolean.parseBoolean(expectedValue));
+        assertThat(parsedAgent.headers().userInvokable().value()).isEqualTo(Boolean.parseBoolean(expectedValue));
     }
 
     @Then("the parsed disable-model-invocation flag should be {string}")
     public void theParsedDisableModelInvocationFlagShouldBe(String expectedValue) {
         assertNoSetupError();
-        assertThat(parsedAgent.headers().disableModelInvocation()).isEqualTo(Boolean.parseBoolean(expectedValue));
+        assertThat(parsedAgent.headers().disableModelInvocation().value()).isEqualTo(Boolean.parseBoolean(expectedValue));
     }
 
     @Then("the parsed subagents should include:")
     public void theParsedSubagentsShouldInclude(List<String> expectedSubagents) {
         assertNoSetupError();
-        assertThat(parsedAgent.headers().subagents()).containsAll(expectedSubagents);
+        assertThat(parsedAgent.headers().subagents().value()).containsAll(expectedSubagents);
     }
 
     @Then("the parsed handoffs should contain a handoff:")
@@ -105,13 +111,13 @@ public class AgentParsingSteps {
             handoffValues.get(2),
             Boolean.parseBoolean(handoffValues.get(3))
         );
-        assertThat(parsedAgent.headers().handoffs()).contains(expected);
+        assertThat(parsedAgent.headers().handoffs().value()).contains(expected);
     }
 
     @Then("the parsed skills should include:")
     public void theParsedSkillsShouldInclude(List<String> expectedSkills) {
         assertNoSetupError();
-        assertThat(parsedAgent.headers().skills()).containsAll(expectedSkills);
+        assertThat(parsedAgent.headers().skills().value()).containsAll(expectedSkills);
     }
 
     @Then("the parsed content introduction should contain {string}")
@@ -138,13 +144,13 @@ public class AgentParsingSteps {
     }
 
     private MarkdownSection rootSection() {
-        List<MarkdownSection> sections = parsedAgent.content();
+        List<MarkdownSection> sections = parsedAgent.content().sections();
         assertThat(sections).isNotEmpty();
         return sections.getFirst();
     }
 
     private Optional<MarkdownSection> findSection(String sectionTitle) {
-        for (MarkdownSection section : parsedAgent.content()) {
+        for (MarkdownSection section : parsedAgent.content().sections()) {
             if (sectionTitle.equals(section.getTitle())) {
                 return Optional.of(section);
             }

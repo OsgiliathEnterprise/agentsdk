@@ -1,5 +1,7 @@
 package net.osgiliath.agentsdk.agent.parser;
 
+import net.osgiliath.agentsdk.common.parsing.FrontMatterParser;
+import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownFile;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
 import org.commonmark.ext.front.matter.YamlFrontMatterVisitor;
@@ -11,14 +13,13 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
 @Component
-public class AgentParserImpl implements AgentParser {
+public class AgentParserImpl extends FrontMatterParser implements AgentParser {
 
     private final MarkdownParser markdownParser;
     private final Parser commonMarkParser;
@@ -34,14 +35,14 @@ public class AgentParserImpl implements AgentParser {
     public Agent getAgent(Path agentFile) {
         Path normalized = validateAgentFile(agentFile);
         MarkdownFile markdownFile = markdownParser.getMarkdownFile(
-                normalized.getParent(),
-                normalized.getFileName().toString()
-            )
-            .orElseThrow(() -> new IllegalArgumentException("Unable to parse markdown: " + normalized));
+                        normalized.getParent(),
+                        normalized.getFileName().toString()
+                )
+                .orElseThrow(() -> new IllegalArgumentException("Unable to parse markdown: " + normalized));
 
         String source = readFile(normalized);
         AgentHeaders headers = AgentHeaders.fromRawHeaders(parseFrontMatter(source));
-        return new Agent(headers, markdownFile.getSubSections());
+        return new Agent(headers, new MarkdownContentSections(markdownFile.getSubSections()));
     }
 
     private Path validateAgentFile(Path agentFile) {
@@ -66,6 +67,20 @@ public class AgentParserImpl implements AgentParser {
             return Map.of();
         }
 
+        // First parse the raw YAML front matter block directly so legacy files using ---- delimiters
+        // still preserve nested structures and required top-level headers.
+        Optional<String> yamlBlock = extractFrontMatterBlock(source);
+        if (yamlBlock.isPresent()) {
+            Object parsed = yaml.load(yamlBlock.get());
+            if (parsed instanceof Map<?, ?> parsedMap) {
+                return normalizeTopLevelMap(parsedMap);
+            }
+            Map<String, Object> fallback = parseHeaderLines(yamlBlock.get().lines().toList());
+            if (!fallback.isEmpty()) {
+                return fallback;
+            }
+        }
+
         // Use CommonMark's front matter visitor to detect and normalize front matter presence.
         Node document = commonMarkParser.parse(source);
         YamlFrontMatterVisitor visitor = new YamlFrontMatterVisitor();
@@ -75,74 +90,9 @@ public class AgentParserImpl implements AgentParser {
             return Map.of();
         }
 
-        // Parse the actual front matter block with YAML to preserve nested structures like handoffs.
-        Optional<String> yamlBlock = extractFrontMatterBlock(source);
-        if (yamlBlock.isPresent()) {
-            Object parsed = yaml.load(yamlBlock.get());
-            if (parsed instanceof Map<?, ?> parsedMap) {
-                return normalizeTopLevelMap(parsedMap);
-            }
-        }
 
         // Fallback to visitor data if full YAML deserialization is not available.
         return fromVisitorData(visitorData);
     }
-
-    private Optional<String> extractFrontMatterBlock(String source) {
-        List<String> lines = source.lines().toList();
-        if (lines.isEmpty()) {
-            return Optional.empty();
-        }
-
-        int start = 0;
-        while (start < lines.size() && lines.get(start).isBlank()) {
-            start++;
-        }
-        if (start >= lines.size()) {
-            return Optional.empty();
-        }
-
-        String opening = lines.get(start).trim();
-        if (!"---".equals(opening) && !"----".equals(opening)) {
-            return Optional.empty();
-        }
-
-        int end = -1;
-        for (int i = start + 1; i < lines.size(); i++) {
-            String candidate = lines.get(i).trim();
-            if ("---".equals(candidate) || "----".equals(candidate)) {
-                end = i;
-                break;
-            }
-        }
-        if (end < 0 || end <= start + 1) {
-            return Optional.empty();
-        }
-
-        return Optional.of(String.join(System.lineSeparator(), lines.subList(start + 1, end)));
-    }
-
-    private Map<String, Object> normalizeTopLevelMap(Map<?, ?> parsedMap) {
-        Map<String, Object> normalized = new LinkedHashMap<>();
-        parsedMap.forEach((key, value) -> {
-            if (key != null) {
-                normalized.put(String.valueOf(key), value);
-            }
-        });
-        return normalized;
-    }
-
-    private Map<String, Object> fromVisitorData(Map<String, List<String>> visitorData) {
-        Map<String, Object> fallback = new LinkedHashMap<>();
-        visitorData.forEach((key, values) -> {
-            if (values == null || values.isEmpty()) {
-                fallback.put(key, "");
-            } else if (values.size() == 1) {
-                fallback.put(key, values.getFirst());
-            } else {
-                fallback.put(key, List.copyOf(values));
-            }
-        });
-        return fallback;
-    }
 }
+

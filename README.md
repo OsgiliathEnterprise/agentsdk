@@ -69,9 +69,6 @@ Reusable LangGraph edge helper used to route model output toward tool/MCP execut
 
 Run commands from the module root:
 
-```bash
-cd /Users/charliemordant/Code/Sources/CodingCrew/agent-sdk
-```
 
 ### Build / Test
 
