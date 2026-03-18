@@ -1,6 +1,5 @@
 package net.osgiliath.agentsdk.skills.parser;
 
-import net.osgiliath.agentsdk.common.parsing.FrontMatterParser;
 import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.common.parsing.ParsingHeader;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownFile;
@@ -34,7 +33,7 @@ import java.util.stream.Stream;
  * The public API is intentionally narrow: parse and compose everything via {@link #getSkill(Path)}.
  */
 @Component
-public class SkillParserImpl extends FrontMatterParser implements SkillParser {
+public class SkillParserImpl implements SkillParser {
 
     private static final String REFERENCE_FOLDER = "reference";
     private static final String TEMPLATES_FOLDER = "templates";
@@ -53,7 +52,7 @@ public class SkillParserImpl extends FrontMatterParser implements SkillParser {
         Path skillRoot = normalized.getParent();
 
         MarkdownFile markdownFile = parseMainMarkdown(normalized);
-        SkillsHeaders headers = parseHeaders(markdownFile.getHeaders(), normalized);
+        SkillsHeaders headers = parseHeaders(markdownFile.getHeaders());
 
         List<SkillLink> discoveredLinks = discoverLinks(normalized);
         List<SkillAsset> assets = toAssets(discoveredLinks);
@@ -80,44 +79,20 @@ public class SkillParserImpl extends FrontMatterParser implements SkillParser {
             .orElseThrow(() -> new IllegalArgumentException("Unable to parse markdown: " + skillFile));
     }
 
-    private SkillsHeaders parseHeaders(MarkdownHeaders headers, Path skillFile) {
+    private SkillsHeaders parseHeaders(MarkdownHeaders headers) {
         if (headers != null) {
             if (headers instanceof SkillsHeaders typed) {
                 return typed;
             }
             List<MarkdownHeader> mapped = headers.headerKeys().stream()
+                .filter(key -> !"text".equals(key))
                 .map(key -> (MarkdownHeader) new ParsingHeader(key, headers.header(key).orElse(null)))
                 .toList();
             if (!mapped.isEmpty()) {
                 return SkillsHeaders.from(mapped);
             }
         }
-        return parseHeadersFromFrontMatter(readFile(skillFile));
-    }
-
-    private SkillsHeaders parseHeadersFromFrontMatter(String source) {
-        List<String> lines = source.lines().toList();
-        int start = findFrontMatterDelimiter(lines, 0);
-        if (start < 0) {
-            throw new IllegalArgumentException("Skill markdown does not contain headers");
-        }
-        int end = findFrontMatterDelimiter(lines, start + 1);
-        if (end < 0 || end <= start + 1) {
-            throw new IllegalArgumentException("Skill markdown does not contain headers");
-        }
-
-        List<MarkdownHeader> parsed = toMarkdownHeaders(lines.subList(start + 1, end));
-        if (parsed.isEmpty()) {
-            throw new IllegalArgumentException("Skill markdown does not contain headers");
-        }
-        return SkillsHeaders.from(parsed);
-    }
-
-    private List<MarkdownHeader> toMarkdownHeaders(List<String> headerLines) {
-        Map<String, Object> values = super.parseHeaderLines(headerLines);
-        return values.entrySet().stream()
-            .map(entry -> (MarkdownHeader) new ParsingHeader(entry.getKey(), entry.getValue()))
-            .toList();
+        throw new IllegalArgumentException("Skill markdown does not contain valid front-matter headers");
     }
 
     private List<SkillLink> discoverLinks(Path skillFile) {

@@ -8,6 +8,7 @@ import net.osgiliath.agentsdk.common.parsing.ParsingValueCoercions;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownHeader;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownHeaders;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,8 @@ public record AgentHeaders(
     AgentHandoffsHeader handoffs,
     AgentSkillsHeader skills
 ) implements MarkdownHeaders {
+
+    public static final String AGENT = "agent";
 
     public AgentHeaders {
         Objects.requireNonNull(name, "name must not be null");
@@ -108,16 +111,22 @@ public record AgentHeaders(
 
     public static AgentHeaders fromRawHeaders(Map<String, Object> rawHeaders) {
         Map<String, Object> values = new LinkedHashMap<>(rawHeaders);
+        List<AgentHandoff> parsedHandoffs = asHandoffs(values.get(AgentHandoffsHeader.HANDOFFS));
+        boolean missingStructuredFields = parsedHandoffs.stream()
+            .allMatch(h -> h.agent().isBlank() && h.prompt().isBlank());
+        if (parsedHandoffs.isEmpty() || missingStructuredFields) {
+            parsedHandoffs = parseHandoffsFromMarkdownText(ParsingValueCoercions.asString(values.get("text")));
+        }
         return new AgentHeaders(
-            new NameHeader(ParsingValueCoercions.requiredString(values, NameHeader.NAME, "agent")),
-            new DescriptionHeader(ParsingValueCoercions.requiredString(values, DescriptionHeader.DESCRIPTION, "agent")),
+            new NameHeader(ParsingValueCoercions.requiredString(values, NameHeader.NAME, AGENT)),
+            new DescriptionHeader(ParsingValueCoercions.requiredString(values, DescriptionHeader.DESCRIPTION, AGENT)),
             new AgentArgumentHintHeader(ParsingValueCoercions.asString(values.get(AgentArgumentHintHeader.ARGUMENT_HINT))),
             new McpHeader(ParsingValueCoercions.asStringList(firstNonNull(values, McpHeader.MCP, McpHeader.TOOLS_ALIAS))),
             new LlmHeader(ParsingValueCoercions.asStringList(firstNonNull(values, LlmHeader.LLM, LlmHeader.MODEL_ALIAS))),
             new AgentUserInvokableHeader(ParsingValueCoercions.asBoolean(values.get(AgentUserInvokableHeader.USER_INVOKABLE))),
             new AgentDisableModelInvocationHeader(ParsingValueCoercions.asBoolean(values.get(AgentDisableModelInvocationHeader.DISABLE_MODEL_INVOCATION))),
             new AgentSubagentsHeader(ParsingValueCoercions.asStringList(firstNonNull(values, AgentSubagentsHeader.SUBAGENTS, AgentSubagentsHeader.AGENTS_ALIAS))),
-            new AgentHandoffsHeader(asHandoffs(values.get(AgentHandoffsHeader.HANDOFFS))),
+            new AgentHandoffsHeader(parsedHandoffs),
             new AgentSkillsHeader(ParsingValueCoercions.asStringList(values.get(AgentSkillsHeader.SKILLS)))
         );
     }
@@ -126,7 +135,7 @@ public record AgentHeaders(
         if (!(value instanceof List<?> list)) {
             return List.of();
         }
-        return list.stream()
+        List<AgentHandoff> mapped = list.stream()
             .map(item -> {
                 if (item instanceof AgentHandoff handoff) {
                     return handoff;
@@ -136,12 +145,161 @@ public record AgentHeaders(
                 }
                 return new AgentHandoff(
                     ParsingValueCoercions.asString(map.get("label")),
-                    ParsingValueCoercions.asString(map.get("agent")),
+                    ParsingValueCoercions.asString(map.get(AGENT)),
                     ParsingValueCoercions.asString(map.get("prompt")),
                     ParsingValueCoercions.asBoolean(map.get("send"))
                 );
             })
             .filter(Objects::nonNull)
+            .toList();
+        if (!mapped.isEmpty()) {
+            return mapped;
+        }
+        return parseHandoffsFromFlatItems(list);
+    }
+
+    private static List<AgentHandoff> parseHandoffsFromFlatItems(List<?> list) {
+        List<Map<String, Object>> handoffMaps = new ArrayList<>();
+        Map<String, Object> current = new LinkedHashMap<>();
+
+        for (Object item : list) {
+            String[] lines = String.valueOf(item).split("\\R");
+            for (String raw : lines) {
+                String line = raw == null ? "" : raw.trim();
+                if (line.isBlank()) {
+                    continue;
+                }
+                if (line.startsWith("- ")) {
+                    if (!current.isEmpty()) {
+                        handoffMaps.add(current);
+                        current = new LinkedHashMap<>();
+                    }
+                    line = line.substring(2).trim();
+                }
+
+                int separator = line.indexOf(':');
+                if (separator < 0) {
+                    separator = line.indexOf('=');
+                }
+                if (separator < 0) {
+                    continue;
+                }
+
+                String key = line.substring(0, separator).trim();
+                String scalar = line.substring(separator + 1).trim();
+                if (key.isBlank()) {
+                    continue;
+                }
+                if ("label".equals(key) && !current.isEmpty()) {
+                    handoffMaps.add(current);
+                    current = new LinkedHashMap<>();
+                }
+                current.put(key, stripDelimiters(scalar));
+            }
+        }
+
+        if (!current.isEmpty()) {
+            handoffMaps.add(current);
+        }
+
+        return handoffMaps.stream()
+            .map(map -> new AgentHandoff(
+                ParsingValueCoercions.asString(map.get("label")),
+                ParsingValueCoercions.asString(map.get(AGENT)),
+                ParsingValueCoercions.asString(map.get("prompt")),
+                ParsingValueCoercions.asBoolean(map.get("send"))
+            ))
+            .filter(handoff -> !handoff.label().isBlank() || !handoff.agent().isBlank() || !handoff.prompt().isBlank())
+            .toList();
+    }
+
+    private static String stripDelimiters(String value) {
+        String trimmed = value == null ? "" : value.trim();
+        int comment = trimmed.indexOf('#');
+        if (comment >= 0) {
+            trimmed = trimmed.substring(0, comment).trim();
+        }
+        if (trimmed.endsWith(",")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1).trim();
+        }
+        if ((trimmed.startsWith("\"") && trimmed.endsWith("\""))
+            || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+            return trimmed.substring(1, trimmed.length() - 1).trim();
+        }
+        return trimmed;
+    }
+
+    private static List<AgentHandoff> parseHandoffsFromMarkdownText(String markdown) {
+        if (markdown == null || markdown.isBlank()) {
+            return List.of();
+        }
+
+        boolean inFrontMatter = false;
+        boolean inHandoffs = false;
+        Map<String, Object> current = new LinkedHashMap<>();
+        List<Map<String, Object>> handoffMaps = new ArrayList<>();
+
+        for (String rawLine : markdown.lines().toList()) {
+            String line = rawLine == null ? "" : rawLine;
+            String trimmed = line.trim();
+
+            if (!inFrontMatter) {
+                if ("---".equals(trimmed)) {
+                    inFrontMatter = true;
+                }
+                continue;
+            }
+
+            if ("---".equals(trimmed)) {
+                break;
+            }
+
+            if (!inHandoffs) {
+                if (trimmed.startsWith("handoffs:")) {
+                    inHandoffs = true;
+                }
+                continue;
+            }
+
+            if (!line.startsWith(" ") && trimmed.contains(":")) {
+                break;
+            }
+
+            if (trimmed.isBlank()) {
+                continue;
+            }
+
+            if (trimmed.startsWith("- ")) {
+                if (!current.isEmpty()) {
+                    handoffMaps.add(current);
+                    current = new LinkedHashMap<>();
+                }
+                trimmed = trimmed.substring(2).trim();
+            }
+
+            int separator = trimmed.indexOf(':');
+            if (separator < 0) {
+                continue;
+            }
+            String key = trimmed.substring(0, separator).trim();
+            String value = stripDelimiters(trimmed.substring(separator + 1).trim());
+            if (!key.isBlank()) {
+                current.put(key, value);
+            }
+        }
+
+        if (!current.isEmpty()) {
+            handoffMaps.add(current);
+        }
+
+        return handoffMaps.stream()
+            .map(map -> new AgentHandoff(
+                ParsingValueCoercions.asString(map.get("label")),
+                ParsingValueCoercions.asString(map.get(AGENT)),
+                ParsingValueCoercions.asString(map.get("prompt")),
+                ParsingValueCoercions.asBoolean(map.get("send"))
+            ))
+            .filter(handoff -> !handoff.label().isBlank() || !handoff.agent().isBlank() || !handoff.prompt().isBlank())
             .toList();
     }
 

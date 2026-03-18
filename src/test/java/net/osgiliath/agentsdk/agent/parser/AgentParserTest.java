@@ -30,7 +30,7 @@ class AgentParserTest {
     void setUp() {
         Parser commonmarkParser = new MarkdownConfiguration().markdownParser();
         MarkdownParser markdownParser = new MarkdownParserImpl(commonmarkParser);
-        agentParser = new AgentParserImpl(markdownParser, commonmarkParser);
+        agentParser = new AgentParserImpl(markdownParser);
     }
 
     @Test

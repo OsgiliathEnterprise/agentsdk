@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.Map;
 
@@ -299,29 +298,31 @@ public class MarkdownParserImpl implements MarkdownParser {
     private Optional<MarkdownHeaders> parseHeaders(Node document, String source) {
         logger.debug("Parsing headers from document");
 
-        // Preferred path: parse YAML front matter from the CommonMark AST model.
+        // CommonMark detects whether front matter is present
         YamlFrontMatterVisitor visitor = new YamlFrontMatterVisitor();
         document.accept(visitor);
         Map<String, List<String>> frontMatter = visitor.getData();
 
-        if (frontMatter != null && !frontMatter.isEmpty()) {
-            logger.info("Found YAML front matter with {} keys", frontMatter.size());
-            List<MarkdownHeader> parsedHeaders = new ArrayList<>();
-            parsedHeaders.add(new SimpleMarkdownHeader("text", source));
-
-            for (Map.Entry<String, List<String>> entry : frontMatter.entrySet()) {
-                List<String> values = entry.getValue();
-                Object value = (values == null || values.isEmpty()) ? "" : String.join("\n", values);
-                logger.trace("Header: {} = {} bytes", entry.getKey(), value.toString().length());
-                parsedHeaders.add(new SimpleMarkdownHeader(entry.getKey(), value));
-            }
-            logger.debug("Successfully parsed {} headers from YAML front matter", parsedHeaders.size());
-            return Optional.of(new AbstractMarkdownHeaders(parsedHeaders));
+        if (frontMatter == null || frontMatter.isEmpty()) {
+            logger.debug("No YAML front matter found in document");
+            return Optional.empty();
         }
 
-        logger.debug("No YAML front matter found in document");
-        return Optional.empty();
+        logger.info("Found YAML front matter with {} keys", frontMatter.size());
+        List<MarkdownHeader> parsedHeaders = new ArrayList<>();
+        parsedHeaders.add(new SimpleMarkdownHeader("text", source));
+        for (Map.Entry<String, List<String>> entry : frontMatter.entrySet()) {
+            List<String> values = entry.getValue();
+            Object value = (values == null || values.isEmpty()) ? ""
+                : values.size() == 1 ? values.getFirst()
+                : List.copyOf(values);
+            logger.trace("Header: {} = {} bytes", entry.getKey(), value.toString().length());
+            parsedHeaders.add(new SimpleMarkdownHeader(entry.getKey(), value));
+        }
+        logger.debug("Successfully parsed {} headers from YAML front matter", parsedHeaders.size());
+        return Optional.of(new AbstractMarkdownHeaders(parsedHeaders));
     }
+
 
     private List<MarkdownSection> parseSections(Node document) {
         logger.trace("Parsing sections from document");

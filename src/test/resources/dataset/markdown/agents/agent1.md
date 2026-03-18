@@ -1,10 +1,10 @@
-----
+---
 name: Cloud Engineer
 description: Implements cloud scripts
 tools: ['insert_edit_into_file', 'replace_string_in_file', 'create_file', 'open_file', 'list_dir', 'read_file', 'file_search', 'grep_search', 'run_subagent', 'run_in_terminal', 'get_terminal_output', 'run_shell_command', 'mcp-exec', 'mcp-find', 'search', 'search_code', 'fetch', 'fetch_content', 'curl', 'docker','sequentialthinking']
 llm:
   - claude-3-5-sonnet-20241022
-----
+---
 
 
 # Cloud Engineer

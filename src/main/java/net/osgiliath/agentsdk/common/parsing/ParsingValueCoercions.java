@@ -68,12 +68,29 @@ public final class ParsingValueCoercions {
     }
 
     private static String unquote(String value) {
-        String trimmed = value.trim();
+        String trimmed = stripYamlInlineComment(value).trim();
         if ((trimmed.startsWith("\"") && trimmed.endsWith("\""))
             || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
             return trimmed.substring(1, trimmed.length() - 1).trim();
         }
         return trimmed;
+    }
+
+    private static String stripYamlInlineComment(String value) {
+        String input = value == null ? "" : value;
+        boolean inSingle = false;
+        boolean inDouble = false;
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+            if (c == '\'' && !inDouble) {
+                inSingle = !inSingle;
+            } else if (c == '"' && !inSingle) {
+                inDouble = !inDouble;
+            } else if (c == '#' && !inSingle && !inDouble) {
+                return input.substring(0, i).stripTrailing();
+            }
+        }
+        return input;
     }
 }
 
