@@ -1,6 +1,7 @@
 package net.osgiliath.agentsdk.mcp;
 
 import net.osgiliath.agentsdk.configuration.McpAliasesConfiguration;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 
@@ -8,6 +9,7 @@ import java.util.List;
  * Default implementation of {@link McpToolAliasResolver} that looks up tool names
  * in the {@link McpAliasesConfiguration} alias map.
  */
+@Component
 public class McpToolAliasResolverImpl implements McpToolAliasResolver {
 
     private final McpAliasesConfiguration aliasesConfiguration;
