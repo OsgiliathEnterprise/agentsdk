@@ -140,7 +140,8 @@ public class MarkdownParserImpl implements MarkdownParser {
             appendSampleSections(includeSamples, mainSections, builder);
         }
 
-        return Document.from(builder.toString().trim());
+        String text = builder.toString().trim();
+        return Document.from(text.isBlank() ? "(no content selected)" : text);
     }
 
     private void appendSampleSections(boolean includeSamples, List<MarkdownSection> mainSections, StringBuilder builder) {

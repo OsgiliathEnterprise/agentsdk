@@ -376,6 +376,172 @@ class MarkdownParserImplTest {
     }
 
     // -----------------------------------------------------------------------
+    // toDocument flag combinations
+    // -----------------------------------------------------------------------
+
+    @Nested
+    class ToDocumentRendering {
+
+        /** Shared fixture: YAML headers + one main section + one Samples section with a subsection. */
+        private MarkdownFile fixture() throws IOException {
+            write("fixture.md", """
+                ---
+                title: My API
+                version: "1.0"
+                ---
+
+                # Main Section
+
+                Main section content.
+
+                # Samples
+
+                ## Example One
+
+                Example one content.
+                """);
+            return parser.getMarkdownFile(tempDir, "fixture.md").orElseThrow();
+        }
+
+        @Test
+        void nullMarkdownFileProducesNoContentDocument() {
+            dev.langchain4j.data.document.Document doc =
+                parser.toDocument(null, true, true, true);
+            assertThat(doc.text()).isEqualTo("(no content selected)");
+        }
+
+        @Test
+        void allFlagsFalseProducesNoContentDocument() throws IOException {
+            dev.langchain4j.data.document.Document doc =
+                parser.toDocument(fixture(), false, false, false);
+            assertThat(doc.text()).isEqualTo("(no content selected)");
+        }
+
+        @Test
+        void includeHeadersTrueEmitsYamlKeyValuePairs() throws IOException {
+            dev.langchain4j.data.document.Document doc =
+                parser.toDocument(fixture(), true, false, false);
+            assertThat(doc.text())
+                .contains("title: My API")
+                .contains("version: 1.0");
+        }
+
+        @Test
+        void includeHeadersFalseOmitsHeaders() throws IOException {
+            dev.langchain4j.data.document.Document doc =
+                parser.toDocument(fixture(), false, true, false);
+            assertThat(doc.text())
+                .doesNotContain("title:")
+                .doesNotContain("version:");
+        }
+
+        @Test
+        void includeSectionsTrueEmitsSectionTitleAndContent() throws IOException {
+            dev.langchain4j.data.document.Document doc =
+                parser.toDocument(fixture(), false, true, false);
+            assertThat(doc.text())
+                .contains("Main Section")
+                .contains("Main section content.");
+        }
+
+        @Test
+        void includeSectionsFalseOmitsSectionContent() throws IOException {
+            // Use a file without YAML front matter to avoid the full-source "text" header
+            // contaminating the output. Enable only samples so the document is non-empty.
+            write("nosections.md", """
+                # Main Section
+
+                Main section content.
+
+                # Samples
+
+                ## Example One
+
+                Example one content.
+                """);
+            MarkdownFile file = parser.getMarkdownFile(tempDir, "nosections.md").orElseThrow();
+
+            dev.langchain4j.data.document.Document doc =
+                parser.toDocument(file, false, false, true);
+
+            assertThat(doc.text())
+                .doesNotContain("Main section content.")
+                .contains("Example one content.");
+        }
+
+        @Test
+        void sectionsTitledSamplesAreExcludedFromMainSections() throws IOException {
+            // When includeSections=true the "Samples" root section must be filtered out;
+            // only includeSamples=true should expose its sub-sections.
+            dev.langchain4j.data.document.Document doc =
+                parser.toDocument(fixture(), false, true, false);
+            assertThat(doc.text()).doesNotContain("Example One");
+        }
+
+        @Test
+        void includeSamplesTrueEmitsSampleSubsections() throws IOException {
+            dev.langchain4j.data.document.Document doc =
+                parser.toDocument(fixture(), false, false, true);
+            assertThat(doc.text())
+                .contains("Example One")
+                .contains("Example one content.");
+        }
+
+        @Test
+        void includeSamplesFalseOmitsSampleSubsections() throws IOException {
+            dev.langchain4j.data.document.Document doc =
+                parser.toDocument(fixture(), false, true, false);
+            assertThat(doc.text())
+                .doesNotContain("Example One")
+                .doesNotContain("Example one content.");
+        }
+
+        @Test
+        void allFlagsTrueCombinesHeadersSectionsAndSamples() throws IOException {
+            dev.langchain4j.data.document.Document doc =
+                parser.toDocument(fixture(), true, true, true);
+            assertThat(doc.text())
+                .contains("title: My API")
+                .contains("Main Section")
+                .contains("Main section content.")
+                .contains("Example One")
+                .contains("Example one content.");
+        }
+
+        @Test
+        void subsectionsOfMainSectionAreIncludedRecursively() throws IOException {
+            write("nested.md", """
+                # Root
+
+                Root content.
+
+                ## Child
+
+                Child content.
+                """);
+            MarkdownFile file = parser.getMarkdownFile(tempDir, "nested.md").orElseThrow();
+
+            dev.langchain4j.data.document.Document doc =
+                parser.toDocument(file, false, true, false);
+
+            assertThat(doc.text())
+                .contains("Root")
+                .contains("Root content.")
+                .contains("Child")
+                .contains("Child content.");
+        }
+
+        @Test
+        void documentTextIsTrimmed() throws IOException {
+            dev.langchain4j.data.document.Document doc =
+                parser.toDocument(fixture(), false, true, false);
+            assertThat(doc.text())
+                .doesNotStartWith("\n")
+                .doesNotEndWith("\n");
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // helpers
     // -----------------------------------------------------------------------
 
