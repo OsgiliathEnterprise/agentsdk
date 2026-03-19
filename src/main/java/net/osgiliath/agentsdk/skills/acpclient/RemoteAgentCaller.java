@@ -2,6 +2,8 @@ package net.osgiliath.agentsdk.skills.acpclient;
 
 import com.agentclientprotocol.model.ContentBlock;
 import jakarta.annotation.PreDestroy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -11,14 +13,17 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 @Component
 public class RemoteAgentCaller implements OutAcpAdapter {
 
+    private static final long DEFAULT_PROCESS_PROMPT_TIMEOUT_MILLIS = 30_000L;
+    private static final Logger log = LoggerFactory.getLogger(RemoteAgentCaller.class);
     private final RemoteClientGateway remoteClient;
     private final AtomicReference<AgentInfoBridge> agentInfoRef = new AtomicReference<>();
+    private final long processPromptTimeoutMillis;
 
     @org.springframework.beans.factory.annotation.Autowired
     public RemoteAgentCaller(
@@ -26,11 +31,16 @@ public class RemoteAgentCaller implements OutAcpAdapter {
         @Value("${codeprompt.acp.remote.args:}") String args,
         @Value("${codeprompt.acp.remote.cwd:.}") String processCwd
     ) {
-        this(new RemoteAcpClientGateway(new RemoteAcpClient(command, parseArgs(args), processCwd)));
+        this(new RemoteAcpClientGateway(new RemoteAcpClient(command, parseArgs(args), processCwd)), DEFAULT_PROCESS_PROMPT_TIMEOUT_MILLIS);
     }
 
     public RemoteAgentCaller(RemoteClientGateway remoteClient) {
+        this(remoteClient, DEFAULT_PROCESS_PROMPT_TIMEOUT_MILLIS);
+    }
+
+    public RemoteAgentCaller(RemoteClientGateway remoteClient, long processPromptTimeoutMillis) {
         this.remoteClient = remoteClient;
+        this.processPromptTimeoutMillis = processPromptTimeoutMillis;
     }
 
     @Override
@@ -48,6 +58,7 @@ public class RemoteAgentCaller implements OutAcpAdapter {
     public AcpSessionBridge createSession(String sessionId, String cwd, Map<String, String> mcpServers) {
         String effectiveCwd = cwd == null || cwd.isBlank() ? "." : cwd;
         Map<String, String> effectiveMcpServers = mcpServers == null ? Collections.emptyMap() : mcpServers;
+        log.info("Creating remote ACP session {} in {} with {} MCP server(s)", sessionId, effectiveCwd, effectiveMcpServers.size());
         return new RemoteSession(sessionId, effectiveCwd, effectiveMcpServers);
     }
 
@@ -62,7 +73,7 @@ public class RemoteAgentCaller implements OutAcpAdapter {
         }
         return Arrays.stream(rawArgs.split("\\s+"))
             .filter(part -> !part.isBlank())
-            .collect(Collectors.toList());
+            .toList();
     }
 
     private final class RemoteSession implements AcpSessionBridge {
@@ -85,6 +96,8 @@ public class RemoteAgentCaller implements OutAcpAdapter {
         public CompletableFuture<String> processPrompt(String promptText, List<ContentBlock.ResourceLink> resourceLinks) {
             CompletableFuture<String> response = new CompletableFuture<>();
             StringBuilder fullResponse = new StringBuilder();
+
+            // Stream in a separate task so a blocked stream call cannot block processPrompt() itself.
             streamPrompt(promptText, resourceLinks, new TokenConsumer() {
                 @Override
                 public void onNext(String token) {
@@ -101,13 +114,19 @@ public class RemoteAgentCaller implements OutAcpAdapter {
                     response.completeExceptionally(error);
                 }
             });
-            return response;
+
+            return response.orTimeout(processPromptTimeoutMillis, TimeUnit.MILLISECONDS);
         }
 
         @Override
         public void streamPrompt(String promptText, List<ContentBlock.ResourceLink> resourceLinks, TokenConsumer consumer) {
             List<ContentBlock.ResourceLink> safeLinks = resourceLinks == null ? List.of() : resourceLinks;
-            remoteClient.streamPrompt(sessionId, cwd, mcpServers, promptText == null ? "" : promptText, safeLinks, consumer);
+            log.debug("Streaming remote prompt for session {} from cwd {} with {} resource link(s)", sessionId, cwd, safeLinks.size());
+            try {
+                remoteClient.streamPrompt(sessionId, cwd, mcpServers, promptText == null ? "" : promptText, safeLinks, consumer);
+            } catch (Throwable error) {
+                consumer.onError(error);
+            }
         }
     }
 

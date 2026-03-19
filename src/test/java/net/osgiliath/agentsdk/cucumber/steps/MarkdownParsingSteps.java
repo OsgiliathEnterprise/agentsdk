@@ -190,11 +190,7 @@ public class MarkdownParsingSteps {
 
     @Then("the {word} section should not contain {string}")
     public void theSectionShouldNotContain(String sectionName, String unexpectedText) {
-        assertNoSetupError();
-        assertThat(parsedSection)
-            .as("Expected section '%s' to be available", sectionName)
-            .isNotNull();
-        assertThat(parsedSection.getContent()).doesNotContain(unexpectedText);
+        expectSection(sectionName, unexpectedText);
     }
 
     // ========================
@@ -235,6 +231,10 @@ public class MarkdownParsingSteps {
 
     @Then("the {word} section should not include {string}")
     public void theSectionShouldNotInclude(String sectionName, String unexpectedText) {
+        expectSection(sectionName, unexpectedText);
+    }
+
+    private void expectSection(String sectionName, String unexpectedText) {
         assertNoSetupError();
         assertThat(parsedSection)
             .as("Expected section '%s' to be available", sectionName)

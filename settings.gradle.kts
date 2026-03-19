@@ -17,3 +17,21 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "agent-sdk"
+
+val bridgeDir = file("../acp-langraph-langchain-bridge")
+if (bridgeDir.exists()) {
+    includeBuild(bridgeDir) {
+        dependencySubstitution {
+            substitute(module("net.osgiliath.ai:acp-langraph-langchain-bridge")).using(project(":"))
+        }
+    }
+}
+
+val sdkDir = file("../agent-sdk")
+if (bridgeDir.exists()) {
+    includeBuild(bridgeDir) {
+        dependencySubstitution {
+            substitute(module("net.osgiliath.ai:agent-sdk")).using(project(":"))
+        }
+    }
+}

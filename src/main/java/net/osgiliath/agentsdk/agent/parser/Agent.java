@@ -1,25 +1,66 @@
 package net.osgiliath.agentsdk.agent.parser;
 
+import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 
 import java.util.List;
 import java.util.Objects;
 
-public final class Agent {
+public record Agent(
+    AgentHeaders headers,
+    MarkdownContentSections content
+) {
 
-    private final AgentHeaders headers;
-    private final List<MarkdownSection> content;
-
-    public Agent(AgentHeaders headers, List<MarkdownSection> content) {
-        this.headers = Objects.requireNonNull(headers, "headers must not be null");
-        this.content = List.copyOf(Objects.requireNonNull(content, "content must not be null"));
+    public Agent {
+        Objects.requireNonNull(headers, "headers must not be null");
+        Objects.requireNonNull(content, "content must not be null");
     }
 
-    public AgentHeaders headers() {
-        return headers;
+    public String getName() {
+        return headers.name().value();
     }
 
-    public List<MarkdownSection> content() {
+    public String getDescription() {
+        return headers.description().value();
+    }
+
+    public String getArgumentHint() {
+        return headers.argumentHint().value();
+    }
+
+    public List<String> getTools() {
+        return headers.mcp().value();
+    }
+
+    public List<String> getLlms() {
+        return headers.llm().value();
+    }
+
+    public boolean isUserInvokable() {
+        return headers.userInvokable().value();
+    }
+
+    public boolean isModelInvocationDisabled() {
+        return headers.disableModelInvocation().value();
+    }
+
+    public List<String> getSubagents() {
+        return headers.subagents().value();
+    }
+
+    public List<AgentHandoff> getHandoffs() {
+        return headers.handoffs().value();
+    }
+
+    public List<String> getSkills() {
+        return headers.skills().value();
+    }
+
+    public MarkdownContentSections getContent() {
         return content;
+    }
+
+    public List<MarkdownSection> getLevel1Content() {
+        return content.sections();
     }
 }

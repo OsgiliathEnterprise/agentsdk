@@ -1,13 +1,11 @@
 package net.osgiliath.agentsdk.skills.parser;
 
-import net.osgiliath.agentsdk.utils.markdown.MarkdownHeader;
-
 import java.util.List;
 import java.util.Objects;
 
-public record SkillDependenciesHeader(List<String> value) implements MarkdownHeader {
+public record SkillDependenciesHeader(List<String> value) implements SkillHeader {
 
-    public static final String KEY = "dependencies";
+    public static final String DEPENDENCIES = "dependencies";
 
     public SkillDependenciesHeader {
         Objects.requireNonNull(value, "value must not be null");
@@ -16,7 +14,6 @@ public record SkillDependenciesHeader(List<String> value) implements MarkdownHea
 
     @Override
     public String key() {
-        return KEY;
+        return DEPENDENCIES;
     }
 }
-

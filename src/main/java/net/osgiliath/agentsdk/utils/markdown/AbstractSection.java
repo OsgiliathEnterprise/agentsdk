@@ -13,7 +13,7 @@ public abstract class AbstractSection implements MarkdownSection {
     private final String content;
     private final List<MarkdownSection> subSections;
 
-    public AbstractSection(String title, String content, List<MarkdownSection> subSections) {
+    protected AbstractSection(String title, String content, List<MarkdownSection> subSections) {
         this.title = title;
         this.content = content;
         this.subSections = new ArrayList<>(subSections);
@@ -36,8 +36,8 @@ public Optional<MarkdownSection> getSubSection(String title) {
         return result;
     }
     for (MarkdownSection subSection : subSections) {
-        if (subSection instanceof AbstractSection) {
-            Optional<MarkdownSection> found = ((AbstractSection) subSection).getSubSection(title);
+        if (subSection instanceof AbstractSection abstractSection) {
+            Optional<MarkdownSection> found = abstractSection.getSubSection(title);
             if (found.isPresent()) {
                 return found;
             }

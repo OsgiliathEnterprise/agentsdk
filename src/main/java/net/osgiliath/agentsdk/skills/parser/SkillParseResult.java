@@ -1,5 +1,7 @@
 package net.osgiliath.agentsdk.skills.parser;
 
+import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
+
 import java.util.List;
 import java.util.Objects;
 
@@ -13,7 +15,7 @@ public record SkillParseResult(
     List<SkillReference> references,
     List<SkillScriptCommand> scripts,
     List<SkillTemplate> templates,
-    SkillContentSections content
+    MarkdownContentSections content
 ) {
 
     public SkillParseResult {

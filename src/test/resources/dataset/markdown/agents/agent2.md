@@ -1,8 +1,8 @@
-----
+---
 name: Cloud Architect
 description: Provides architectural guidance for cloud-based projects
 tools: ['insert_edit_into_file', 'replace_string_in_file', 'create_file', 'open_file', 'list_dir', 'read_file', 'file_search', 'grep_search', 'run_subagent', 'get_terminal_output', 'mcp-find', 'search', 'search_code', 'fetch', 'fetch_content', 'curl', 'sequentialthinking']
----
+--
 
 # Cloud Architect
 

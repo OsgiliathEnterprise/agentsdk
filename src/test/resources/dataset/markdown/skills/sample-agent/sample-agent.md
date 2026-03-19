@@ -5,6 +5,9 @@ argument-hint: "[file or code to review]"
 tools:
   - read
   - search
+model:
+  - claude-3-5-sonnet-20241022
+  - gpt-4.1
 user-invokable: true
 disable-model-invocation: false
 agents: ["subagent-1", "subagent-2", ...]

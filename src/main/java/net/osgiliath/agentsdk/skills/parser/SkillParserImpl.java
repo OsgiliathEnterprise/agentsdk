@@ -1,5 +1,7 @@
 package net.osgiliath.agentsdk.skills.parser;
 
+import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
+import net.osgiliath.agentsdk.common.parsing.ParsingHeader;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownFile;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownHeader;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownHeaders;
@@ -24,7 +26,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -51,14 +52,14 @@ public class SkillParserImpl implements SkillParser {
         Path skillRoot = normalized.getParent();
 
         MarkdownFile markdownFile = parseMainMarkdown(normalized);
-        SkillsHeaders headers = parseHeaders(markdownFile.getHeaders(), normalized);
+        SkillsHeaders headers = parseHeaders(markdownFile.getHeaders());
 
         List<SkillLink> discoveredLinks = discoverLinks(normalized);
         List<SkillAsset> assets = toAssets(discoveredLinks);
         List<SkillTemplate> templates = scanTemplates(skillRoot);
         List<SkillScriptCommand> scriptCommands = extractScriptCommands(normalized);
 
-        SkillContentSections content = buildContent(markdownFile, skillRoot);
+        MarkdownContentSections content = buildContent(markdownFile, skillRoot);
         return new Skill(headers, assets, templates, scriptCommands, content);
     }
 
@@ -78,86 +79,20 @@ public class SkillParserImpl implements SkillParser {
             .orElseThrow(() -> new IllegalArgumentException("Unable to parse markdown: " + skillFile));
     }
 
-    private SkillsHeaders parseHeaders(MarkdownHeaders headers, Path skillFile) {
+    private SkillsHeaders parseHeaders(MarkdownHeaders headers) {
         if (headers != null) {
             if (headers instanceof SkillsHeaders typed) {
                 return typed;
             }
             List<MarkdownHeader> mapped = headers.headerKeys().stream()
-                .map(key -> (MarkdownHeader) new SkillHeader(key, headers.header(key).orElse(null)))
+                .filter(key -> !"text".equals(key))
+                .map(key -> (MarkdownHeader) new ParsingHeader(key, headers.header(key).orElse(null)))
                 .toList();
             if (!mapped.isEmpty()) {
                 return SkillsHeaders.from(mapped);
             }
         }
-        return parseHeadersFromFrontMatter(readFile(skillFile));
-    }
-
-    private SkillsHeaders parseHeadersFromFrontMatter(String source) {
-        List<String> lines = source.lines().toList();
-        int start = findFrontMatterDelimiter(lines, 0);
-        if (start < 0) {
-            throw new IllegalArgumentException("Skill markdown does not contain headers");
-        }
-        int end = findFrontMatterDelimiter(lines, start + 1);
-        if (end < 0 || end <= start + 1) {
-            throw new IllegalArgumentException("Skill markdown does not contain headers");
-        }
-
-        List<MarkdownHeader> parsed = parseHeaderLines(lines.subList(start + 1, end));
-        if (parsed.isEmpty()) {
-            throw new IllegalArgumentException("Skill markdown does not contain headers");
-        }
-        return SkillsHeaders.from(parsed);
-    }
-
-    private int findFrontMatterDelimiter(List<String> lines, int from) {
-        for (int i = from; i < lines.size(); i++) {
-            String line = lines.get(i).trim();
-            if ("---".equals(line) || "----".equals(line)) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private List<MarkdownHeader> parseHeaderLines(List<String> headerLines) {
-        Map<String, Object> values = new LinkedHashMap<>();
-        String currentListKey = null;
-
-        for (String rawLine : headerLines) {
-            String line = rawLine.trim();
-            if (line.isEmpty()) {
-                continue;
-            }
-
-            if (line.startsWith("- ") && currentListKey != null) {
-                @SuppressWarnings("unchecked")
-                List<String> list = (List<String>) values.computeIfAbsent(currentListKey, k -> new ArrayList<String>());
-                list.add(line.substring(2).trim());
-                continue;
-            }
-
-            int separator = line.indexOf(':');
-            if (separator < 0) {
-                continue;
-            }
-
-            String key = line.substring(0, separator).trim();
-            String value = line.substring(separator + 1).trim();
-
-            if (value.isEmpty()) {
-                values.put(key, new ArrayList<String>());
-                currentListKey = key;
-            } else {
-                values.put(key, value);
-                currentListKey = null;
-            }
-        }
-
-        return values.entrySet().stream()
-            .map(entry -> (MarkdownHeader) new SkillHeader(entry.getKey(), entry.getValue()))
-            .toList();
+        throw new IllegalArgumentException("Skill markdown does not contain valid front-matter headers");
     }
 
     private List<SkillLink> discoverLinks(Path skillFile) {
@@ -180,10 +115,10 @@ public class SkillParserImpl implements SkillParser {
             .toList();
     }
 
-    private SkillContentSections buildContent(MarkdownFile markdownFile, Path skillRoot) {
+    private MarkdownContentSections buildContent(MarkdownFile markdownFile, Path skillRoot) {
         List<MarkdownSection> linkedSections = List.copyOf(markdownFile.getSubSections());
         List<MarkdownSection> referenceSections = parseReferenceSections(skillRoot);
-        return new SkillContentSections(mergeSections(linkedSections, referenceSections));
+        return new MarkdownContentSections(mergeSections(linkedSections, referenceSections));
     }
 
     private List<MarkdownSection> parseReferenceSections(Path skillRoot) {
@@ -300,7 +235,7 @@ public class SkillParserImpl implements SkillParser {
                 .filter(line -> !line.startsWith("#"))
                 .map(this::toCommand)
                 .flatMap(Optional::stream)
-                .collect(Collectors.toList());
+                .toList();
         }
 
         private Optional<SkillScriptCommand> toCommand(String line) {

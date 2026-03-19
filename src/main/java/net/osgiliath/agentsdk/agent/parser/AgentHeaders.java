@@ -1,5 +1,12 @@
 package net.osgiliath.agentsdk.agent.parser;
 
+import net.osgiliath.agentsdk.common.parsing.DescriptionHeader;
+import net.osgiliath.agentsdk.common.parsing.FrontMatterParsing;
+import net.osgiliath.agentsdk.common.parsing.LlmHeader;
+import net.osgiliath.agentsdk.common.parsing.McpHeader;
+import net.osgiliath.agentsdk.common.parsing.NameHeader;
+import net.osgiliath.agentsdk.common.parsing.ParsingValueCoercions;
+import net.osgiliath.agentsdk.utils.markdown.MarkdownHeader;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownHeaders;
 
 import java.util.LinkedHashMap;
@@ -9,137 +16,122 @@ import java.util.Objects;
 import java.util.Optional;
 
 public record AgentHeaders(
-    String name,
-    String description,
-    String argumentHint,
-    List<String> tools,
-    boolean userInvokable,
-    boolean disableModelInvocation,
-    List<String> subagents,
-    List<AgentHandoff> handoffs,
-    List<String> skills
+    NameHeader name,
+    DescriptionHeader description,
+    AgentArgumentHintHeader argumentHint,
+    McpHeader mcp,
+    LlmHeader llm,
+    AgentUserInvokableHeader userInvokable,
+    AgentDisableModelInvocationHeader disableModelInvocation,
+    AgentSubagentsHeader subagents,
+    AgentHandoffsHeader handoffs,
+    AgentSkillsHeader skills
 ) implements MarkdownHeaders {
+
+    public static final String AGENT = "agent";
+    public static final String LABEL = "label";
+    public static final String PROMPT = "prompt";
+    public static final String SEND = "send";
 
     public AgentHeaders {
         Objects.requireNonNull(name, "name must not be null");
         Objects.requireNonNull(description, "description must not be null");
         Objects.requireNonNull(argumentHint, "argumentHint must not be null");
-        Objects.requireNonNull(tools, "tools must not be null");
+        Objects.requireNonNull(mcp, "mcp must not be null");
+        Objects.requireNonNull(llm, "llm must not be null");
+        Objects.requireNonNull(userInvokable, "userInvokable must not be null");
+        Objects.requireNonNull(disableModelInvocation, "disableModelInvocation must not be null");
         Objects.requireNonNull(subagents, "subagents must not be null");
         Objects.requireNonNull(handoffs, "handoffs must not be null");
         Objects.requireNonNull(skills, "skills must not be null");
+    }
 
-        name = name.trim();
-        description = description.trim();
-        argumentHint = argumentHint.trim();
-        tools = List.copyOf(tools);
-        subagents = List.copyOf(subagents);
-        handoffs = List.copyOf(handoffs);
-        skills = List.copyOf(skills);
+    public AgentHeaders(
+        String name,
+        String description,
+        String argumentHint,
+        List<String> mcp,
+        List<String> llm,
+        boolean userInvokable,
+        boolean disableModelInvocation,
+        List<String> subagents,
+        List<AgentHandoff> handoffs,
+        List<String> skills
+    ) {
+        this(
+            new NameHeader(name),
+            new DescriptionHeader(description),
+            new AgentArgumentHintHeader(argumentHint),
+            new McpHeader(mcp),
+            new LlmHeader(llm),
+            new AgentUserInvokableHeader(userInvokable),
+            new AgentDisableModelInvocationHeader(disableModelInvocation),
+            new AgentSubagentsHeader(subagents),
+            new AgentHandoffsHeader(handoffs),
+            new AgentSkillsHeader(skills)
+        );
+    }
 
-        if (name.isEmpty()) {
-            throw new IllegalArgumentException("name must not be blank");
-        }
-        if (description.isEmpty()) {
-            throw new IllegalArgumentException("description must not be blank");
-        }
+    public static AgentHeaders from(List<MarkdownHeader> headers) {
+        Objects.requireNonNull(headers, "headers must not be null");
+        Map<String, Object> values = new LinkedHashMap<>();
+        headers.forEach(header -> values.put(header.key(), header.value()));
+        return fromRawHeaders(values);
     }
 
     @Override
     public List<String> headerKeys() {
         return List.of(
-            "name",
-            "description",
-            "argument-hint",
-            "tools",
-            "user-invokable",
-            "disable-model-invocation",
-            "subagents",
-            "handoffs",
-            "skills"
+                NameHeader.NAME,
+                DescriptionHeader.DESCRIPTION,
+                AgentArgumentHintHeader.ARGUMENT_HINT,
+                McpHeader.MCP,
+                LlmHeader.LLM,
+                AgentUserInvokableHeader.USER_INVOKABLE,
+                AgentDisableModelInvocationHeader.DISABLE_MODEL_INVOCATION,
+                AgentSubagentsHeader.SUBAGENTS,
+                AgentHandoffsHeader.HANDOFFS,
+                AgentSkillsHeader.SKILLS
         );
     }
 
     @Override
     public Optional<Object> header(String headerKey) {
         return switch (headerKey) {
-            case "name" -> Optional.of(name);
-            case "description" -> Optional.of(description);
-            case "argument-hint" -> Optional.of(argumentHint);
-            case "tools" -> Optional.of(tools);
-            case "user-invokable" -> Optional.of(userInvokable);
-            case "disable-model-invocation" -> Optional.of(disableModelInvocation);
-            case "subagents", "agents" -> Optional.of(subagents);
-            case "handoffs" -> Optional.of(handoffs);
-            case "skills" -> Optional.of(skills);
+            case NameHeader.NAME -> Optional.of(name.value());
+            case DescriptionHeader.DESCRIPTION -> Optional.of(description.value());
+            case AgentArgumentHintHeader.ARGUMENT_HINT -> Optional.of(argumentHint.value());
+            case McpHeader.MCP, McpHeader.TOOLS_ALIAS -> Optional.of(mcp.value());
+            case LlmHeader.LLM, LlmHeader.MODEL_ALIAS -> Optional.of(llm.value());
+            case AgentUserInvokableHeader.USER_INVOKABLE -> Optional.of(userInvokable.value());
+            case AgentDisableModelInvocationHeader.DISABLE_MODEL_INVOCATION -> Optional.of(disableModelInvocation.value());
+            case AgentSubagentsHeader.SUBAGENTS, AgentSubagentsHeader.AGENTS_ALIAS -> Optional.of(subagents.value());
+            case AgentHandoffsHeader.HANDOFFS -> Optional.of(handoffs.value());
+            case AgentSkillsHeader.SKILLS -> Optional.of(skills.value());
             default -> Optional.empty();
         };
     }
 
     public static AgentHeaders fromRawHeaders(Map<String, Object> rawHeaders) {
         Map<String, Object> values = new LinkedHashMap<>(rawHeaders);
+        List<AgentHandoff> parsedHandoffs = asHandoffs(values.get(AgentHandoffsHeader.HANDOFFS));
+        boolean missingStructuredFields = parsedHandoffs.stream()
+            .allMatch(h -> h.agent().isBlank() && h.prompt().isBlank());
+        if (parsedHandoffs.isEmpty() || missingStructuredFields) {
+            parsedHandoffs = parseHandoffsFromMarkdownText(ParsingValueCoercions.asString(values.get("text")));
+        }
         return new AgentHeaders(
-            requiredString(values, "name"),
-            requiredString(values, "description"),
-            asString(values.get("argument-hint")),
-            asStringList(values.get("tools")),
-            asBoolean(values.get("user-invokable")),
-            asBoolean(values.get("disable-model-invocation")),
-            asStringList(values.get("agents")),
-            asHandoffs(values.get("handoffs")),
-            asStringList(values.get("skills"))
+            new NameHeader(ParsingValueCoercions.requiredString(values, NameHeader.NAME, AGENT)),
+            new DescriptionHeader(ParsingValueCoercions.requiredString(values, DescriptionHeader.DESCRIPTION, AGENT)),
+            new AgentArgumentHintHeader(ParsingValueCoercions.asString(values.get(AgentArgumentHintHeader.ARGUMENT_HINT))),
+            new McpHeader(ParsingValueCoercions.asStringList(firstNonNull(values, McpHeader.MCP, McpHeader.TOOLS_ALIAS))),
+            new LlmHeader(ParsingValueCoercions.asStringList(firstNonNull(values, LlmHeader.LLM, LlmHeader.MODEL_ALIAS))),
+            new AgentUserInvokableHeader(ParsingValueCoercions.asBoolean(values.get(AgentUserInvokableHeader.USER_INVOKABLE))),
+            new AgentDisableModelInvocationHeader(ParsingValueCoercions.asBoolean(values.get(AgentDisableModelInvocationHeader.DISABLE_MODEL_INVOCATION))),
+            new AgentSubagentsHeader(ParsingValueCoercions.asStringList(firstNonNull(values, AgentSubagentsHeader.SUBAGENTS, AgentSubagentsHeader.AGENTS_ALIAS))),
+            new AgentHandoffsHeader(parsedHandoffs),
+            new AgentSkillsHeader(ParsingValueCoercions.asStringList(values.get(AgentSkillsHeader.SKILLS)))
         );
-    }
-
-    private static String requiredString(Map<String, Object> values, String key) {
-        String value = asString(values.get(key));
-        if (value.isBlank()) {
-            throw new IllegalArgumentException("Missing required agent header: " + key);
-        }
-        return value;
-    }
-
-    private static String asString(Object value) {
-        if (value == null) {
-            return "";
-        }
-        return String.valueOf(value).trim();
-    }
-
-    private static boolean asBoolean(Object value) {
-        if (value instanceof Boolean bool) {
-            return bool;
-        }
-        if (value == null) {
-            return false;
-        }
-        return Boolean.parseBoolean(String.valueOf(value).trim());
-    }
-
-    private static List<String> asStringList(Object value) {
-        if (value == null) {
-            return List.of();
-        }
-        if (value instanceof List<?> list) {
-            return list.stream()
-                .map(String::valueOf)
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .toList();
-        }
-        String scalar = asString(value);
-        if (scalar.startsWith("[") && scalar.endsWith("]")) {
-            String inner = scalar.substring(1, scalar.length() - 1).trim();
-            if (inner.isEmpty()) {
-                return List.of();
-            }
-            return java.util.stream.Stream.of(inner.split(","))
-                .map(String::trim)
-                .map(AgentHeaders::unquote)
-                .filter(s -> !s.isEmpty())
-                .toList();
-        }
-        return scalar.isEmpty() ? List.of() : List.of(unquote(scalar));
     }
 
     private static List<AgentHandoff> asHandoffs(Object value) {
@@ -147,25 +139,36 @@ public record AgentHeaders(
             return List.of();
         }
         return list.stream()
-            .filter(item -> item instanceof Map<?, ?>)
             .map(item -> {
-                Map<?, ?> map = (Map<?, ?>) item;
+                if (item instanceof AgentHandoff handoff) {
+                    return handoff;
+                }
+                if (!(item instanceof Map<?, ?> map)) {
+                    return null;
+                }
                 return new AgentHandoff(
-                    asString(map.get("label")),
-                    asString(map.get("agent")),
-                    asString(map.get("prompt")),
-                    asBoolean(map.get("send"))
+                    ParsingValueCoercions.asString(map.get(LABEL)),
+                    ParsingValueCoercions.asString(map.get(AGENT)),
+                    ParsingValueCoercions.asString(map.get(PROMPT)),
+                    ParsingValueCoercions.asBoolean(map.get(SEND))
                 );
             })
+            .filter(Objects::nonNull)
             .toList();
     }
 
-    private static String unquote(String value) {
-        String trimmed = value.trim();
-        if ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
-            (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
-            return trimmed.substring(1, trimmed.length() - 1).trim();
+    private static List<AgentHandoff> parseHandoffsFromMarkdownText(String markdown) {
+        Map<String, Object> frontMatter = FrontMatterParsing.parseYamlFrontMatter(markdown);
+        return asHandoffs(frontMatter.get(AgentHandoffsHeader.HANDOFFS));
+    }
+
+    private static Object firstNonNull(Map<String, Object> values, String... keys) {
+        for (String key : keys) {
+            Object value = values.get(key);
+            if (value != null) {
+                return value;
+            }
         }
-        return trimmed;
+        return null;
     }
 }

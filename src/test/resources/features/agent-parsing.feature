@@ -21,6 +21,12 @@ Feature: Agent Parsing
       | read   |
       | search |
 
+  Scenario: Should parse llm
+    When the agent parser reads the headers
+    Then the parsed llm should include:
+      | claude-3-5-sonnet-20241022 |
+      | gpt-4.1                     |
+
   Scenario: Should parse user-invokable
     When the agent parser reads the headers
     Then the parsed user-invokable flag should be "true"

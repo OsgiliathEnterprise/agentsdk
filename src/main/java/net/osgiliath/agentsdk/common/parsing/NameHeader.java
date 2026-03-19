@@ -1,14 +1,14 @@
-package net.osgiliath.agentsdk.skills.parser;
+package net.osgiliath.agentsdk.common.parsing;
 
 import net.osgiliath.agentsdk.utils.markdown.MarkdownHeader;
 
 import java.util.Objects;
 
-public record SkillNameHeader(String value) implements MarkdownHeader {
+public record NameHeader(String value) implements MarkdownHeader {
 
-    public static final String KEY = "name";
+    public static final String NAME = "name";
 
-    public SkillNameHeader {
+    public NameHeader {
         Objects.requireNonNull(value, "value must not be null");
         value = value.trim();
         if (value.isEmpty()) {
@@ -18,7 +18,7 @@ public record SkillNameHeader(String value) implements MarkdownHeader {
 
     @Override
     public String key() {
-        return KEY;
+        return NAME;
     }
 }
 

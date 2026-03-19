@@ -132,6 +132,40 @@ public class MarkdownParserImpl implements MarkdownParser {
     public Document toDocument(MarkdownFile markdownFile, boolean includeHeaders, boolean includeSections, boolean includeSamples) {
         StringBuilder builder = new StringBuilder();
 
+        appendHeaders(markdownFile, includeHeaders, builder);
+
+        if (markdownFile != null) {
+            List<MarkdownSection> mainSections = appendMainSections(markdownFile, includeSections, builder);
+
+            appendSampleSections(includeSamples, mainSections, builder);
+        }
+
+        String text = builder.toString().trim();
+        return Document.from(text.isBlank() ? "(no content selected)" : text);
+    }
+
+    private void appendSampleSections(boolean includeSamples, List<MarkdownSection> mainSections, StringBuilder builder) {
+        if (includeSamples) {
+            List<MarkdownSection> sampleSections = extractSampleSections(mainSections);
+            for (MarkdownSection section : sampleSections) {
+                appendSection(builder, section);
+            }
+        }
+    }
+
+    private List<MarkdownSection> appendMainSections(MarkdownFile markdownFile, boolean includeSections, StringBuilder builder) {
+        List<MarkdownSection> mainSections = markdownFile.getSubSections();
+
+        if (includeSections) {
+            List<MarkdownSection> mardownMainSections = markdownFile.getSubSections().stream().filter(section -> !section.getTitle().startsWith("Sample")).toList();
+            for (MarkdownSection section : mardownMainSections) {
+                appendSection(builder, section);
+            }
+        }
+        return mainSections;
+    }
+
+    private void appendHeaders(MarkdownFile markdownFile, boolean includeHeaders, StringBuilder builder) {
         if (includeHeaders && markdownFile != null && markdownFile.getHeaders() != null) {
             for (String key : markdownFile.getHeaders().headerKeys()) {
                 Object value = markdownFile.getHeaders().header(key).orElse("");
@@ -140,25 +174,6 @@ public class MarkdownParserImpl implements MarkdownParser {
                 }
             }
         }
-
-        if (markdownFile != null) {
-            List<MarkdownSection> mainSections = markdownFile.getSubSections();
-
-            if (includeSections) {
-                for (MarkdownSection section : mainSections) {
-                    appendSection(builder, section);
-                }
-            }
-
-            if (includeSamples) {
-                List<MarkdownSection> sampleSections = extractSampleSections(mainSections);
-                for (MarkdownSection section : sampleSections) {
-                    appendSection(builder, section);
-                }
-            }
-        }
-
-        return Document.from(builder.toString().trim());
     }
 
     private List<MarkdownSection> consolidateLinkedFiles(Path rootPath) {
@@ -284,29 +299,31 @@ public class MarkdownParserImpl implements MarkdownParser {
     private Optional<MarkdownHeaders> parseHeaders(Node document, String source) {
         logger.debug("Parsing headers from document");
 
-        // Preferred path: parse YAML front matter from the CommonMark AST model.
+        // CommonMark detects whether front matter is present
         YamlFrontMatterVisitor visitor = new YamlFrontMatterVisitor();
         document.accept(visitor);
         Map<String, List<String>> frontMatter = visitor.getData();
 
-        if (frontMatter != null && !frontMatter.isEmpty()) {
-            logger.info("Found YAML front matter with {} keys", frontMatter.size());
-            List<MarkdownHeader> parsedHeaders = new ArrayList<>();
-            parsedHeaders.add(new SimpleMarkdownHeader("text", source));
-
-            for (Map.Entry<String, List<String>> entry : frontMatter.entrySet()) {
-                List<String> values = entry.getValue();
-                Object value = (values == null || values.isEmpty()) ? "" : String.join("\n", values);
-                logger.trace("Header: {} = {}", entry.getKey(), value.toString().length() + " bytes");
-                parsedHeaders.add(new SimpleMarkdownHeader(entry.getKey(), value));
-            }
-            logger.debug("Successfully parsed {} headers from YAML front matter", parsedHeaders.size());
-            return Optional.of(new AbstractMarkdownHeaders(parsedHeaders));
+        if (frontMatter == null || frontMatter.isEmpty()) {
+            logger.debug("No YAML front matter found in document");
+            return Optional.empty();
         }
 
-        logger.debug("No YAML front matter found in document");
-        return Optional.empty();
+        logger.info("Found YAML front matter with {} keys", frontMatter.size());
+        List<MarkdownHeader> parsedHeaders = new ArrayList<>();
+        parsedHeaders.add(new SimpleMarkdownHeader("text", source));
+        for (Map.Entry<String, List<String>> entry : frontMatter.entrySet()) {
+            List<String> values = entry.getValue();
+            Object value = (values == null || values.isEmpty()) ? ""
+                : values.size() == 1 ? values.getFirst()
+                : List.copyOf(values);
+            logger.trace("Header: {} = {} bytes", entry.getKey(), value.toString().length());
+            parsedHeaders.add(new SimpleMarkdownHeader(entry.getKey(), value));
+        }
+        logger.debug("Successfully parsed {} headers from YAML front matter", parsedHeaders.size());
+        return Optional.of(new AbstractMarkdownHeaders(parsedHeaders));
     }
+
 
     private List<MarkdownSection> parseSections(Node document) {
         logger.trace("Parsing sections from document");
@@ -378,44 +395,13 @@ public class MarkdownParserImpl implements MarkdownParser {
         return text.toString();
     }
 
+    /**
+     * Renders a commonmark {@link Node} tree to a Markdown-preserving text representation,
+     * used when extracting section content (headings already split out, double blank lines
+     * between blocks for readability).
+     */
     private void extractNodeTextForSectionRecursive(Node node, StringBuilder text) {
-        // Skip headings in section content
-        if (node instanceof Text textNode) {
-            text.append(textNode.getLiteral());
-        } else if (node instanceof SoftLineBreak || node instanceof HardLineBreak) {
-            text.append(System.lineSeparator());
-        } else if (node instanceof org.commonmark.node.Paragraph) {
-            Node child = node.getFirstChild();
-            while (child != null) {
-                extractNodeTextForSectionRecursive(child, text);
-                child = child.getNext();
-            }
-            text.append(System.lineSeparator()).append(System.lineSeparator());
-        } else if (node instanceof org.commonmark.node.Code codeNode) {
-            text.append("`").append(codeNode.getLiteral()).append("`");
-        } else if (node instanceof org.commonmark.node.FencedCodeBlock codeBlock) {
-            text.append("```");
-            if (codeBlock.getInfo() != null) {
-                text.append(codeBlock.getInfo());
-            }
-            text.append(System.lineSeparator());
-            text.append(codeBlock.getLiteral());
-            text.append("```").append(System.lineSeparator()).append(System.lineSeparator());
-        } else if (node instanceof Link link) {
-            text.append("[");
-            Node child = link.getFirstChild();
-            while (child != null) {
-                extractNodeTextForSectionRecursive(child, text);
-                child = child.getNext();
-            }
-            text.append("](").append(link.getDestination()).append(")");
-        } else if (node.getFirstChild() != null) {
-            Node child = node.getFirstChild();
-            while (child != null) {
-                extractNodeTextForSectionRecursive(child, text);
-                child = child.getNext();
-            }
-        }
+        renderNodeToText(node, text, false, System.lineSeparator() + System.lineSeparator());
     }
 
     private String extractHeadingText(Heading heading) {
@@ -430,26 +416,53 @@ public class MarkdownParserImpl implements MarkdownParser {
         return text.toString().trim();
     }
 
+    /**
+     * Renders a commonmark {@link Node} tree to a Markdown-preserving text representation,
+     * used when a file has no heading-based sections (the whole file becomes a single block).
+     * Heading markers are preserved so the structure remains readable.
+     */
     private void extractNodeTextRecursive(Node node, StringBuilder text) {
+        renderNodeToText(node, text, true, System.lineSeparator());
+    }
+
+    /**
+     * Shared Markdown-to-text renderer used by both {@link #extractNodeTextRecursive} and
+     * {@link #extractNodeTextForSectionRecursive}.
+     *
+     * <p>The two callers differ in two ways:
+     * <ul>
+     *   <li>{@code preserveHeadings} – when {@code true}, heading nodes are rendered with their
+     *       {@code #…} markers; when {@code false} they fall through to generic child traversal
+     *       (section content has already been split on headings, so re-emitting them is redundant).
+     *   <li>{@code blockSeparator} – the string appended after block-level elements (paragraphs,
+     *       fenced code blocks). Full-file rendering uses a single newline; section-content
+     *       rendering uses a double newline for readability.
+     * </ul>
+     *
+     * <p>Note: commonmark's built-in {@code TextContentRenderer} strips all markdown syntax
+     * (code fences, link targets, …), which does not meet our requirements of preserving
+     * those elements for downstream LLM consumption.
+     */
+    private void renderNodeToText(Node node, StringBuilder text, boolean preserveHeadings, String blockSeparator) {
         if (node instanceof Text textNode) {
             text.append(textNode.getLiteral());
-        } else if (node instanceof Heading heading) {
-            // Re-add heading markers so structure is preserved
-            int level = heading.getLevel();
-            text.append("#".repeat(level)).append(" ");
+        } else if (node instanceof SoftLineBreak || node instanceof HardLineBreak) {
+            text.append(System.lineSeparator());
+        } else if (preserveHeadings && node instanceof Heading heading) {
+            text.append("#".repeat(heading.getLevel())).append(" ");
             Node child = heading.getFirstChild();
             while (child != null) {
-                extractNodeTextRecursive(child, text);
+                renderNodeToText(child, text, preserveHeadings, blockSeparator);
                 child = child.getNext();
             }
             text.append(System.lineSeparator());
         } else if (node instanceof org.commonmark.node.Paragraph) {
             Node child = node.getFirstChild();
             while (child != null) {
-                extractNodeTextRecursive(child, text);
+                renderNodeToText(child, text, preserveHeadings, blockSeparator);
                 child = child.getNext();
             }
-            text.append(System.lineSeparator());
+            text.append(blockSeparator);
         } else if (node instanceof org.commonmark.node.Code codeNode) {
             text.append("`").append(codeNode.getLiteral()).append("`");
         } else if (node instanceof org.commonmark.node.FencedCodeBlock codeBlock) {
@@ -459,19 +472,19 @@ public class MarkdownParserImpl implements MarkdownParser {
             }
             text.append(System.lineSeparator());
             text.append(codeBlock.getLiteral());
-            text.append("```").append(System.lineSeparator());
+            text.append("```").append(blockSeparator);
         } else if (node instanceof Link link) {
             text.append("[");
             Node child = link.getFirstChild();
             while (child != null) {
-                extractNodeTextRecursive(child, text);
+                renderNodeToText(child, text, preserveHeadings, blockSeparator);
                 child = child.getNext();
             }
             text.append("](").append(link.getDestination()).append(")");
         } else if (node.getFirstChild() != null) {
             Node child = node.getFirstChild();
             while (child != null) {
-                extractNodeTextRecursive(child, text);
+                renderNodeToText(child, text, preserveHeadings, blockSeparator);
                 child = child.getNext();
             }
         }

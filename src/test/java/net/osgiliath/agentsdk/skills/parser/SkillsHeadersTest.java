@@ -1,5 +1,10 @@
 package net.osgiliath.agentsdk.skills.parser;
 
+import net.osgiliath.agentsdk.common.parsing.DescriptionHeader;
+import net.osgiliath.agentsdk.common.parsing.LlmHeader;
+import net.osgiliath.agentsdk.common.parsing.McpHeader;
+import net.osgiliath.agentsdk.common.parsing.NameHeader;
+import net.osgiliath.agentsdk.common.parsing.ParsingHeader;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownHeader;
 import org.junit.jupiter.api.Test;
 
@@ -11,13 +16,24 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SkillsHeadersTest {
 
     @Test
+    void shouldKeepSkillHeaderInheritanceChainCompatibleWithMarkdownHeader() {
+        assertThat(MarkdownHeader.class).isAssignableFrom(SkillHeader.class);
+        assertThat(SkillHeader.class).isAssignableFrom(SkillDependenciesHeader.class);
+        // common types flow through MarkdownHeader
+        assertThat(MarkdownHeader.class).isAssignableFrom(NameHeader.class);
+        assertThat(MarkdownHeader.class).isAssignableFrom(DescriptionHeader.class);
+        assertThat(MarkdownHeader.class).isAssignableFrom(McpHeader.class);
+        assertThat(MarkdownHeader.class).isAssignableFrom(LlmHeader.class);
+    }
+
+    @Test
     void shouldCreateTypedHeadersFromGenericMarkdownHeaders() {
         List<MarkdownHeader> headers = List.of(
-            new SkillHeader("name", "implements features file"),
-            new SkillHeader("description", "gherkin writer"),
-            new SkillHeader("dependencies", "python>=3.8, pandas>=1.5.0, matplotlib"),
-            new SkillHeader("mcp", List.of("server-name-1", "server-name-2")),
-            new SkillHeader("llm", List.of("claude-3-5-sonnet-20241022"))
+            new ParsingHeader("name", "implements features file"),
+            new ParsingHeader("description", "gherkin writer"),
+            new ParsingHeader("dependencies", "python>=3.8, pandas>=1.5.0, matplotlib"),
+            new ParsingHeader("mcp", List.of("server-name-1", "server-name-2")),
+            new ParsingHeader("llm", List.of("claude-3-5-sonnet-20241022"))
         );
 
         SkillsHeaders parsed = SkillsHeaders.from(headers);
@@ -30,10 +46,55 @@ class SkillsHeadersTest {
     }
 
     @Test
+    void shouldSupportToolsAliasForMcp() {
+        List<MarkdownHeader> headers = List.of(
+            new ParsingHeader("name", "implements features file"),
+            new ParsingHeader("description", "gherkin writer"),
+            new ParsingHeader("tools", List.of("server-name-1"))
+        );
+
+        SkillsHeaders parsed = SkillsHeaders.from(headers);
+
+        assertThat(parsed.mcp().value()).containsExactly("server-name-1");
+        assertThat(parsed.header("mcp")).contains(List.of("server-name-1"));
+        assertThat(parsed.header("tools")).contains(List.of("server-name-1"));
+    }
+
+    @Test
+    void shouldSupportModelAliasForLlm() {
+        List<MarkdownHeader> headers = List.of(
+            new ParsingHeader("name", "implements features file"),
+            new ParsingHeader("description", "gherkin writer"),
+            new ParsingHeader("model", List.of("gpt-4.1"))
+        );
+
+        SkillsHeaders parsed = SkillsHeaders.from(headers);
+
+        assertThat(parsed.llm().value()).containsExactly("gpt-4.1");
+        assertThat(parsed.header("llm")).contains(List.of("gpt-4.1"));
+        assertThat(parsed.header("model")).contains(List.of("gpt-4.1"));
+    }
+
+    @Test
+    void shouldPreferLlmWhenLlmAndModelAreBothPresent() {
+        List<MarkdownHeader> headers = List.of(
+            new ParsingHeader("name", "implements features file"),
+            new ParsingHeader("description", "gherkin writer"),
+            new ParsingHeader("llm", List.of("claude-3-5-sonnet-20241022")),
+            new ParsingHeader("model", List.of("gpt-4.1"))
+        );
+
+        SkillsHeaders parsed = SkillsHeaders.from(headers);
+
+        assertThat(parsed.llm().value()).containsExactly("claude-3-5-sonnet-20241022");
+        assertThat(parsed.header("model")).contains(List.of("claude-3-5-sonnet-20241022"));
+    }
+
+    @Test
     void shouldDefaultOptionalHeadersToEmptyListWhenAbsent() {
         List<MarkdownHeader> headers = List.of(
-            new SkillHeader("name", "implements features file"),
-            new SkillHeader("description", "gherkin writer")
+            new ParsingHeader("name", "implements features file"),
+            new ParsingHeader("description", "gherkin writer")
         );
 
         SkillsHeaders parsed = SkillsHeaders.from(headers);
@@ -64,6 +125,7 @@ class SkillsHeadersTest {
             .containsExactly("name", "description", "dependencies", "mcp", "llm");
         assertThat(headers.header("name")).contains("implements features file");
         assertThat(headers.header("dependencies")).contains(List.of("python>=3.8"));
+        assertThat(headers.header("model")).contains(List.of("claude-3-5-sonnet-20241022"));
         assertThat(headers.header("unknown")).isEmpty();
     }
 
@@ -81,14 +143,14 @@ class SkillsHeadersTest {
     @Test
     void shouldRejectMissingName() {
         assertThatThrownBy(() -> SkillsHeaders.from(List.of(
-            new SkillHeader("description", "gherkin writer")
+            new ParsingHeader("description", "gherkin writer")
         ))).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("name");
     }
 
     @Test
     void shouldRejectMissingDescription() {
         assertThatThrownBy(() -> SkillsHeaders.from(List.of(
-            new SkillHeader("name", "implements features file")
+            new ParsingHeader("name", "implements features file")
         ))).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("description");
     }
 }

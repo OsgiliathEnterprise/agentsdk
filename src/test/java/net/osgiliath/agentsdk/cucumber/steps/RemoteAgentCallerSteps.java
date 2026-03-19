@@ -174,12 +174,12 @@ public class RemoteAgentCallerSteps {
 
     @Then("results from CodeAnalyzer are received asynchronously")
     public void resultsFromCodeAnalyzerAreReceivedAsynchronously() {
-        assertThat(parallelAgentResults.get("CodeAnalyzer")).isEqualTo("CodeAnalyzer-result");
+        assertThat(parallelAgentResults).containsEntry("CodeAnalyzer", "CodeAnalyzer-result");
     }
 
     @Then("results from DocGenerator are received asynchronously")
     public void resultsFromDocGeneratorAreReceivedAsynchronously() {
-        assertThat(parallelAgentResults.get("DocGenerator")).isEqualTo("DocGenerator-result");
+        assertThat(parallelAgentResults).containsEntry("DocGenerator", "DocGenerator-result");
     }
 
     @Then("all results are merged into the graph state")
@@ -190,7 +190,7 @@ public class RemoteAgentCallerSteps {
 
     @Then("execution continues once all queries complete or timeout")
     public void executionContinuesOnceAllQueriesCompleteOrTimeout() {
-        assertThat(mergedGraphState.get("DocGenerator")).isEqualTo("DocGenerator-result");
+        assertThat(mergedGraphState).containsEntry("DocGenerator", "DocGenerator-result");
     }
 
     @Given("a query is sent to an external agent")
@@ -342,7 +342,7 @@ public class RemoteAgentCallerSteps {
     @Then("the analysis result is added to state")
     public void theAnalysisResultIsAddedToState() {
         mergedGraphState.put("analysis", "analysis-result");
-        assertThat(mergedGraphState.get("analysis")).isEqualTo("analysis-result");
+        assertThat(mergedGraphState).containsEntry("analysis", "analysis-result");
     }
 
     @Then("the graph then routes to ReactiveAgentQueryNode for documentation generation")
@@ -353,7 +353,7 @@ public class RemoteAgentCallerSteps {
     @Then("the external query generates docs based on analysis results")
     public void theExternalQueryGeneratesDocsBasedOnAnalysisResults() {
         mergedGraphState.put("docs", "generated-from-analysis");
-        assertThat(mergedGraphState.get("docs")).isEqualTo("generated-from-analysis");
+        assertThat(mergedGraphState).containsEntry("docs", "generated-from-analysis");
     }
 
     @Then("both results are combined in the final response")
