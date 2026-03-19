@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SkillParserTest {
 
     private static final Path SKILL_FILE = Path.of(
-        "src/test/resources/dataset/markdown/skills/sample-skill/SKILL.md");
+            "src/test/resources/dataset/markdown/skills/sample-skill/SKILL.md");
 
     private SkillParser skillParser;
 
@@ -39,7 +39,7 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         assertThat(skill.getName())
-            .isEqualTo("implements features file");
+                .isEqualTo("implements features file");
     }
 
     @Test
@@ -47,7 +47,7 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         assertThat(skill.getDescription())
-            .isEqualTo("You're a Gherkin scenario writer. You will be given a feature file and a user story and you will have to write the Gherkin scenarios to define acceptance criteria.");
+                .isEqualTo("You're a Gherkin scenario writer. You will be given a feature file and a user story and you will have to write the Gherkin scenarios to define acceptance criteria.");
     }
 
     @Test
@@ -55,7 +55,7 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         assertThat(skill.getDependencies())
-            .containsExactly("python>=3.8", "pandas>=1.5.0", "matplotlib");
+                .containsExactly("python>=3.8", "pandas>=1.5.0", "matplotlib");
     }
 
     @Test
@@ -63,7 +63,7 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         assertThat(skill.getMcps())
-            .containsExactly("server-name-1", "server-name-2");
+                .containsExactly("server-name-1", "server-name-2");
     }
 
     @Test
@@ -71,7 +71,7 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         assertThat(skill.getLlms())
-            .containsExactly("claude-3-5-sonnet-20241022");
+                .containsExactly("claude-3-5-sonnet-20241022");
     }
 
     @Test
@@ -79,7 +79,7 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         assertThat(skill.headers().headerKeys())
-            .containsExactly("name", "description", "dependencies", "mcp", "llm");
+                .containsExactly("name", "description", "dependencies", "mcp", "llm");
     }
 
     // ── assets ───────────────────────────────────────────────────────────────
@@ -89,7 +89,7 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         assertThat(skill.getAssets()).map(SkillAsset::uri)
-            .containsExactly("assets/eval_review.html");
+                .containsExactly("assets/eval_review.html");
     }
 
     @Test
@@ -97,7 +97,7 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         assertThat(skill.getAssets()).map(SkillAsset::uri)
-            .noneMatch(uri -> uri.endsWith(".md"));
+                .noneMatch(uri -> uri.endsWith(".md"));
     }
 
     // ── templates ────────────────────────────────────────────────────────────
@@ -107,7 +107,7 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         assertThat(skill.getTemplates()).map(SkillTemplate::uri)
-            .containsExactly("templates/generator_template.js");
+                .containsExactly("templates/generator_template.js");
     }
 
     @Test
@@ -115,7 +115,7 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         assertThat(skill.getTemplates()).map(SkillTemplate::uri)
-            .allMatch(uri -> !Path.of(uri).isAbsolute());
+                .allMatch(uri -> !Path.of(uri).isAbsolute());
     }
 
     // ── script commands ───────────────────────────────────────────────────────
@@ -132,7 +132,7 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         assertThat(skill.getCommands())
-            .contains(new SkillScriptCommand("./gradlew", "./gradlew scripts/build.gradle.kts ping"));
+                .contains(new SkillScriptCommand("./gradlew", "./gradlew scripts/build.gradle.kts ping"));
     }
 
     @Test
@@ -141,9 +141,7 @@ class SkillParserTest {
 
         // The skill has several fenced code blocks, each containing the same gradlew line;
         // the parser deduplicates by sectionKey so we get at least one command.
-        assertThat(skill.getCommands()).hasSizeGreaterThanOrEqualTo(1);
-        assertThat(skill.getCommands())
-            .allMatch(cmd -> !cmd.executable().isBlank());
+        assertThat(skill.getCommands()).hasSizeGreaterThanOrEqualTo(1).allMatch(cmd -> !cmd.executable().isBlank());
     }
 
     @Test
@@ -151,7 +149,7 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         assertThat(skill.getCommands()).isNotEmpty()
-            .allMatch(cmd -> !cmd.executable().isBlank() && !cmd.commandLine().isBlank());
+                .allMatch(cmd -> !cmd.executable().isBlank() && !cmd.commandLine().isBlank());
     }
 
     // ── content sections (level-1) ────────────────────────────────────────────
@@ -161,8 +159,8 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         List<String> titles = skill.getLevel1Content().stream()
-            .map(MarkdownSection::getTitle)
-            .toList();
+                .map(MarkdownSection::getTitle)
+                .toList();
 
         assertThat(titles).contains("PPTX Skill");
     }
@@ -172,8 +170,8 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         List<String> titles = skill.getLevel1Content().stream()
-            .map(MarkdownSection::getTitle)
-            .toList();
+                .map(MarkdownSection::getTitle)
+                .toList();
 
         assertThat(titles).contains("Instructions");
     }
@@ -183,8 +181,8 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         List<String> titles = skill.getLevel1Content().stream()
-            .map(MarkdownSection::getTitle)
-            .toList();
+                .map(MarkdownSection::getTitle)
+                .toList();
 
         assertThat(titles).contains("Grader Agent");
     }
@@ -194,8 +192,8 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         List<String> titles = skill.getLevel1Content().stream()
-            .map(MarkdownSection::getTitle)
-            .toList();
+                .map(MarkdownSection::getTitle)
+                .toList();
 
         assertThat(titles).contains("MCP Server Evaluation Guide");
     }
@@ -205,8 +203,8 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         long instructionSectionCount = skill.getLevel1Content().stream()
-            .filter(s -> "Instructions".equals(s.getTitle()))
-            .count();
+                .filter(s -> "Instructions".equals(s.getTitle()))
+                .count();
 
         assertThat(instructionSectionCount).isEqualTo(1);
     }
@@ -216,9 +214,9 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         MarkdownSection pptxSkill = skill.getLevel1Content().stream()
-            .filter(s -> "PPTX Skill".equals(s.getTitle()))
-            .findFirst()
-            .orElseThrow();
+                .filter(s -> "PPTX Skill".equals(s.getTitle()))
+                .findFirst()
+                .orElseThrow();
 
         assertThat(pptxSkill.getSubSections()).isNotEmpty();
     }
@@ -228,9 +226,9 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         MarkdownSection pptxSkill = skill.getLevel1Content().stream()
-            .filter(s -> "PPTX Skill".equals(s.getTitle()))
-            .findFirst()
-            .orElseThrow();
+                .filter(s -> "PPTX Skill".equals(s.getTitle()))
+                .findFirst()
+                .orElseThrow();
 
         assertThat(pptxSkill.getSubSection("Quick Reference")).isPresent();
     }
@@ -240,9 +238,9 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         MarkdownSection instructions = skill.getLevel1Content().stream()
-            .filter(s -> "Instructions".equals(s.getTitle()))
-            .findFirst()
-            .orElseThrow();
+                .filter(s -> "Instructions".equals(s.getTitle()))
+                .findFirst()
+                .orElseThrow();
 
         assertThat(instructions.getContent()).isNotBlank();
     }
@@ -254,13 +252,13 @@ class SkillParserTest {
         Path nonExistent = Path.of("src/test/resources/dataset/markdown/skills/no-such-skill/SKILL.md");
 
         assertThatThrownBy(() -> skillParser.getSkill(nonExistent))
-            .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void shouldThrowWhenSkillFileIsNull() {
         assertThatThrownBy(() -> skillParser.getSkill(null))
-            .isInstanceOf(NullPointerException.class);
+                .isInstanceOf(NullPointerException.class);
     }
 }
 

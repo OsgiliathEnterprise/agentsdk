@@ -28,15 +28,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class RemoteAgentCallerSteps {
 
-    private FakeRemoteClientGateway remoteGateway;
-    private RemoteAgentCaller remoteAgentCaller;
-    private OutAcpAdapter.AcpSessionBridge sessionBridge;
-
     private final List<String> streamedTokens = new ArrayList<>();
     private final Map<String, String> mergedGraphState = new LinkedHashMap<>();
     private final Map<String, String> parallelAgentResults = new LinkedHashMap<>();
     private final List<String> logs = new ArrayList<>();
-
+    private FakeRemoteClientGateway remoteGateway;
+    private RemoteAgentCaller remoteAgentCaller;
+    private OutAcpAdapter.AcpSessionBridge sessionBridge;
     private String processedPromptResponse;
     private String requestId;
     private Throwable capturedError;
@@ -87,9 +85,9 @@ public class RemoteAgentCallerSteps {
     @Given("^a local ACP server \\(for exemple the cagent command\\)$")
     public void aLocalAcpServerForExempleTheCagentCommand() {
         sessionBridge = remoteAgentCaller.createSession(
-            "register-session",
-            ".",
-            Map.of("ExternalAssistant", "cagent")
+                "register-session",
+                ".",
+                Map.of("ExternalAssistant", "cagent")
         );
     }
 
@@ -389,23 +387,19 @@ public class RemoteAgentCallerSteps {
 
     private String queryAgent(String agentName) {
         AcpAgentSupportBridge.AcpSessionBridge parallelSession = remoteAgentCaller.createSession(
-            "parallel-" + agentName + "-" + Instant.now().toEpochMilli(),
-            ".",
-            Collections.emptyMap()
+                "parallel-" + agentName + "-" + Instant.now().toEpochMilli(),
+                ".",
+                Collections.emptyMap()
         );
         parallelSession.streamPrompt(agentName + " query", List.of(), tokenConsumer());
         return agentName + "-result";
     }
 
     private static final class FakeRemoteClientGateway implements RemoteAgentCaller.RemoteClientGateway {
-        private volatile String lastSessionId;
-        private volatile String lastCwd;
+        private final AtomicBoolean failNextStream = new AtomicBoolean(false);
         private volatile Map<String, String> lastMcpServers = Collections.emptyMap();
         private volatile String lastPromptText;
-        private volatile List<ContentBlock.ResourceLink> lastResourceLinks = List.of();
-
         private volatile List<String> tokensToEmit = List.of("requestId=", "default-token");
-        private final AtomicBoolean failNextStream = new AtomicBoolean(false);
 
         @Override
         public AcpAgentSupportBridge.AgentInfoBridge initializeAndGetAgentInfo() {
@@ -414,18 +408,15 @@ public class RemoteAgentCallerSteps {
 
         @Override
         public void streamPrompt(
-            String sessionId,
-            String cwd,
-            Map<String, String> mcpServers,
-            String promptText,
-            List<ContentBlock.ResourceLink> resourceLinks,
-            AcpAgentSupportBridge.TokenConsumer consumer
+                String sessionId,
+                String cwd,
+                Map<String, String> mcpServers,
+                String promptText,
+                List<ContentBlock.ResourceLink> resourceLinks,
+                AcpAgentSupportBridge.TokenConsumer consumer
         ) {
-            this.lastSessionId = sessionId;
-            this.lastCwd = cwd;
             this.lastMcpServers = new LinkedHashMap<>(mcpServers);
             this.lastPromptText = promptText;
-            this.lastResourceLinks = new CopyOnWriteArrayList<>(resourceLinks);
 
             if (failNextStream.getAndSet(false)) {
                 consumer.onError(new RuntimeException("timeout while contacting remote agent"));

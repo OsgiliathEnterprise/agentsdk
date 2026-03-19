@@ -31,19 +31,18 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class MarkdownParserImplTest {
 
-    private MarkdownParserImpl parser;
-
     @TempDir
     Path tempDir;
+    private MarkdownParserImpl parser;
 
     @BeforeEach
     void setUp() {
         Parser markdownParser = Parser.builder()
-            .extensions(List.of(
-                YamlFrontMatterExtension.create(),
-                TablesExtension.create()
-            ))
-            .build();
+                .extensions(List.of(
+                        YamlFrontMatterExtension.create(),
+                        TablesExtension.create()
+                ))
+                .build();
         parser = new MarkdownParserImpl(markdownParser);
     }
 
@@ -54,16 +53,95 @@ class MarkdownParserImplTest {
     // as a single MainSection whose content comes from extractNodeTextRecursive.
     // -----------------------------------------------------------------------
 
+    @Test
+    void getNullFileReturnsEmpty() {
+        assertThat(parser.getMarkdownFile(null, "file.md")).isEmpty();
+        assertThat(parser.getMarkdownFile(tempDir, null)).isEmpty();
+    }
+
+    // -----------------------------------------------------------------------
+    // extractNodeTextForSectionRecursive path
+    // A file with headings produces real sections; content between/after headings
+    // is collected via extractNodeTextForSectionRecursive (double-newline separator).
+    // -----------------------------------------------------------------------
+
+    @Test
+    void listMarkdownFilesReturnsSortedMdFilesOnly() throws IOException {
+        write("b.md", "# B");
+        write("a.md", "# A");
+        Files.writeString(tempDir.resolve("ignored.txt"), "text");
+
+        List<Path> files = parser.listMarkdownFiles(tempDir);
+
+        assertThat(files).hasSize(2);
+        assertThat(files.get(0).getFileName()).hasToString("a.md");
+        assertThat(files.get(1).getFileName()).hasToString("b.md");
+    }
+
+    // -----------------------------------------------------------------------
+    // Misc public-API tests
+    // -----------------------------------------------------------------------
+
+    @Test
+    void yamlFrontMatterIsExtractedAsHeaders() throws IOException {
+        write("test.md", """
+                ---
+                title: My Title
+                author: Someone
+                ---
+                
+                # Content
+                
+                Body text.
+                """);
+
+        Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
+
+        assertThat(result).isPresent();
+        Optional<MarkdownHeaders> headers = parser.getHeaders(result.get());
+        assertThat(headers).isPresent();
+        assertThat(headers.get().header("title")).hasValue("My Title");
+        assertThat(headers.get().header("author")).hasValue("Someone");
+    }
+
+    @Test
+    void linkedFileContentIsConsolidated() throws IOException {
+        write("main.md", """
+                # Main
+                
+                See [details](details.md).
+                """);
+        write("details.md", """
+                # Details
+                
+                Detail content.
+                """);
+
+        Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "main.md");
+
+        assertThat(result).isPresent();
+        List<MarkdownSection> sections = result.get().getSubSections();
+        // "Main" from root + "Details" from linked file
+        assertThat(sections).hasSizeGreaterThanOrEqualTo(2);
+        boolean hasDetails = sections.stream()
+                .anyMatch(s -> s.getTitle() != null && s.getTitle().contains("Details"));
+        assertThat(hasDetails).isTrue();
+    }
+
+    private void write(String fileName, String content) throws IOException {
+        Files.writeString(tempDir.resolve(fileName), content);
+    }
+
     @Nested
     class FullContentRendering {
 
         @Test
         void plainParagraphsAreCapturedAsSingleSection() throws IOException {
             write("test.md", """
-                Hello world.
-                
-                Second paragraph.
-                """);
+                    Hello world.
+                    
+                    Second paragraph.
+                    """);
 
             Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
 
@@ -72,8 +150,8 @@ class MarkdownParserImplTest {
             assertThat(sections).hasSize(1);
             String content = sections.getFirst().getContent();
             assertThat(content)
-                .contains("Hello world.")
-                .contains("Second paragraph.");
+                    .contains("Hello world.")
+                    .contains("Second paragraph.");
         }
 
         @Test
@@ -84,27 +162,27 @@ class MarkdownParserImplTest {
 
             assertThat(result).isPresent();
             assertThat(result.get().getSubSections().getFirst().getContent())
-                .contains("`System.out.println()`");
+                    .contains("`System.out.println()`");
         }
 
         @Test
         void fencedCodeBlockIsPreservedWithFencesAndLanguageTag() throws IOException {
             write("test.md", """
-                Some text.
-                
-                ```java
-                int x = 1;
-                ```
-                """);
+                    Some text.
+                    
+                    ```java
+                    int x = 1;
+                    ```
+                    """);
 
             Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
 
             assertThat(result).isPresent();
             String content = result.get().getSubSections().getFirst().getContent();
             assertThat(content)
-                .contains("```java")
-                .contains("int x = 1;")
-                .contains("```");
+                    .contains("```java")
+                    .contains("int x = 1;")
+                    .contains("```");
         }
 
         @Test
@@ -115,7 +193,7 @@ class MarkdownParserImplTest {
 
             assertThat(result).isPresent();
             assertThat(result.get().getSubSections().getFirst().getContent())
-                .contains("[example](https://example.com)");
+                    .contains("[example](https://example.com)");
         }
 
         @Test
@@ -128,8 +206,7 @@ class MarkdownParserImplTest {
             assertThat(result).isPresent();
             String content = result.get().getSubSections().getFirst().getContent();
             // After the soft line break a newline character must appear
-            assertThat(content).contains("Line one");
-            assertThat(content).contains("Line two");
+            assertThat(content).contains("Line one").contains("Line two");
         }
 
         @Test
@@ -149,9 +226,7 @@ class MarkdownParserImplTest {
     }
 
     // -----------------------------------------------------------------------
-    // extractNodeTextForSectionRecursive path
-    // A file with headings produces real sections; content between/after headings
-    // is collected via extractNodeTextForSectionRecursive (double-newline separator).
+    // toDocument flag combinations
     // -----------------------------------------------------------------------
 
     @Nested
@@ -160,10 +235,10 @@ class MarkdownParserImplTest {
         @Test
         void plainTextInSectionIsExtracted() throws IOException {
             write("test.md", """
-                # My Section
-                
-                Plain text content.
-                """);
+                    # My Section
+                    
+                    Plain text content.
+                    """);
 
             Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
 
@@ -176,10 +251,10 @@ class MarkdownParserImplTest {
         @Test
         void inlineCodeSpanInSectionIsPreserved() throws IOException {
             write("test.md", """
-                # Section
-                
-                Call `doSomething()` here.
-                """);
+                    # Section
+                    
+                    Call `doSomething()` here.
+                    """);
 
             Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
 
@@ -192,12 +267,12 @@ class MarkdownParserImplTest {
         @Test
         void fencedCodeBlockInSectionIsPreservedWithFencesAndInfo() throws IOException {
             write("test.md", """
-                # Section
-                
-                ```python
-                print("hello")
-                ```
-                """);
+                    # Section
+                    
+                    ```python
+                    print("hello")
+                    ```
+                    """);
 
             Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
 
@@ -205,18 +280,18 @@ class MarkdownParserImplTest {
             Optional<MarkdownSection> section = parser.getSection(result.get(), "Section");
             assertThat(section).isPresent();
             assertThat(section.get().getContent())
-                .contains("```python")
-                .contains("print(\"hello\")")
-                .contains("```");
+                    .contains("```python")
+                    .contains("print(\"hello\")")
+                    .contains("```");
         }
 
         @Test
         void linkInSectionIsRenderedInMarkdownSyntax() throws IOException {
             write("test.md", """
-                # Section
-                
-                See [reference](https://ref.example.com).
-                """);
+                    # Section
+                    
+                    See [reference](https://ref.example.com).
+                    """);
 
             Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
 
@@ -224,18 +299,18 @@ class MarkdownParserImplTest {
             Optional<MarkdownSection> section = parser.getSection(result.get(), "Section");
             assertThat(section).isPresent();
             assertThat(section.get().getContent())
-                .contains("[reference](https://ref.example.com)");
+                    .contains("[reference](https://ref.example.com)");
         }
 
         @Test
         void multipleParagraphsInSectionAreSeparatedByDoubleNewline() throws IOException {
             write("test.md", """
-                # Section
-                
-                First paragraph.
-                
-                Second paragraph.
-                """);
+                    # Section
+                    
+                    First paragraph.
+                    
+                    Second paragraph.
+                    """);
 
             Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
 
@@ -244,22 +319,22 @@ class MarkdownParserImplTest {
             assertThat(section).isPresent();
             // double-newline separator is expected between the two paragraphs
             assertThat(section.get().getContent())
-                .contains("First paragraph.")
-                .contains("Second paragraph.")
-                .contains(System.lineSeparator() + System.lineSeparator());
+                    .contains("First paragraph.")
+                    .contains("Second paragraph.")
+                    .contains(System.lineSeparator() + System.lineSeparator());
         }
 
         @Test
         void nestedSubsectionIsExtractedAsChild() throws IOException {
             write("test.md", """
-                # Parent
-                
-                Parent content.
-                
-                ## Child
-                
-                Child content.
-                """);
+                    # Parent
+                    
+                    Parent content.
+                    
+                    ## Child
+                    
+                    Child content.
+                    """);
 
             Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
 
@@ -272,14 +347,14 @@ class MarkdownParserImplTest {
         @Test
         void childContentDoesNotLeakIntoParentContent() throws IOException {
             write("test.md", """
-                # Parent
-                
-                Parent text only.
-                
-                ## Child
-                
-                Child text.
-                """);
+                    # Parent
+                    
+                    Parent text only.
+                    
+                    ## Child
+                    
+                    Child text.
+                    """);
 
             Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
 
@@ -287,8 +362,8 @@ class MarkdownParserImplTest {
             Optional<MarkdownSection> parent = parser.getSection(result.get(), "Parent");
             assertThat(parent).isPresent();
             assertThat(parent.get().getContent())
-                .contains("Parent text only.")
-                .doesNotContain("Child text.");
+                    .contains("Parent text only.")
+                    .doesNotContain("Child text.");
         }
 
         @Test
@@ -307,141 +382,74 @@ class MarkdownParserImplTest {
     }
 
     // -----------------------------------------------------------------------
-    // Misc public-API tests
-    // -----------------------------------------------------------------------
-
-    @Test
-    void getNullFileReturnsEmpty() {
-        assertThat(parser.getMarkdownFile(null, "file.md")).isEmpty();
-        assertThat(parser.getMarkdownFile(tempDir, null)).isEmpty();
-    }
-
-    @Test
-    void listMarkdownFilesReturnsSortedMdFilesOnly() throws IOException {
-        write("b.md", "# B");
-        write("a.md", "# A");
-        Files.writeString(tempDir.resolve("ignored.txt"), "text");
-
-        List<Path> files = parser.listMarkdownFiles(tempDir);
-
-        assertThat(files).hasSize(2);
-        assertThat(files.get(0).getFileName()).hasToString("a.md");
-        assertThat(files.get(1).getFileName()).hasToString("b.md");
-    }
-
-    @Test
-    void yamlFrontMatterIsExtractedAsHeaders() throws IOException {
-        write("test.md", """
-            ---
-            title: My Title
-            author: Someone
-            ---
-            
-            # Content
-            
-            Body text.
-            """);
-
-        Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
-
-        assertThat(result).isPresent();
-        Optional<MarkdownHeaders> headers = parser.getHeaders(result.get());
-        assertThat(headers).isPresent();
-        assertThat(headers.get().header("title")).hasValue("My Title");
-        assertThat(headers.get().header("author")).hasValue("Someone");
-    }
-
-    @Test
-    void linkedFileContentIsConsolidated() throws IOException {
-        write("main.md", """
-            # Main
-            
-            See [details](details.md).
-            """);
-        write("details.md", """
-            # Details
-            
-            Detail content.
-            """);
-
-        Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "main.md");
-
-        assertThat(result).isPresent();
-        List<MarkdownSection> sections = result.get().getSubSections();
-        // "Main" from root + "Details" from linked file
-        assertThat(sections).hasSizeGreaterThanOrEqualTo(2);
-        boolean hasDetails = sections.stream()
-            .anyMatch(s -> s.getTitle() != null && s.getTitle().contains("Details"));
-        assertThat(hasDetails).isTrue();
-    }
-
-    // -----------------------------------------------------------------------
-    // toDocument flag combinations
+    // helpers
     // -----------------------------------------------------------------------
 
     @Nested
     class ToDocumentRendering {
 
-        /** Shared fixture: YAML headers + one main section + one Samples section with a subsection. */
+        /**
+         * Shared fixture: YAML headers + one main section + one Samples section with a subsection.
+         */
         private MarkdownFile fixture() throws IOException {
             write("fixture.md", """
-                ---
-                title: My API
-                version: "1.0"
-                ---
-
-                # Main Section
-
-                Main section content.
-
-                # Samples
-
-                ## Example One
-
-                Example one content.
-                """);
+                    ---
+                    title: My API
+                    version: "1.0"
+                    ---
+                    
+                    # Main Section
+                    
+                    Main section content.
+                    
+                    # Samples
+                    
+                    ## Example One
+                    
+                    Example one content.
+                    """);
             return parser.getMarkdownFile(tempDir, "fixture.md").orElseThrow();
         }
 
         @Test
         void nullMarkdownFileProducesNoContentDocument() {
             dev.langchain4j.data.document.Document doc =
-                parser.toDocument(null, true, true, true);
+                    parser.toDocument(null, true, true, true);
             assertThat(doc.text()).isEqualTo("(no content selected)");
         }
 
         @Test
         void allFlagsFalseProducesNoContentDocument() throws IOException {
             dev.langchain4j.data.document.Document doc =
-                parser.toDocument(fixture(), false, false, false);
+                    parser.toDocument(fixture(), false, false, false);
             assertThat(doc.text()).isEqualTo("(no content selected)");
         }
 
         @Test
         void includeHeadersTrueEmitsYamlKeyValuePairs() throws IOException {
             dev.langchain4j.data.document.Document doc =
-                parser.toDocument(fixture(), true, false, false);
+                    parser.toDocument(fixture(), true, false, false);
             assertThat(doc.text())
-                .contains("title: My API")
-                .contains("version: 1.0");
+                    .contains("title: My API")
+                    .contains("version: 1.0");
         }
 
         @Test
         void includeHeadersFalseOmitsHeaders() throws IOException {
             dev.langchain4j.data.document.Document doc =
-                parser.toDocument(fixture(), false, true, false);
+                    parser.toDocument(fixture(), false, true, false);
             assertThat(doc.text())
-                .doesNotContain("title:")
-                .doesNotContain("version:");
+                    .doesNotContain("title:")
+                    .doesNotContain("version:");
         }
 
         @Test
         void includeSectionsTrueEmitsSectionTitleAndContent() throws IOException {
             dev.langchain4j.data.document.Document doc =
-                parser.toDocument(fixture(), false, true, false);
+                    parser.toDocument(fixture(), false, true, false);
             assertThat(doc.text())
-                .contains("Main Section")
-                .contains("Main section content.");
+                    .contains("Main Section")
+                    .contains("Main section content.");
         }
 
         @Test
@@ -449,24 +457,24 @@ class MarkdownParserImplTest {
             // Use a file without YAML front matter to avoid the full-source "text" header
             // contaminating the output. Enable only samples so the document is non-empty.
             write("nosections.md", """
-                # Main Section
-
-                Main section content.
-
-                # Samples
-
-                ## Example One
-
-                Example one content.
-                """);
+                    # Main Section
+                    
+                    Main section content.
+                    
+                    # Samples
+                    
+                    ## Example One
+                    
+                    Example one content.
+                    """);
             MarkdownFile file = parser.getMarkdownFile(tempDir, "nosections.md").orElseThrow();
 
             dev.langchain4j.data.document.Document doc =
-                parser.toDocument(file, false, false, true);
+                    parser.toDocument(file, false, false, true);
 
             assertThat(doc.text())
-                .doesNotContain("Main section content.")
-                .contains("Example one content.");
+                    .doesNotContain("Main section content.")
+                    .contains("Example one content.");
         }
 
         @Test
@@ -474,79 +482,71 @@ class MarkdownParserImplTest {
             // When includeSections=true the "Samples" root section must be filtered out;
             // only includeSamples=true should expose its sub-sections.
             dev.langchain4j.data.document.Document doc =
-                parser.toDocument(fixture(), false, true, false);
+                    parser.toDocument(fixture(), false, true, false);
             assertThat(doc.text()).doesNotContain("Example One");
         }
 
         @Test
         void includeSamplesTrueEmitsSampleSubsections() throws IOException {
             dev.langchain4j.data.document.Document doc =
-                parser.toDocument(fixture(), false, false, true);
+                    parser.toDocument(fixture(), false, false, true);
             assertThat(doc.text())
-                .contains("Example One")
-                .contains("Example one content.");
+                    .contains("Example One")
+                    .contains("Example one content.");
         }
 
         @Test
         void includeSamplesFalseOmitsSampleSubsections() throws IOException {
             dev.langchain4j.data.document.Document doc =
-                parser.toDocument(fixture(), false, true, false);
+                    parser.toDocument(fixture(), false, true, false);
             assertThat(doc.text())
-                .doesNotContain("Example One")
-                .doesNotContain("Example one content.");
+                    .doesNotContain("Example One")
+                    .doesNotContain("Example one content.");
         }
 
         @Test
         void allFlagsTrueCombinesHeadersSectionsAndSamples() throws IOException {
             dev.langchain4j.data.document.Document doc =
-                parser.toDocument(fixture(), true, true, true);
+                    parser.toDocument(fixture(), true, true, true);
             assertThat(doc.text())
-                .contains("title: My API")
-                .contains("Main Section")
-                .contains("Main section content.")
-                .contains("Example One")
-                .contains("Example one content.");
+                    .contains("title: My API")
+                    .contains("Main Section")
+                    .contains("Main section content.")
+                    .contains("Example One")
+                    .contains("Example one content.");
         }
 
         @Test
         void subsectionsOfMainSectionAreIncludedRecursively() throws IOException {
             write("nested.md", """
-                # Root
-
-                Root content.
-
-                ## Child
-
-                Child content.
-                """);
+                    # Root
+                    
+                    Root content.
+                    
+                    ## Child
+                    
+                    Child content.
+                    """);
             MarkdownFile file = parser.getMarkdownFile(tempDir, "nested.md").orElseThrow();
 
             dev.langchain4j.data.document.Document doc =
-                parser.toDocument(file, false, true, false);
+                    parser.toDocument(file, false, true, false);
 
             assertThat(doc.text())
-                .contains("Root")
-                .contains("Root content.")
-                .contains("Child")
-                .contains("Child content.");
+                    .contains("Root")
+                    .contains("Root content.")
+                    .contains("Child")
+                    .contains("Child content.");
         }
 
         @Test
         void documentTextIsTrimmed() throws IOException {
             dev.langchain4j.data.document.Document doc =
-                parser.toDocument(fixture(), false, true, false);
+                    parser.toDocument(fixture(), false, true, false);
             assertThat(doc.text())
-                .doesNotStartWith("\n")
-                .doesNotEndWith("\n");
+                    .doesNotStartWith("\n")
+                    .doesNotEndWith("\n");
         }
-    }
-
-    // -----------------------------------------------------------------------
-    // helpers
-    // -----------------------------------------------------------------------
-
-    private void write(String fileName, String content) throws IOException {
-        Files.writeString(tempDir.resolve(fileName), content);
     }
 }
 

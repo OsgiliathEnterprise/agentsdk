@@ -37,6 +37,7 @@ class RemoteAgentCallerTimeoutTest {
 
             @Override
             public void close() {
+                // do nothing
             }
         };
 
@@ -52,8 +53,7 @@ class RemoteAgentCallerTimeoutTest {
             thrown = ex;
         }
 
-        assertThat(thrown).isNotNull();
-        assertThat(thrown).isInstanceOfAny(java.util.concurrent.TimeoutException.class);
+        assertThat(thrown).isNotNull().isInstanceOfAny(java.util.concurrent.TimeoutException.class);
     }
 }
 

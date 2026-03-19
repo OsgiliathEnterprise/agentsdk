@@ -18,9 +18,9 @@ class RemoteAgentCallerSessionPropagationTest {
         RemoteAgentCaller caller = new RemoteAgentCaller(gateway);
 
         OutAcpAdapter.AcpSessionBridge session = caller.createSession(
-            "remote-session",
-            "/workspace/app",
-            Map.of("mcp-a", "http://localhost:8080")
+                "remote-session",
+                "/workspace/app",
+                Map.of("mcp-a", "http://localhost:8080")
         );
 
         String response = session.processPrompt("inspect", List.of()).join();
@@ -64,6 +64,7 @@ class RemoteAgentCallerSessionPropagationTest {
 
         @Override
         public void close() {
+            // do nothing
         }
     }
 }

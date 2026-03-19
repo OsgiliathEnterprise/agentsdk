@@ -41,11 +41,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class MarkdownParsingSteps {
 
     private final Parser commonMarkParser;
-
+    private final Set<String> identifiedLinks = new LinkedHashSet<>();
+    private final Set<String> internalLinks = new LinkedHashSet<>();
+    private final Set<String> externalLinks = new LinkedHashSet<>();
+    private final List<String> processedFiles = new ArrayList<>();
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
     private MarkdownParser markdownParser;
-
     private Path datasetRoot;
     private Path currentFolder;
     private String currentFileName;
@@ -54,23 +56,19 @@ public class MarkdownParsingSteps {
     private List<Path> listedFiles;
     private MarkdownSection parsedSection;
     private List<MarkdownSection> parsedSampleSections;
-    private final Set<String> identifiedLinks = new LinkedHashSet<>();
-    private final Set<String> internalLinks = new LinkedHashSet<>();
-    private final Set<String> externalLinks = new LinkedHashSet<>();
     private String consolidatedContent;
     private boolean circularReferencesDetected;
-    private final List<String> processedFiles = new ArrayList<>();
     private Throwable stepError;
 
     public MarkdownParsingSteps() {
         this.commonMarkParser = Parser.builder()
-            .extensions(List.of(
-                TablesExtension.create(),
-                TaskListItemsExtension.create(),
-                AutolinkExtension.create(),
-                InsExtension.create()
-            ))
-            .build();
+                .extensions(List.of(
+                        TablesExtension.create(),
+                        TaskListItemsExtension.create(),
+                        AutolinkExtension.create(),
+                        InsExtension.create()
+                ))
+                .build();
     }
 
     @Before
@@ -126,8 +124,8 @@ public class MarkdownParsingSteps {
     public void theFilesShouldInclude(String fileName) {
         assertNoSetupError();
         assertThat(listedFiles)
-            .extracting(path -> path.getFileName().toString())
-            .contains(fileName);
+                .extracting(path -> path.getFileName().toString())
+                .contains(fileName);
     }
 
     // ========================
@@ -183,8 +181,8 @@ public class MarkdownParsingSteps {
     public void theSectionContentShouldBe(String sectionName, String expectedContent) {
         assertNoSetupError();
         assertThat(parsedSection)
-            .as("Expected section '%s' to be available", sectionName)
-            .isNotNull();
+                .as("Expected section '%s' to be available", sectionName)
+                .isNotNull();
         assertThat(parsedSection.getContent().trim()).isEqualTo(expectedContent.trim());
     }
 
@@ -211,8 +209,8 @@ public class MarkdownParsingSteps {
     public void theSectionShouldContainExamples(String sectionName, int expectedCount) {
         assertNoSetupError();
         assertThat(parsedSection)
-            .as("Expected section '%s' to be available", sectionName)
-            .isNotNull();
+                .as("Expected section '%s' to be available", sectionName)
+                .isNotNull();
         assertThat(parsedSampleSections).hasSize(expectedCount);
     }
 
@@ -220,12 +218,12 @@ public class MarkdownParsingSteps {
     public void theSectionShouldContainCodeBlock(String sectionName, String codeBlock) {
         assertNoSetupError();
         assertThat(parsedSection)
-            .as("Expected section '%s' to be available", sectionName)
-            .isNotNull();
+                .as("Expected section '%s' to be available", sectionName)
+                .isNotNull();
         String aggregatedContent = parsedSampleSections.stream()
-            .map(MarkdownSection::getContent)
-            .filter(Objects::nonNull)
-            .reduce("", (left, right) -> left + "\n" + right);
+                .map(MarkdownSection::getContent)
+                .filter(Objects::nonNull)
+                .reduce("", (left, right) -> left + "\n" + right);
         assertThat(aggregatedContent).contains(codeBlock);
     }
 
@@ -237,8 +235,8 @@ public class MarkdownParsingSteps {
     private void expectSection(String sectionName, String unexpectedText) {
         assertNoSetupError();
         assertThat(parsedSection)
-            .as("Expected section '%s' to be available", sectionName)
-            .isNotNull();
+                .as("Expected section '%s' to be available", sectionName)
+                .isNotNull();
         assertThat(parsedSection.getContent()).doesNotContain(unexpectedText);
     }
 
@@ -309,8 +307,8 @@ public class MarkdownParsingSteps {
             }
             currentFileName = fileName1;
             String content = "# " + stripExtension(fileName1) + System.lineSeparator()
-                + System.lineSeparator()
-                + "See [next](./" + fileName2 + ")" + System.lineSeparator();
+                    + System.lineSeparator()
+                    + "See [next](./" + fileName2 + ")" + System.lineSeparator();
             Files.writeString(currentFolder.resolve(fileName1), content);
             if (!processedFiles.contains(fileName1)) {
                 processedFiles.add(fileName1);
@@ -334,7 +332,7 @@ public class MarkdownParsingSteps {
     @Then("no infinite loop should occur")
     public void noInfiniteLoopShouldOccur() {
         assertNoSetupError();
-        assertThat(processedFiles.size()).isLessThanOrEqualTo(2);
+        assertThat(processedFiles).hasSizeLessThanOrEqualTo(2);
     }
 
     private Path resolveDatasetRoot() {
@@ -420,9 +418,9 @@ public class MarkdownParsingSteps {
             return "";
         }
         return maybeMarkdownFile.getSubSections().stream()
-            .map(this::flattenSectionContent)
-            .filter(content -> !content.isBlank())
-            .reduce("", (left, right) -> left + System.lineSeparator() + right);
+                .map(this::flattenSectionContent)
+                .filter(content -> !content.isBlank())
+                .reduce("", (left, right) -> left + System.lineSeparator() + right);
     }
 
     private String flattenSectionContent(MarkdownSection section) {
@@ -498,8 +496,8 @@ public class MarkdownParsingSteps {
             public void visit(Link link) {
                 String destination = link.getDestination();
                 if (destination != null &&
-                    !destination.startsWith("http://") &&
-                    !destination.startsWith("https://")) {
+                        !destination.startsWith("http://") &&
+                        !destination.startsWith("https://")) {
                     links.add(destination);
                 }
                 visitChildren(link);
@@ -513,7 +511,7 @@ public class MarkdownParsingSteps {
             }
             Path next = file.getParent().resolve(resolvedLink).normalize().toAbsolutePath();
             if (Files.exists(next) && Files.isRegularFile(next)
-                && detectCircularReferences(next, visited, stack)) {
+                    && detectCircularReferences(next, visited, stack)) {
                 return true;
             }
         }
