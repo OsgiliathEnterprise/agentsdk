@@ -325,8 +325,8 @@ class MarkdownParserImplTest {
         List<Path> files = parser.listMarkdownFiles(tempDir);
 
         assertThat(files).hasSize(2);
-        assertThat(files.get(0).getFileName().toString()).isEqualTo("a.md");
-        assertThat(files.get(1).getFileName().toString()).isEqualTo("b.md");
+        assertThat(files.get(0).getFileName()).hasToString("a.md");
+        assertThat(files.get(1).getFileName()).hasToString("b.md");
     }
 
     @Test

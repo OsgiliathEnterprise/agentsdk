@@ -1,11 +1,19 @@
 package net.osgiliath.agentsdk.utils;
 
+import dev.langchain4j.data.message.*;
+import net.osgiliath.acplanggraphlangchainbridge.langgraph.message.ResourceLinkContent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @DisplayName("MimeTypeUtils Tests")
 class MimeTypeUtilsTest {
@@ -255,6 +263,83 @@ class MimeTypeUtilsTest {
     @DisplayName("should identify non-audio mime types")
     void testNonAudioMimeTypes(String mimeType) {
         assertThat(MimeTypeUtils.isAudioMimeType(mimeType)).isFalse();
+    }
+
+    // ==================== toContent ====================
+
+    @Test
+    @DisplayName("should convert textual content to TextContent with metadata envelope")
+    void testToContentForTextualMimeType() throws UnsupportedMimeTypeException {
+        ResourceLinkContent resource = resourceLink("notes.md", "text/markdown", "file:///tmp/notes.md");
+
+        Content content = MimeTypeUtils.toContent(resource, "hello markdown".getBytes(StandardCharsets.UTF_8));
+
+        assertThat(content).isInstanceOf(TextContent.class);
+        String text = ((TextContent) content).text();
+        assertThat(text)
+            .contains("---- File ----")
+            .contains("Name: notes.md")
+            .contains("Uri: file:///tmp/notes.md")
+            .contains("MimeType: text/markdown")
+            .contains("hello markdown")
+            .contains("---- End file ----");
+    }
+
+    @Test
+    @DisplayName("should map application/pdf to PdfFileContent")
+    void testToContentForPdfMimeType() throws UnsupportedMimeTypeException {
+        ResourceLinkContent resource = resourceLink("doc.pdf", "application/pdf", "file:///tmp/doc.pdf");
+
+        Content content = MimeTypeUtils.toContent(resource, new byte[]{1, 2, 3});
+
+        assertThat(content).isInstanceOf(PdfFileContent.class);
+    }
+
+    @Test
+    @DisplayName("should map image mime types to ImageContent")
+    void testToContentForImageMimeType() throws UnsupportedMimeTypeException {
+        ResourceLinkContent resource = resourceLink("img.png", "image/png", "file:///tmp/img.png");
+
+        Content content = MimeTypeUtils.toContent(resource, new byte[]{1});
+
+        assertThat(content).isInstanceOf(ImageContent.class);
+    }
+
+    @Test
+    @DisplayName("should map video mime types to VideoContent")
+    void testToContentForVideoMimeType() throws UnsupportedMimeTypeException {
+        ResourceLinkContent resource = resourceLink("clip.mp4", "video/mp4", "file:///tmp/clip.mp4");
+
+        Content content = MimeTypeUtils.toContent(resource, new byte[]{1});
+
+        assertThat(content).isInstanceOf(VideoContent.class);
+    }
+
+    @Test
+    @DisplayName("should map audio mime types to AudioContent")
+    void testToContentForAudioMimeType() throws UnsupportedMimeTypeException {
+        ResourceLinkContent resource = resourceLink("sound.ogg", "audio/ogg", "file:///tmp/sound.ogg");
+
+        Content content = MimeTypeUtils.toContent(resource, new byte[]{1});
+
+        assertThat(content).isInstanceOf(AudioContent.class);
+    }
+
+    @Test
+    @DisplayName("should throw UnsupportedMimeTypeException for unsupported mime type")
+    void testToContentForUnsupportedMimeType() {
+        ResourceLinkContent resource = resourceLink("archive.zip", "application/zip", "file:///tmp/archive.zip");
+
+        assertThatThrownBy(() -> MimeTypeUtils.toContent(resource, new byte[]{1}))
+            .isInstanceOf(UnsupportedMimeTypeException.class);
+    }
+
+    private ResourceLinkContent resourceLink(String name, String mimeType, String uri) {
+        ResourceLinkContent resource = mock(ResourceLinkContent.class);
+        when(resource.name()).thenReturn(name);
+        when(resource.mimeType()).thenReturn(mimeType);
+        when(resource.uri()).thenReturn(URI.create(uri));
+        return resource;
     }
 }
 
