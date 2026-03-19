@@ -145,6 +145,47 @@ class AgentHeadersTest {
     }
 
     @Test
+    void shouldParseStructuredHandoffsFromMarkdownTextUsingYamlParser() {
+        String markdown = """
+            ---
+            name: "Code Review Agent"
+            description: "Reviews code changes"
+            handoffs:
+              - label: "Backend"
+                agent: "backend"
+                prompt: "Continue on backend #1"
+                send: true
+            ---
+            # Code Review Agent
+            """;
+
+        AgentHeaders parsed = AgentHeaders.fromRawHeaders(Map.of(
+            "name", "Code Review Agent",
+            "description", "Reviews code changes",
+            "text", markdown
+        ));
+
+        assertThat(parsed.handoffs().value())
+            .containsExactly(new AgentHandoff("Backend", "backend", "Continue on backend #1", true));
+    }
+
+    @Test
+    void shouldIgnoreLegacyFlatHandoffsPayloads() {
+        AgentHeaders parsed = AgentHeaders.fromRawHeaders(Map.of(
+            "name", "Code Review Agent",
+            "description", "Reviews code changes",
+            "handoffs", List.of(
+                "- label: Backend",
+                "agent: backend",
+                "prompt: Continue on backend",
+                "send: true"
+            )
+        ));
+
+        assertThat(parsed.handoffs().value()).isEmpty();
+    }
+
+    @Test
     void shouldRemainCompatibleWithMarkdownHeadersAccessors() {
         AgentHeaders headers = new AgentHeaders(
             "Code Review Agent",
