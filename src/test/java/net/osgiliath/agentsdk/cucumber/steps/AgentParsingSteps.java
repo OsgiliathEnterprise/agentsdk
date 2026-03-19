@@ -9,10 +9,11 @@ import net.osgiliath.agentsdk.agent.parser.AgentHandoff;
 import net.osgiliath.agentsdk.agent.parser.AgentParser;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 
@@ -175,27 +176,18 @@ public class AgentParsingSteps {
     }
 
     private Path resolveFromProject(String relativePath) {
-        Path fromWorkDir = Path.of(relativePath);
+        try {
+            ClassPathResource resource = new ClassPathResource(relativePath);
+            if (resource.exists()) {
+                return resource.getFile().toPath().toAbsolutePath().normalize();
+            }
+        } catch (Exception e) {
+            // fall through
+        }
+
+        Path fromWorkDir = Paths.get(relativePath);
         if (Files.exists(fromWorkDir)) {
             return fromWorkDir.toAbsolutePath().normalize();
-        }
-        try {
-            var resource = getClass().getClassLoader().getResource(".");
-            if (resource != null) {
-                Path classesDir = Path.of(resource.toURI());
-                Path moduleRoot = classesDir.getParent().getParent().getParent().getParent();
-                Path candidate = moduleRoot.resolve(relativePath).normalize();
-                if (Files.exists(candidate)) {
-                    return candidate;
-                }
-                Path projectRoot = moduleRoot.getParent();
-                candidate = projectRoot.resolve(relativePath).normalize();
-                if (Files.exists(candidate)) {
-                    return candidate;
-                }
-            }
-        } catch (URISyntaxException e) {
-            // fall through
         }
         return fromWorkDir.toAbsolutePath().normalize();
     }

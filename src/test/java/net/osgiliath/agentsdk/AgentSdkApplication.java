@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
  * Code Prompt Framework Application.
- *
+ * <p>
  * Koog ACP Server Frontend + LangChain4j Agent Orchestrator
  */
 @SpringBootApplication(scanBasePackages = "net.osgiliath.agentsdk")
