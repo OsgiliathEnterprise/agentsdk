@@ -1,7 +1,7 @@
 Feature: Agent Parsing
 
   Background:
-    Given a sample agent file at "./src/test/resources/dataset/markdown/skills/sample-agent/sample-agent.md"
+    Given a sample agent file at "dataset/markdown/skills/sample-agent/sample-agent.md"
 
   Scenario: Should parse name
     When the agent parser reads the headers

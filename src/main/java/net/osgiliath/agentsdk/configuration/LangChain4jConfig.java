@@ -7,6 +7,8 @@ import dev.langchain4j.mcp.client.DefaultMcpClient;
 import dev.langchain4j.mcp.client.McpClient;
 import dev.langchain4j.mcp.client.transport.McpTransport;
 import dev.langchain4j.mcp.client.transport.stdio.StdioMcpTransport;
+import net.osgiliath.agentsdk.mcp.McpToolAliasResolver;
+import net.osgiliath.agentsdk.mcp.McpToolAliasResolverImpl;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -77,20 +79,27 @@ public class LangChain4jConfig {
             .build();
     }
 
+    @Bean
+    public McpToolAliasResolver mcpToolAliasResolver(McpAliasesConfiguration aliasesConfiguration) {
+        return new McpToolAliasResolverImpl(aliasesConfiguration);
+    }
+
     @Bean(TOOL_PROVIDER_FULL)
-    public McpToolProvider toolProviderFull(McpClient mcpClient) {
+    public McpToolProvider toolProviderFull(McpClient mcpClient, McpToolAliasResolver aliasResolver) {
         return McpToolProvider.builder()
-        .mcpClients(mcpClient)
-        .build();
+            .mcpClients(mcpClient)
+            .toolNameMapper((client, toolSpec) -> aliasResolver.resolvePrimaryToolName(toolSpec.name()))
+            .build();
     }
 
 
     @Bean(TOOL_PROVIDER_NONE)
     @Primary
-    public McpToolProvider toolProviderNo(McpClient mcpClient) {
+    public McpToolProvider toolProviderNo(McpClient mcpClient, McpToolAliasResolver aliasResolver) {
         return McpToolProvider.builder()
-        .mcpClients(mcpClient)
-                .filter((client, spec) -> false) // filter out all tools, effectively disabling tool usage
-        .build();
+            .mcpClients(mcpClient)
+            .toolNameMapper((client, toolSpec) -> aliasResolver.resolvePrimaryToolName(toolSpec.name()))
+            .filter((client, spec) -> false) // filter out all tools, effectively disabling tool usage
+            .build();
     }
 }
