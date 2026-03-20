@@ -376,8 +376,7 @@ class MarkdownParserImplTest {
             Optional<MarkdownSection> section = parser.getSection(result.get(), "Section");
             assertThat(section).isPresent();
             String content = section.get().getContent();
-            assertThat(content).contains("Line one");
-            assertThat(content).contains("Line two");
+            assertThat(content).contains("Line one").contains("Line two");
         }
     }
 
