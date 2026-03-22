@@ -8,7 +8,7 @@ import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import net.osgiliath.agentsdk.agent.parser.Agent;
 import net.osgiliath.agentsdk.agent.parser.AgentParser;
-import net.osgiliath.agentsdk.configuration.McpAliasesConfiguration;
+import net.osgiliath.agentsdk.configuration.CodepromptConfiguration;
 import net.osgiliath.agentsdk.mcp.McpToolAliasResolver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -35,7 +35,7 @@ public class ToolsAliasesSteps {
 
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
-    private McpAliasesConfiguration aliasesConfiguration;
+    private CodepromptConfiguration aliasesConfiguration;
 
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
@@ -63,7 +63,7 @@ public class ToolsAliasesSteps {
     @Given("the MCP tool aliases configuration is loaded")
     public void theMcpToolAliasesConfigurationIsLoaded() {
         assertThat(streamingChatModel).isNotNull();
-        assertThat(aliasesConfiguration.getAliases()).isNotEmpty();
+        assertThat(aliasesConfiguration.getMcp().getTools().getAliases()).isNotEmpty();
     }
 
     @Given("the tool {string} is declared in the agent tools list")
@@ -73,12 +73,12 @@ public class ToolsAliasesSteps {
 
     @Given("{string} is present in the aliases configuration")
     public void isInAliasesConfiguration(String toolName) {
-        assertThat(aliasesConfiguration.getAliases()).containsKey(toolName);
+        assertThat(aliasesConfiguration.getMcp().getTools().getAliases()).containsKey(toolName);
     }
 
     @Given("{string} is not present in the aliases configuration")
     public void isNotInAliasesConfiguration(String toolName) {
-        assertThat(aliasesConfiguration.getAliases()).doesNotContainKey(toolName);
+        assertThat(aliasesConfiguration.getMcp().getTools().getAliases()).doesNotContainKey(toolName);
     }
 
     @When("the alias resolver computes the MCP tool names for {string}")

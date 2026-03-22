@@ -1,12 +1,16 @@
 package net.osgiliath.agentsdk.skills.acpclient
 
+import com.agentclientprotocol.annotations.UnstableApi
 import com.agentclientprotocol.client.Client
 import com.agentclientprotocol.client.ClientInfo
 import com.agentclientprotocol.client.ClientSession
 import com.agentclientprotocol.common.ClientSessionOperations
 import com.agentclientprotocol.common.Event
+import com.agentclientprotocol.common.FileSystemOperations
 import com.agentclientprotocol.common.SessionCreationParameters
+import com.agentclientprotocol.model.ClientCapabilities
 import com.agentclientprotocol.model.ContentBlock
+import com.agentclientprotocol.model.FileSystemCapability
 import com.agentclientprotocol.model.Implementation
 import com.agentclientprotocol.model.McpServer
 import com.agentclientprotocol.model.PermissionOption
@@ -29,7 +33,12 @@ import kotlinx.serialization.json.JsonElement
 import net.osgiliath.acplanggraphlangchainbridge.acp.AcpAgentSupportBridge
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.io.path.readText
+import kotlin.io.path.writeText
 
 /**
  * Thin Kotlin wrapper around ACP client APIs so Java callers don't need to bridge coroutines manually.
@@ -39,6 +48,11 @@ class RemoteAcpClient(
     private val args: List<String>,
     private val processCwd: String
 ) : AutoCloseable {
+
+    companion object {
+        internal const val CLIENT_IMPLEMENTATION_NAME: String = "CodePromptRemoteCaller"
+        internal const val CLIENT_IMPLEMENTATION_VERSION: String = "1.0.0"
+    }
 
     private val sessions = ConcurrentHashMap<String, ClientSession>()
     private val initializeTimeoutMillis = 30_000L
@@ -64,6 +78,23 @@ class RemoteAcpClient(
         val ensuredClient = ensureClient()
         return ensureInitialized(ensuredClient)
     }
+
+    @OptIn(UnstableApi::class)
+    internal fun createClientInfo(): ClientInfo = ClientInfo(
+        capabilities = ClientCapabilities(
+            fs = FileSystemCapability(
+                readTextFile = true,
+                writeTextFile = true
+            )
+        ),
+        implementation = Implementation(CLIENT_IMPLEMENTATION_NAME, CLIENT_IMPLEMENTATION_VERSION)
+    )
+
+    internal fun createSessionOperations(cwd: String): ClientSessionOperations =
+        WorkspaceClientSessionOperations(resolveProjectDir(cwd))
+
+    internal fun resolveProjectDir(cwd: String): Path =
+        Paths.get(if (cwd.isBlank()) "." else cwd).toAbsolutePath().normalize()
 
     fun streamPrompt(
         sessionId: String,
@@ -180,9 +211,7 @@ class RemoteAcpClient(
             runBlocking {
                 withTimeout(initializeTimeoutMillis) {
                     currentClient.initialize(
-                        ClientInfo(
-                            implementation = Implementation("CodePromptRemoteCaller", "1.0.0")
-                        )
+                        createClientInfo()
                     )
                 }
             }
@@ -213,20 +242,21 @@ class RemoteAcpClient(
 
         val currentClient = ensureClient()
         ensureInitialized(currentClient)
+        val effectiveCwd = if (cwd.isBlank()) "." else cwd
         val sessionParameters = SessionCreationParameters(
-            cwd = cwd,
+            cwd = effectiveCwd,
             mcpServers = toMcpServers(mcpServers)
         )
 
         val created = currentClient.newSession(sessionParameters) { _, _ ->
-            NoopClientSessionOperations
+            createSessionOperations(effectiveCwd)
         }
 
         sessions[sessionId] = created
         return created
     }
 
-    private fun toMcpServers(mcpServers: Map<String, String>): List<McpServer> {
+    internal fun toMcpServers(mcpServers: Map<String, String>): List<McpServer> {
         return mcpServers.entries.map { (name, commandValue) ->
             McpServer.Stdio(
                 name = name,
@@ -237,7 +267,9 @@ class RemoteAcpClient(
         }
     }
 
-    private object NoopClientSessionOperations : ClientSessionOperations {
+    private class WorkspaceClientSessionOperations(
+        private val projectDir: Path
+    ) : ClientSessionOperations, FileSystemOperations {
         override suspend fun requestPermissions(
             toolCall: SessionUpdate.ToolCallUpdate,
             permissions: List<PermissionOption>,
@@ -255,6 +287,35 @@ class RemoteAcpClient(
             _meta: JsonElement?
         ) {
             // No-op: this client only relays streamed text back to the caller.
+        }
+
+        override suspend fun fsReadTextFile(
+            path: String,
+            line: UInt?,
+            limit: UInt?,
+            _meta: JsonElement?
+        ) = com.agentclientprotocol.model.ReadTextFileResponse(
+            resolvePath(path).readText()
+        )
+
+        override suspend fun fsWriteTextFile(
+            path: String,
+            content: String,
+            _meta: JsonElement?
+        ): com.agentclientprotocol.model.WriteTextFileResponse {
+            val resolvedPath = resolvePath(path)
+            resolvedPath.parent?.let(Files::createDirectories)
+            resolvedPath.writeText(content)
+            return com.agentclientprotocol.model.WriteTextFileResponse()
+        }
+
+        private fun resolvePath(path: String): Path {
+            val requestedPath = Paths.get(path)
+            return if (requestedPath.isAbsolute) {
+                requestedPath.normalize()
+            } else {
+                projectDir.resolve(requestedPath).normalize()
+            }
         }
     }
 }

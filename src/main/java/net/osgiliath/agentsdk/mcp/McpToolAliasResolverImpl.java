@@ -1,26 +1,26 @@
 package net.osgiliath.agentsdk.mcp;
 
-import net.osgiliath.agentsdk.configuration.McpAliasesConfiguration;
+import net.osgiliath.agentsdk.configuration.CodepromptConfiguration;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 /**
  * Default implementation of {@link McpToolAliasResolver} that looks up tool names
- * in the {@link McpAliasesConfiguration} alias map.
+ * in {@link CodepromptConfiguration} MCP tool aliases.
  */
 @Component
 public class McpToolAliasResolverImpl implements McpToolAliasResolver {
 
-    private final McpAliasesConfiguration aliasesConfiguration;
+    private final CodepromptConfiguration codepromptProperties;
 
-    public McpToolAliasResolverImpl(McpAliasesConfiguration aliasesConfiguration) {
-        this.aliasesConfiguration = aliasesConfiguration;
+    public McpToolAliasResolverImpl(CodepromptConfiguration codepromptProperties) {
+        this.codepromptProperties = codepromptProperties;
     }
 
     @Override
     public List<String> resolveToolNames(String toolName) {
-        List<String> aliases = aliasesConfiguration.getAliases().get(toolName);
+        List<String> aliases = codepromptProperties.getMcp().getTools().getAliases().get(toolName);
         return (aliases != null && !aliases.isEmpty()) ? List.copyOf(aliases) : List.of(toolName);
     }
 

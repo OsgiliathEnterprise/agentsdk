@@ -82,7 +82,7 @@ kotlin {
 }
 
 // Configure Kotlin compiler options
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_21)
         // Ensure compatibility with Java-only dependencies

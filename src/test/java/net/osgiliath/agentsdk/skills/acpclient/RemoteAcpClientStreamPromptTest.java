@@ -7,9 +7,11 @@ import com.agentclientprotocol.model.PromptResponse;
 import com.agentclientprotocol.model.SessionUpdate;
 import com.agentclientprotocol.model.StopReason;
 import kotlinx.coroutines.flow.FlowKt;
+import kotlinx.serialization.json.JsonElement;
 import net.osgiliath.acplanggraphlangchainbridge.acp.AcpAgentSupportBridge;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
@@ -23,15 +25,17 @@ import static org.mockito.Mockito.RETURNS_DEFAULTS;
 
 class RemoteAcpClientStreamPromptTest {
 
+    private static final String SESSION_ID = "s1";
+
     @Test
     void streamPromptRelaysTextChunksAndCompletes() throws Exception {
         RemoteAcpClient remoteAcpClient = new RemoteAcpClient("/bin/echo", List.of("ignored"), ".");
 
         Event.SessionUpdateEvent textChunkEvent = new Event.SessionUpdateEvent(
-            new SessionUpdate.AgentMessageChunk(new ContentBlock.Text("chunk-from-agent", null, null))
+            newAgentMessageChunkEvent()
         );
         Event.PromptResponseEvent doneEvent = new Event.PromptResponseEvent(
-            new PromptResponse(StopReason.END_TURN, null)
+            newPromptResponse()
         );
         ClientSession session = mock(ClientSession.class, invocation -> {
             if ("prompt".equals(invocation.getMethod().getName())) {
@@ -40,7 +44,7 @@ class RemoteAcpClientStreamPromptTest {
             return RETURNS_DEFAULTS.answer(invocation);
         });
 
-        setSession(remoteAcpClient, "s1", session);
+        setSession(remoteAcpClient, session);
 
         AcpAgentSupportBridge.TokenConsumer consumer = mock(AcpAgentSupportBridge.TokenConsumer.class);
 
@@ -58,7 +62,21 @@ class RemoteAcpClientStreamPromptTest {
         verify(consumer, never()).onError(any());
     }
 
-    private static void setSession(RemoteAcpClient remoteAcpClient, String sessionId, ClientSession session) throws Exception {
+    private static SessionUpdate.AgentMessageChunk newAgentMessageChunkEvent() throws Exception {
+        Constructor<SessionUpdate.AgentMessageChunk> constructor = SessionUpdate.AgentMessageChunk.class
+            .getDeclaredConstructor(ContentBlock.class, String.class);
+        constructor.setAccessible(true);
+        return constructor.newInstance(new ContentBlock.Text("chunk-from-agent", null, null), null);
+    }
+
+    private static PromptResponse newPromptResponse() throws Exception {
+        Constructor<PromptResponse> constructor = PromptResponse.class
+            .getDeclaredConstructor(StopReason.class, String.class, JsonElement.class);
+        constructor.setAccessible(true);
+        return constructor.newInstance(StopReason.END_TURN, null, null);
+    }
+
+    private static void setSession(RemoteAcpClient remoteAcpClient, ClientSession session) throws Exception {
         Field sessionsField = RemoteAcpClient.class.getDeclaredField("sessions");
         sessionsField.setAccessible(true);
 
@@ -66,7 +84,7 @@ class RemoteAcpClientStreamPromptTest {
         ConcurrentHashMap<String, ClientSession> sessions =
             (ConcurrentHashMap<String, ClientSession>) sessionsField.get(remoteAcpClient);
 
-        sessions.put(sessionId, session);
+        sessions.put(SESSION_ID, session);
     }
 }
 
