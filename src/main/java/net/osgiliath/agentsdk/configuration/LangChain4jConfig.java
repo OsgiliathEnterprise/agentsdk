@@ -44,8 +44,6 @@ public class LangChain4jConfig {
      */
     @Bean(CHAT_MODEL_HTTP_CLIENT_BUILDER)
     public HttpClientBuilder jdkHttpClientBuilder(ObjectProvider<RestClient.Builder> restClientBuilder) {
-
-
         HttpClient.Builder httpClientBuilder = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1);
         return JdkHttpClient.builder()

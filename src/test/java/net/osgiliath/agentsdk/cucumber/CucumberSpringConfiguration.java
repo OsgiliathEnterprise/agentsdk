@@ -10,8 +10,10 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static net.osgiliath.agentsdk.configuration.LangChain4jConfig.TOOL_PROVIDER_FULL;
 import static net.osgiliath.agentsdk.configuration.LangChain4jConfig.TOOL_PROVIDER_NONE;
@@ -35,7 +37,6 @@ public class CucumberSpringConfiguration {
     private McpToolProvider toolProviderNo;
 
 
-
     /**
      * Provide a mock AcpAgentSupportBridge bean for testing.
      */
@@ -53,6 +54,11 @@ public class CucumberSpringConfiguration {
                     @Override
                     public String getSessionId() {
                         return sessionId;
+                    }
+
+                    @Override
+                    public AtomicBoolean cancelledFlag() {
+                        return new AtomicBoolean(false);
                     }
 
                     @Override
@@ -74,7 +80,7 @@ public class CucumberSpringConfiguration {
                         if (resourceLinks != null && !resourceLinks.isEmpty()) {
                             // Include "attachment considered" when processing ResourceLinks
                             return "Mock response for: " + promptText +
-                                   ". Attachment considered. Resource analysis complete. Content reviewed.";
+                                    ". Attachment considered. Resource analysis complete. Content reviewed.";
                         }
                         return "Mock response: " + promptText;
                     }
@@ -82,4 +88,4 @@ public class CucumberSpringConfiguration {
             }
         };
     }
- }
+}

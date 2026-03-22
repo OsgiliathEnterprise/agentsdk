@@ -34,6 +34,7 @@ public class MarkdownParserImpl implements MarkdownParser {
 
     private final Parser parser;
     Logger logger = LoggerFactory.getLogger(MarkdownParserImpl.class);
+
     public MarkdownParserImpl(Parser markdownParser) {
         this.parser = markdownParser;
     }
@@ -47,10 +48,10 @@ public class MarkdownParserImpl implements MarkdownParser {
         }
         try (Stream<Path> paths = Files.list(folderPath)) {
             List<Path> markdownFiles = paths
-                .filter(Files::isRegularFile)
-                .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".md"))
-                .sorted(Comparator.comparing(path -> path.getFileName().toString()))
-                .toList();
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".md"))
+                    .sorted(Comparator.comparing(path -> path.getFileName().toString()))
+                    .toList();
             logger.info("Found {} markdown files in {}", markdownFiles.size(), folderPath);
             if (logger.isTraceEnabled()) {
                 markdownFiles.forEach(f -> logger.trace("  - {}", f.getFileName()));
@@ -283,8 +284,8 @@ public class MarkdownParserImpl implements MarkdownParser {
             public void visit(Link link) {
                 String destination = link.getDestination();
                 if (destination != null &&
-                    !destination.startsWith("http://") &&
-                    !destination.startsWith("https://")) {
+                        !destination.startsWith("http://") &&
+                        !destination.startsWith("https://")) {
                     logger.trace("Found internal link: {}", destination);
                     links.add(destination);
                 } else {
@@ -309,19 +310,29 @@ public class MarkdownParserImpl implements MarkdownParser {
             return Optional.empty();
         }
 
+        List<MarkdownHeader> parsedHeaders = parseFrontMatterHeaders(source, frontMatter);
+        return Optional.of(new AbstractMarkdownHeaders(parsedHeaders));
+    }
+
+    private List<MarkdownHeader> parseFrontMatterHeaders(String source, Map<String, List<String>> frontMatter) {
         logger.info("Found YAML front matter with {} keys", frontMatter.size());
         List<MarkdownHeader> parsedHeaders = new ArrayList<>();
         parsedHeaders.add(new SimpleMarkdownHeader("text", source));
         for (Map.Entry<String, List<String>> entry : frontMatter.entrySet()) {
             List<String> values = entry.getValue();
-            Object value = (values == null || values.isEmpty()) ? ""
-                : values.size() == 1 ? values.getFirst()
-                : List.copyOf(values);
+            Object value;
+            if (values == null || values.isEmpty()) {
+                value = "";
+            } else if (values.size() == 1) {
+                value = values.getFirst();
+            } else {
+                value = List.copyOf(values);
+            }
             logger.trace("Header: {} = {} bytes", entry.getKey(), value.toString().length());
             parsedHeaders.add(new SimpleMarkdownHeader(entry.getKey(), value));
         }
         logger.debug("Successfully parsed {} headers from YAML front matter", parsedHeaders.size());
-        return Optional.of(new AbstractMarkdownHeaders(parsedHeaders));
+        return parsedHeaders;
     }
 
 

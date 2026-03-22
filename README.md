@@ -1,8 +1,11 @@
 # Agent SDK
+
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=OsgiliathEnterprise_agentsdk&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=OsgiliathEnterprise_agentsdk)
 ![Maven Central Version](https://img.shields.io/maven-central/v/net.osgiliath.ai/agent-sdk)
 
-A Spring Boot library that helps you build ACP-aware LLM agents with **LangChain4j** and **LangGraph4j**. It provides reusable parsing, rendering, and ACP client utilities so applications can define agents/skills in Markdown and invoke remote STDIO agents.
+A Spring Boot library that helps you build ACP-aware LLM agents with **LangChain4j** and **LangGraph4j**. It provides
+reusable parsing, rendering, and ACP client utilities so applications can define agents/skills in Markdown and invoke
+remote STDIO agents.
 
 ## Overview
 
@@ -25,21 +28,23 @@ A Spring Boot library that helps you build ACP-aware LLM agents with **LangChain
 
 The SDK is organized around three responsibilities:
 
-| Layer | Main package | Responsibility |
-|---|---|---|
-| **Definition model** | `agent.parser`, `skills.parser`, `utils.markdown` | Parse Markdown agent/skill files into typed Java objects. |
-| **Execution bridge** | `skills.acpclient` (Java + Kotlin) | Call remote ACP-compatible STDIO agents and adapt responses. |
-| **Graph integration** | `langgraph.edge` | Provide edges/helpers to connect LLM output to MCP/tool flows. |
+| Layer                 | Main package                                      | Responsibility                                                 |
+|-----------------------|---------------------------------------------------|----------------------------------------------------------------|
+| **Definition model**  | `agent.parser`, `skills.parser`, `utils.markdown` | Parse Markdown agent/skill files into typed Java objects.      |
+| **Execution bridge**  | `skills.acpclient` (Java + Kotlin)                | Call remote ACP-compatible STDIO agents and adapt responses.   |
+| **Graph integration** | `langgraph.edge`                                  | Provide edges/helpers to connect LLM output to MCP/tool flows. |
 
 ## Key Components
 
 ### `AgentParser` / `AgentParserImpl`
 
-Parses agent definition Markdown into structured metadata and content blocks (`Agent`, headers, sections, handoff metadata).
+Parses agent definition Markdown into structured metadata and content blocks (`Agent`, headers, sections, handoff
+metadata).
 
 ### `SkillParser` / `SkillParserImpl`
 
-Parses skill documents and headers (name, description, dependencies, MCP/LLM hints) into typed models used by runtime orchestration.
+Parses skill documents and headers (name, description, dependencies, MCP/LLM hints) into typed models used by runtime
+orchestration.
 
 ### `SkillRenderer` / `SkillRendererImpl`
 
@@ -47,7 +52,8 @@ Renders parsed skills back into textual prompts/assets suitable for model consum
 
 ### `RemoteAcpClient` (Kotlin) and `RemoteAgentCaller` (Java)
 
-Implements outbound ACP client behavior so an SDK consumer can invoke a remote STDIO agent and integrate responses in its own agent flow.
+Implements outbound ACP client behavior so an SDK consumer can invoke a remote STDIO agent and integrate responses in
+its own agent flow.
 
 ### MCP server aliases (per session)
 
@@ -55,37 +61,46 @@ Remote ACP sessions can now carry an **MCP alias registry** through `createSessi
 
 - `mcpServers` is a per-session map of **alias name -> server definition**.
 - The alias key is the name exposed to the remote ACP session.
-- With the default SDK client, each entry is converted to `McpServer.Stdio(name=<alias>, command=<value>, args=[], env=[])`.
+- With the default SDK client, each entry is converted to
+  `McpServer.Stdio(name=<alias>, command=<value>, args=[], env=[])`.
 - `cwd` defaults to `"."` when omitted or blank, and `null` MCP maps are normalized to an empty map.
 - If you plug in a custom `RemoteClientGateway`, the map is forwarded unchanged.
 
-This is useful when your host agent wants to expose short, stable names such as `ExternalAssistant` or `repo-tools` to a downstream ACP session without hard-coding those aliases into prompt text.
+This is useful when your host agent wants to expose short, stable names such as `ExternalAssistant` or `repo-tools` to a
+downstream ACP session without hard-coding those aliases into prompt text.
 
 > [!NOTE]
-> In the current default implementation, alias values are modeled as **single stdio command strings**. Per-alias arguments and environment variables are not expanded yet, so if you need a richer launch shape you should wrap it in a script/launcher command or provide a custom `RemoteClientGateway`.
+> In the current default implementation, alias values are modeled as **single stdio command strings**. Per-alias
+> arguments and environment variables are not expanded yet, so if you need a richer launch shape you should wrap it in a
+> script/launcher command or provide a custom `RemoteClientGateway`.
 
 Example:
 
 ```java
 OutAcpAdapter.AcpSessionBridge session = remoteAgentCaller.createSession(
-    "register-session",
-    ".",
-    Map.of("ExternalAssistant", "cagent")
+        "register-session",
+        ".",
+        Map.of("ExternalAssistant", "cagent")
 );
 ```
 
-In this example, `ExternalAssistant` is the alias visible inside the remote ACP session, while `cagent` is the stdio command launched by the default client implementation.
+In this example, `ExternalAssistant` is the alias visible inside the remote ACP session, while `cagent` is the stdio
+command launched by the default client implementation.
 
-Session context propagation is covered by the SDK tests, including forwarding of `sessionId`, `cwd`, and `mcpServers` to the remote gateway.
+Session context propagation is covered by the SDK tests, including forwarding of `sessionId`, `cwd`, and `mcpServers` to
+the remote gateway.
 
 ### Spring property configuration for MCP tool aliases
 
-The SDK also supports **tool-name aliases** through Spring Boot configuration. This is separate from the per-session `mcpServers` map above:
+The SDK also supports **tool-name aliases** through Spring Boot configuration. This is separate from the per-session
+`mcpServers` map above:
 
 - `createSession(..., mcpServers)` configures **remote MCP servers** available to a session.
-- `codeprompt.mcp.tools.aliases` configures **logical tool names** that should be translated before LangChain4j calls an MCP tool.
+- `codeprompt.mcp.tools.aliases` configures **logical tool names** that should be translated before LangChain4j calls an
+  MCP tool.
 
-The Spring binding is defined under the prefix `codeprompt.mcp.tools` and binds `aliases` into a `Map<String, List<String>>`.
+The Spring binding is defined under the prefix `codeprompt.mcp.tools` and binds `aliases` into a
+`Map<String, List<String>>`.
 
 Example:
 
@@ -108,13 +123,16 @@ How this works:
 
 - Each key under `aliases` is the **logical tool name** used by your agent or skill metadata.
 - Each list contains one or more **actual MCP tool names** exposed by the target MCP client/server.
-- The resolver keeps the full list available, but the current LangChain4j integration uses the **first item as the primary mapped tool name**.
+- The resolver keeps the full list available, but the current LangChain4j integration uses the **first item as the
+  primary mapped tool name**.
 - If a tool name has no configured alias entry, the SDK leaves it unchanged.
 
-In practice, this lets you normalize tool names across providers. For example, your agent can consistently refer to `list_directory`, while Spring configuration maps it to provider-specific names such as `list_files_in_folder`.
+In practice, this lets you normalize tool names across providers. For example, your agent can consistently refer to
+`list_directory`, while Spring configuration maps it to provider-specific names such as `list_files_in_folder`.
 
 > [!TIP]
-> Alias order matters. Put the preferred MCP tool name first, because the current `toolNameMapper` resolves the primary tool using the first configured alias.
+> Alias order matters. Put the preferred MCP tool name first, because the current `toolNameMapper` resolves the primary
+> tool using the first configured alias.
 
 If you are using the built-in remote ACP client, these Spring properties are also available:
 
@@ -139,20 +157,28 @@ Reusable LangGraph edge helper used to route model output toward tool/MCP execut
 
 ## Tech Stack
 
-| Technology | Version | Purpose |
-|---|---|---|
-| **Java** | 21 | Primary SDK implementation |
-| **Kotlin** | 2.2.20 | ACP client interoperability |
-| **Spring Boot** | 3.4.2 | Dependency injection and bootstrapping |
-| **JetBrains ACP SDK** (`com.agentclientprotocol:acp`) | 0.15.3 | Agent Client Protocol support |
-| **LangChain4j** | 1.11.0 | LLM abstraction and integrations |
-| **LangGraph4j** | 1.8.3 | Graph orchestration primitives |
-| **CommonMark** | 0.27.1 | Markdown parsing/rendering |
+| Technology                                            | Version | Purpose                                |
+|-------------------------------------------------------|---------|----------------------------------------|
+| **Java**                                              | 21      | Primary SDK implementation             |
+| **Kotlin**                                            | 2.2.20  | ACP client interoperability            |
+| **Spring Boot**                                       | 3.4.2   | Dependency injection and bootstrapping |
+| **JetBrains ACP SDK** (`com.agentclientprotocol:acp`) | 0.15.3  | Agent Client Protocol support          |
+| **LangChain4j**                                       | 1.11.0  | LLM abstraction and integrations       |
+| **LangGraph4j**                                       | 1.8.3   | Graph orchestration primitives         |
+| **CommonMark**                                        | 0.27.1  | Markdown parsing/rendering             |
+
+## Complete setup for end to end tests
+
+End to end tests are trying to execute the full stack (while excluding the `github` spring profile).
+It requires:
+
+- LMStudio running locally with the ibm/granite-4-h-tiny model (to test with a local model)
+- Docker running locally, with the `cagent` image available (to test with a remote ACP agent)
+- Few MCP servers available (to test MCP integration and aliasing)
 
 ## Useful Commands
 
 Run commands from the module root:
-
 
 ### Build / Test
 
@@ -256,4 +282,5 @@ export BRIDGE_VERSION="1.0-SNAPSHOT"
 
 ## Notes
 
-The SDK is designed to be consumed as a library module; use it from your own Spring Boot agent application and wire your graph/prompt logic around the provided parser and ACP client abstractions.
+The SDK is designed to be consumed as a library module; use it from your own Spring Boot agent application and wire your
+graph/prompt logic around the provided parser and ACP client abstractions.
