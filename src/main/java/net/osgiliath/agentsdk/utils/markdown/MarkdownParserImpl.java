@@ -374,7 +374,9 @@ public class MarkdownParserImpl implements MarkdownParser {
                     logger.trace("Added root section: {}", title);
                 } else {
                     stack.peek().children.add(newSection);
-                    logger.trace("Added subsection to '{}': {}", stack.peek().title, title);
+                    if (logger.isTraceEnabled()) {
+                        logger.trace("Added subsection to '{}': {}", stack.peek().title, title);
+                    }
                 }
 
                 stack.push(newSection);

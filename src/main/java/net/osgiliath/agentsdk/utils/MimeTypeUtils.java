@@ -12,15 +12,19 @@ public class MimeTypeUtils {
             MediaType.APPLICATION_JSON_VALUE,
             MediaType.APPLICATION_XML_VALUE,
             "application/javascript",
-        MediaType.TEXT_PLAIN_VALUE,
-        MediaType.TEXT_HTML_VALUE,
-        MediaType.APPLICATION_YAML_VALUE,
-        MediaType.TEXT_MARKDOWN_VALUE,
-        MediaType.TEXT_XML_VALUE,
-        MediaType.APPLICATION_FORM_URLENCODED_VALUE,
-        MediaType.APPLICATION_XHTML_XML_VALUE,
-        "image/svg+xml"
+            MediaType.TEXT_PLAIN_VALUE,
+            MediaType.TEXT_HTML_VALUE,
+            MediaType.APPLICATION_YAML_VALUE,
+            MediaType.TEXT_MARKDOWN_VALUE,
+            MediaType.TEXT_XML_VALUE,
+            MediaType.APPLICATION_FORM_URLENCODED_VALUE,
+            MediaType.APPLICATION_XHTML_XML_VALUE,
+            "image/svg+xml"
     );
+
+    private MimeTypeUtils() {
+        // Utility class, prevent instantiation
+    }
 
     public static boolean isTextualMimeType(String mimeType) {
         if (mimeType == null) return false;
@@ -31,6 +35,7 @@ public class MimeTypeUtils {
         }
         return TEXTUAL_MIME_TYPES.contains(mimeType);
     }
+
     public static boolean isImageMimeType(String mimeType) {
         return MediaType.parseMediaType(mimeType).isCompatibleWith(MediaType.IMAGE_JPEG) ||
                 MediaType.parseMediaType(mimeType).isCompatibleWith(MediaType.IMAGE_PNG) ||
@@ -40,11 +45,13 @@ public class MimeTypeUtils {
     public static boolean isPdfMimeType(String mimeType) {
         return MediaType.parseMediaType(mimeType).isCompatibleWith(MediaType.APPLICATION_PDF);
     }
+
     public static boolean isVideoMimeType(String mimeType) {
         return MediaType.parseMediaType(mimeType).isCompatibleWith(MediaType.valueOf("video/mp4")) ||
                 MediaType.parseMediaType(mimeType).isCompatibleWith(MediaType.valueOf("video/webm")) ||
                 MediaType.parseMediaType(mimeType).isCompatibleWith(MediaType.valueOf("video/ogg"));
     }
+
     public static boolean isAudioMimeType(String mimeType) {
         return MediaType.parseMediaType(mimeType).isCompatibleWith(MediaType.valueOf("audio/mpeg")) ||
                 MediaType.parseMediaType(mimeType).isCompatibleWith(MediaType.valueOf("audio/wav")) ||

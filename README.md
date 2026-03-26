@@ -155,16 +155,86 @@ These map to `RemoteAgentCaller` constructor properties:
 
 Reusable LangGraph edge helper used to route model output toward tool/MCP execution paths.
 
+## Markdown front-matter schema (current)
+
+The parser accepts a canonical schema with a few backward-compatible aliases.
+
+### Skill files
+
+Required keys:
+
+- `name` (string)
+- `description` (string)
+
+Optional keys:
+
+- `dependencies` (list of strings)
+- `mcp` (list of strings), alias: `tools`
+- `llm` (list of strings), alias: `model`
+
+### Agent files
+
+Required keys:
+
+- `name` (string)
+- `description` (string)
+
+Optional keys:
+
+- `argument-hint` (string)
+- `mcp` (list of strings), alias: `tools`
+- `llm` (list of strings), alias: `model`
+- `user-invokable` (boolean)
+- `disable-model-invocation` (boolean)
+- `subagents` (list of strings), alias: `agents`
+- `handoffs` (list of objects with `label`, `agent`, `prompt`, `send`)
+- `skills` (list of strings)
+
+Parser behavior notes:
+
+- `name` and `description` are required for both agent and skill front matter.
+- If both canonical and alias keys are present, canonical keys win (`mcp` over `tools`, `llm` over `model`, `subagents` over `agents`).
+- List values accept YAML arrays, comma-separated scalars, and bracketed inline lists.
+- Missing optional fields default to empty values (`false` for booleans, empty strings/lists depending on field type).
+- `handoffs` must be structured objects; legacy flat string payloads are ignored.
+
+Example (agent canonical form):
+
+```yaml
+---
+name: Code Review Agent
+description: Reviews code changes for quality and security
+argument-hint: "[file or code to review]"
+mcp:
+  - read
+  - search
+llm:
+  - claude-3-5-sonnet-20241022
+user-invokable: true
+disable-model-invocation: false
+subagents:
+  - backend
+  - frontend
+handoffs:
+  - label: Backend
+    agent: backend
+    prompt: Continue on backend
+    send: false
+skills:
+  - Security Analysis
+---
+```
+
 ## Tech Stack
 
 | Technology                                            | Version | Purpose                                |
 |-------------------------------------------------------|---------|----------------------------------------|
 | **Java**                                              | 21      | Primary SDK implementation             |
 | **Kotlin**                                            | 2.2.20  | ACP client interoperability            |
-| **Spring Boot**                                       | 3.4.2   | Dependency injection and bootstrapping |
-| **JetBrains ACP SDK** (`com.agentclientprotocol:acp`) | 0.15.3  | Agent Client Protocol support          |
-| **LangChain4j**                                       | 1.11.0  | LLM abstraction and integrations       |
-| **LangGraph4j**                                       | 1.8.3   | Graph orchestration primitives         |
+| **Spring Boot**                                       | 3.5.11  | Dependency injection and bootstrapping |
+| **ACP SDK** (`com.agentclientprotocol:acp`)           | 0.17.0  | Agent Client Protocol support          |
+| **LangChain4j**                                       | 1.12.2  | LLM abstraction and integrations       |
+| **LangGraph4j**                                       | 1.8.10  | Graph orchestration primitives         |
 | **CommonMark**                                        | 0.27.1  | Markdown parsing/rendering             |
 
 ## Complete setup for end to end tests
