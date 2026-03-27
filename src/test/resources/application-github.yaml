@@ -3,7 +3,7 @@ langchain4j:
   open-ai:
     chat-model:
       base-url: https://models.github.ai/inference
-      model-name: openai/gpt-5-nano
+      model-name: openai/gpt-5-mini
       log-requests: true
       log-responses: true
       timeout: 3000s
@@ -12,7 +12,7 @@ langchain4j:
       strict-json-schema: true
     streaming-chat-model:
       base-url: https://models.github.ai/inference
-      model-name: openai/gpt-5-nano
+      model-name: openai/gpt-5-mini
       log-requests: true
       log-responses: true
       timeout: 3000s
