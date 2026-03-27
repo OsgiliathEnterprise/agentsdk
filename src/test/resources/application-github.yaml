@@ -7,7 +7,7 @@ langchain4j:
       log-requests: true
       log-responses: true
       timeout: 3000s
-      api-key: ${MODEL_TOKEN}
+      api-key: ${GITHUB_TOKEN}
       supported-capabilities: response_format_json_schema
       strict-json-schema: true
     streaming-chat-model:
@@ -16,7 +16,7 @@ langchain4j:
       log-requests: true
       log-responses: true
       timeout: 3000s
-      api-key: ${MODEL_TOKEN}
+      api-key: ${GITHUB_TOKEN}
 
 # Application configuration
 spring:
