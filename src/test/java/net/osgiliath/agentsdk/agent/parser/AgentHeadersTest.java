@@ -233,4 +233,41 @@ class AgentHeadersTest {
                 new ParsingHeader("name", "Code Review Agent")
         ))).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("description");
     }
+
+    @Test
+    void shouldSupportAllHeaderKeysAndAliases() {
+        AgentHeaders headers = new AgentHeaders(
+                "Code Review Agent",
+                "Reviews code changes",
+                "[file or code to review]",
+                List.of("read", "search"),
+                List.of(LLMS_KIND.MINI),
+                true,
+                false,
+                List.of("backend"),
+                List.of(new AgentHandoff("Backend", "backend", "Continue on backend", false)),
+                List.of("Security Analysis")
+        );
+
+        assertThat(headers.header("name")).contains("Code Review Agent");
+        assertThat(headers.header("description")).contains("Reviews code changes");
+        assertThat(headers.header("argument-hint")).contains("[file or code to review]");
+
+        assertThat(headers.header("mcp")).contains(List.of("read", "search"));
+        assertThat(headers.header("tools")).contains(List.of("read", "search"));
+
+        assertThat(headers.header("llm")).contains(List.of(LLMS_KIND.MINI));
+        assertThat(headers.header("model")).contains(List.of(LLMS_KIND.MINI));
+
+        assertThat(headers.header("user-invokable")).contains(true);
+        assertThat(headers.header("disable-model-invocation")).contains(false);
+
+        assertThat(headers.header("subagents")).contains(List.of("backend"));
+        assertThat(headers.header("agents")).contains(List.of("backend"));
+
+        assertThat(headers.header("handoffs")).contains(List.of(new AgentHandoff("Backend", "backend", "Continue on backend", false)));
+        assertThat(headers.header("skills")).contains(List.of("Security Analysis"));
+
+        assertThat(headers.header("unknown")).isEmpty();
+    }
 }
