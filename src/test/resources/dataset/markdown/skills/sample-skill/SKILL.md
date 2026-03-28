@@ -6,18 +6,18 @@ mcp:
   - server-name-1
   - server-name-2
 llm:
-  - claude-3-5-sonnet-20241022
+  - mini
 ---
 
 # PPTX Skill
 
 ## Quick Reference
 
-| Task | Guide                                        |
-|------|----------------------------------------------|
-| Read/analyze content | `python -m markitdown presentation.pptx`     |
+| Task                         | Guide                                        |
+|------------------------------|----------------------------------------------|
+| Read/analyze content         | `python -m markitdown presentation.pptx`     |
 | Edit or create from template | Read [editing.md](examples/faq-answers.md)   |
-| Create from scratch | Read [pptxgenjs.md](assets/eval_review.html) |
+| Create from scratch          | Read [pptxgenjs.md](assets/eval_review.html) |
 
 ---
 
@@ -51,72 +51,81 @@ Use when no template or reference presentation is available.
 
 ## Design Ideas
 
-**Don't create boring slides.** Plain bullets on a white background won't impress anyone. Consider ideas from this list for each slide.
+**Don't create boring slides.** Plain bullets on a white background won't impress anyone. Consider ideas from this list
+for each slide.
 
 ### Before Starting
 
-- **Pick a bold, content-informed color palette**: The palette should feel designed for THIS topic. If swapping your colors into a completely different presentation would still "work," you haven't made specific enough choices.
-- **Dominance over equality**: One color should dominate (60-70% visual weight), with 1-2 supporting tones and one sharp accent. Never give all colors equal weight.
-- **Dark/light contrast**: Dark backgrounds for title + conclusion slides, light for content ("sandwich" structure). Or commit to dark throughout for a premium feel.
-- **Commit to a visual motif**: Pick ONE distinctive element and repeat it — rounded image frames, icons in colored circles, thick single-side borders. Carry it across every slide.
+- **Pick a bold, content-informed color palette**: The palette should feel designed for THIS topic. If swapping your
+  colors into a completely different presentation would still "work," you haven't made specific enough choices.
+- **Dominance over equality**: One color should dominate (60-70% visual weight), with 1-2 supporting tones and one sharp
+  accent. Never give all colors equal weight.
+- **Dark/light contrast**: Dark backgrounds for title + conclusion slides, light for content ("sandwich" structure). Or
+  commit to dark throughout for a premium feel.
+- **Commit to a visual motif**: Pick ONE distinctive element and repeat it — rounded image frames, icons in colored
+  circles, thick single-side borders. Carry it across every slide.
 
 ### Color Palettes
 
 Choose colors that match your topic — don't default to generic blue. Use these palettes as inspiration:
 
-| Theme | Primary | Secondary | Accent |
-|-------|---------|-----------|--------|
-| **Midnight Executive** | `1E2761` (navy) | `CADCFC` (ice blue) | `FFFFFF` (white) |
-| **Forest & Moss** | `2C5F2D` (forest) | `97BC62` (moss) | `F5F5F5` (cream) |
-| **Coral Energy** | `F96167` (coral) | `F9E795` (gold) | `2F3C7E` (navy) |
-| **Warm Terracotta** | `B85042` (terracotta) | `E7E8D1` (sand) | `A7BEAE` (sage) |
-| **Ocean Gradient** | `065A82` (deep blue) | `1C7293` (teal) | `21295C` (midnight) |
-| **Charcoal Minimal** | `36454F` (charcoal) | `F2F2F2` (off-white) | `212121` (black) |
-| **Teal Trust** | `028090` (teal) | `00A896` (seafoam) | `02C39A` (mint) |
-| **Berry & Cream** | `6D2E46` (berry) | `A26769` (dusty rose) | `ECE2D0` (cream) |
-| **Sage Calm** | `84B59F` (sage) | `69A297` (eucalyptus) | `50808E` (slate) |
-| **Cherry Bold** | `990011` (cherry) | `FCF6F5` (off-white) | `2F3C7E` (navy) |
+| Theme                  | Primary               | Secondary             | Accent              |
+|------------------------|-----------------------|-----------------------|---------------------|
+| **Midnight Executive** | `1E2761` (navy)       | `CADCFC` (ice blue)   | `FFFFFF` (white)    |
+| **Forest & Moss**      | `2C5F2D` (forest)     | `97BC62` (moss)       | `F5F5F5` (cream)    |
+| **Coral Energy**       | `F96167` (coral)      | `F9E795` (gold)       | `2F3C7E` (navy)     |
+| **Warm Terracotta**    | `B85042` (terracotta) | `E7E8D1` (sand)       | `A7BEAE` (sage)     |
+| **Ocean Gradient**     | `065A82` (deep blue)  | `1C7293` (teal)       | `21295C` (midnight) |
+| **Charcoal Minimal**   | `36454F` (charcoal)   | `F2F2F2` (off-white)  | `212121` (black)    |
+| **Teal Trust**         | `028090` (teal)       | `00A896` (seafoam)    | `02C39A` (mint)     |
+| **Berry & Cream**      | `6D2E46` (berry)      | `A26769` (dusty rose) | `ECE2D0` (cream)    |
+| **Sage Calm**          | `84B59F` (sage)       | `69A297` (eucalyptus) | `50808E` (slate)    |
+| **Cherry Bold**        | `990011` (cherry)     | `FCF6F5` (off-white)  | `2F3C7E` (navy)     |
 
 ### For Each Slide
 
 **Every slide needs a visual element** — image, chart, icon, or shape. Text-only slides are forgettable.
 
 **Layout options:**
+
 - Two-column (text left, illustration on right)
 - Icon + text rows (icon in colored circle, bold header, description below)
 - 2x2 or 2x3 grid (image on one side, grid of content blocks on other)
 - Half-bleed image (full left or right side) with content overlay
 
 **Data display:**
+
 - Large stat callouts (big numbers 60-72pt with small labels below)
 - Comparison columns (before/after, pros/cons, side-by-side options)
 - Timeline or process flow (numbered steps, arrows)
 
 **Visual polish:**
+
 - Icons in small colored circles next to section headers
 - Italic accent text for key stats or taglines
 
 ### Typography
 
-**Choose an interesting font pairing** — don't default to Arial. Pick a header font with personality and pair it with a clean body font.
+**Choose an interesting font pairing** — don't default to Arial. Pick a header font with personality and pair it with a
+clean body font.
 
-| Header Font | Body Font |
-|-------------|-----------|
-| Georgia | Calibri |
-| Arial Black | Arial |
-| Calibri | Calibri Light |
-| Cambria | Calibri |
-| Trebuchet MS | Calibri |
-| Impact | Arial |
-| Palatino | Garamond |
-| Consolas | Calibri |
+| Header Font  | Body Font     |
+|--------------|---------------|
+| Georgia      | Calibri       |
+| Arial Black  | Arial         |
+| Calibri      | Calibri Light |
+| Cambria      | Calibri       |
+| Trebuchet MS | Calibri       |
+| Impact       | Arial         |
+| Palatino     | Garamond      |
+| Consolas     | Calibri       |
 
-| Element | Size |
-|---------|------|
-| Slide title | 36-44pt bold |
-| Section header | 20-24pt bold |
-| Body text | 14-16pt |
-| Captions | 10-12pt muted |
+| Element        | Size          |
+|----------------|---------------|
+| Slide title    | 36-44pt bold  |
+| Section header | 20-24pt bold  |
+| Body text      | 14-16pt       |
+| Captions       | 10-12pt muted |
 
 ### Spacing
 
@@ -133,9 +142,12 @@ Choose colors that match your topic — don't default to generic blue. Use these
 - **Don't mix spacing randomly** — choose 0.3" or 0.5" gaps and use consistently
 - **Don't style one slide and leave the rest plain** — commit fully or keep it simple throughout
 - **Don't create text-only slides** — add images, icons, charts, or visual elements; avoid plain title + bullets
-- **Don't forget text box padding** — when aligning lines or shapes with text edges, set `margin: 0` on the text box or offset the shape to account for padding
-- **Don't use low-contrast elements** — icons AND text need strong contrast against the background; avoid light text on light backgrounds or dark text on dark backgrounds
-- **NEVER use accent lines under titles** — these are a hallmark of AI-generated slides; use whitespace or background color instead
+- **Don't forget text box padding** — when aligning lines or shapes with text edges, set `margin: 0` on the text box or
+  offset the shape to account for padding
+- **Don't use low-contrast elements** — icons AND text need strong contrast against the background; avoid light text on
+  light backgrounds or dark text on dark backgrounds
+- **NEVER use accent lines under titles** — these are a hallmark of AI-generated slides; use whitespace or background
+  color instead
 
 ---
 
@@ -143,7 +155,8 @@ Choose colors that match your topic — don't default to generic blue. Use these
 
 **Assume there are problems. Your job is to find them.**
 
-Your first render is almost never correct. Approach QA as a bug hunt, not a confirmation step. If you found zero issues on first inspection, you weren't looking hard enough.
+Your first render is almost never correct. Approach QA as a bug hunt, not a confirmation step. If you found zero issues
+on first inspection, you weren't looking hard enough.
 
 ### Content QA
 
@@ -163,7 +176,8 @@ If grep returns results, fix them before declaring success.
 
 ### Visual QA
 
-**⚠️ USE SUBAGENTS** — even for 2-3 slides. You've been staring at the code and will see what you expect, not what's there. Subagents have fresh eyes.
+**⚠️ USE SUBAGENTS** — even for 2-3 slides. You've been staring at the code and will see what you expect, not what's
+there. Subagents have fresh eyes.
 
 Convert slides to images (see [Converting to Images](#converting-to-images)), then use this prompt:
 

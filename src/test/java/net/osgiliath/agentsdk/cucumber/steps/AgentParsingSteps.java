@@ -7,6 +7,7 @@ import io.cucumber.java.en.When;
 import net.osgiliath.agentsdk.agent.parser.Agent;
 import net.osgiliath.agentsdk.agent.parser.AgentHandoff;
 import net.osgiliath.agentsdk.agent.parser.AgentParser;
+import net.osgiliath.agentsdk.llm.LLMS_KIND;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
@@ -79,8 +80,11 @@ public class AgentParsingSteps {
     }
 
     @Then("the parsed llm should include:")
-    public void theParsedLlmShouldInclude(List<String> expectedLlm) {
+    public void theParsedLlmShouldInclude(List<String> expectedLlmStrings) {
         assertNoSetupError();
+        List<LLMS_KIND> expectedLlm = expectedLlmStrings.stream()
+                .map(s -> LLMS_KIND.valueOf(s.toUpperCase()))
+                .toList();
         assertThat(parsedAgent.headers().llm().value()).containsAll(expectedLlm);
     }
 
@@ -107,10 +111,10 @@ public class AgentParsingSteps {
         assertNoSetupError();
         assertThat(handoffValues).hasSize(4);
         AgentHandoff expected = new AgentHandoff(
-            handoffValues.get(0),
-            handoffValues.get(1),
-            handoffValues.get(2),
-            Boolean.parseBoolean(handoffValues.get(3))
+                handoffValues.get(0),
+                handoffValues.get(1),
+                handoffValues.get(2),
+                Boolean.parseBoolean(handoffValues.get(3))
         );
         assertThat(parsedAgent.headers().handoffs().value()).contains(expected);
     }
@@ -140,7 +144,7 @@ public class AgentParsingSteps {
     public void theSectionShouldIncludeSubsection(String sectionTitle, String subsectionTitle) {
         assertNoSetupError();
         MarkdownSection section = findSection(sectionTitle)
-            .orElseThrow(() -> new AssertionError("Section not found: " + sectionTitle));
+                .orElseThrow(() -> new AssertionError("Section not found: " + sectionTitle));
         assertThat(section.getSubSection(subsectionTitle)).isPresent();
     }
 

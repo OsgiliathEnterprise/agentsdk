@@ -24,8 +24,8 @@ Feature: Agent Parsing
   Scenario: Should parse llm
     When the agent parser reads the headers
     Then the parsed llm should include:
-      | claude-3-5-sonnet-20241022 |
-      | gpt-4.1                     |
+      | mini     |
+      | thinking |
 
   Scenario: Should parse user-invokable
     When the agent parser reads the headers
@@ -45,17 +45,17 @@ Feature: Agent Parsing
   Scenario: Should parse handoffs
     When the agent parser reads the headers
     Then the parsed handoffs should contain a handoff:
-      | Hand off to Backend |
-      | subagent-1 |
+      | Hand off to Backend                            |
+      | subagent-1                                     |
       | Continue working on the backend for this task. |
-      | false |
+      | false                                          |
 
   Scenario: Should parse Skills
     When the agent parser reads the headers
     Then the parsed skills should include:
-      | Security Analysis |
-      | Code Quality Assessment |
-      | Performance Optimization |
+      | Security Analysis          |
+      | Code Quality Assessment    |
+      | Performance Optimization   |
       | Best Practices Enforcement |
 
   Scenario: Should parse introduction

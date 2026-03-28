@@ -1,8 +1,11 @@
 package net.osgiliath.agentsdk.common.parsing;
 
+import net.osgiliath.agentsdk.llm.LLMS_KIND;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public final class ParsingValueCoercions {
 
@@ -40,11 +43,11 @@ public final class ParsingValueCoercions {
         }
         if (value instanceof List<?> list) {
             return list.stream()
-                .map(String::valueOf)
-                .map(String::trim)
-                .map(ParsingValueCoercions::unquote)
-                .filter(s -> !s.isEmpty())
-                .toList();
+                    .map(String::valueOf)
+                    .map(String::trim)
+                    .map(ParsingValueCoercions::unquote)
+                    .filter(s -> !s.isEmpty())
+                    .toList();
         }
         String scalar = asString(value);
         if (scalar.startsWith("[") && scalar.endsWith("]")) {
@@ -53,24 +56,38 @@ public final class ParsingValueCoercions {
                 return List.of();
             }
             return Arrays.stream(inner.split(","))
-                .map(String::trim)
-                .map(ParsingValueCoercions::unquote)
-                .filter(s -> !s.isEmpty())
-                .toList();
+                    .map(String::trim)
+                    .map(ParsingValueCoercions::unquote)
+                    .filter(s -> !s.isEmpty())
+                    .toList();
         }
         return scalar.isEmpty()
-            ? List.of()
-            : Arrays.stream(scalar.split(","))
-                .map(String::trim)
-                .map(ParsingValueCoercions::unquote)
-                .filter(s -> !s.isEmpty())
+                ? List.of()
+                : Arrays.stream(scalar.split(","))
+                  .map(String::trim)
+                  .map(ParsingValueCoercions::unquote)
+                  .filter(s -> !s.isEmpty())
+                  .toList();
+    }
+
+    public static List<LLMS_KIND> asLlmKindList(Object value) {
+        return asStringList(value).stream()
+                .map(ParsingValueCoercions::toLlmKind)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
                 .toList();
+    }
+
+    private static Optional<LLMS_KIND> toLlmKind(String value) {
+        return Arrays.stream(LLMS_KIND.values())
+                .filter(kind -> kind.getName().equalsIgnoreCase(value) || kind.name().equalsIgnoreCase(value))
+                .findFirst();
     }
 
     private static String unquote(String value) {
         String trimmed = stripYamlInlineComment(value).trim();
         if ((trimmed.startsWith("\"") && trimmed.endsWith("\""))
-            || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+                || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
             return trimmed.substring(1, trimmed.length() - 1).trim();
         }
         return trimmed;
