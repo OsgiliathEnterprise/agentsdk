@@ -9,17 +9,15 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        mavenLocal()
         mavenCentral()
         maven("https://repo.spring.io/release")
-
     }
 }
 
 rootProject.name = "agent-sdk"
 
 val bridgeDir = file("../acp-langraph-langchain-bridge")
-if (bridgeDir.exists()) {
+if (gradle.parent == null && bridgeDir.exists()) {
     includeBuild(bridgeDir) {
         dependencySubstitution {
             substitute(module("net.osgiliath.ai:acp-langraph-langchain-bridge")).using(project(":"))
@@ -27,11 +25,3 @@ if (bridgeDir.exists()) {
     }
 }
 
-val sdkDir = file("../agent-sdk")
-if (bridgeDir.exists()) {
-    includeBuild(bridgeDir) {
-        dependencySubstitution {
-            substitute(module("net.osgiliath.ai:agent-sdk")).using(project(":"))
-        }
-    }
-}
