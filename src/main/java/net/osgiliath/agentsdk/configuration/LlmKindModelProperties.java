@@ -1,7 +1,6 @@
 package net.osgiliath.agentsdk.configuration;
 
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
 import java.util.EnumMap;
