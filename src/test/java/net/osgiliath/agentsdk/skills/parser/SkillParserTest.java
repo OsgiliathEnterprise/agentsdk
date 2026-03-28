@@ -1,6 +1,7 @@
 package net.osgiliath.agentsdk.skills.parser;
 
 import net.osgiliath.agentsdk.configuration.MarkdownConfiguration;
+import net.osgiliath.agentsdk.llm.LLMS_KIND;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParserImpl;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
@@ -71,7 +72,7 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         assertThat(skill.getLlms())
-                .containsExactly("claude-3-5-sonnet-20241022");
+                .containsExactly(LLMS_KIND.MINI);
     }
 
     @Test

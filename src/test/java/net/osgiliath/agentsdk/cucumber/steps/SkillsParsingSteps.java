@@ -5,6 +5,7 @@ import io.cucumber.java.Before;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import net.osgiliath.agentsdk.llm.LLMS_KIND;
 import net.osgiliath.agentsdk.skills.parser.Skill;
 import net.osgiliath.agentsdk.skills.parser.SkillAsset;
 import net.osgiliath.agentsdk.skills.parser.SkillParser;
@@ -26,28 +27,25 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class SkillsParsingSteps {
 
+    private static final String EXPECTED_NAME = "implements features file";
+    private static final String EXPECTED_DESCRIPTION = "You're a Gherkin scenario writer. You will be given a feature file and a user story and you will have to write the Gherkin scenarios to define acceptance criteria.";
+    private static final List<String> EXPECTED_DEPENDENCIES = List.of("python>=3.8", "pandas>=1.5.0", "matplotlib");
+    private static final List<String> EXPECTED_MCP = List.of("server-name-1", "server-name-2");
+    private static final List<LLMS_KIND> EXPECTED_LLM = List.of(LLMS_KIND.MINI);
+    private static final List<String> EXPECTED_ASSET_URIS = List.of("assets/eval_review.html");
+    private static final List<String> EXPECTED_TEMPLATE_URIS = List.of("templates/generator_template.js");
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
     private SkillParser skillParser;
-
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
     private SkillRenderer skillRenderer;
-
     private Path skillFilePath;
     private Path skillDatasetRoot;
     private Skill skill;
     private String renderedFlatDocument;
     private String renderedStructuredDocument;
     private Throwable stepError;
-
-    private static final String EXPECTED_NAME = "implements features file";
-    private static final String EXPECTED_DESCRIPTION = "You're a Gherkin scenario writer. You will be given a feature file and a user story and you will have to write the Gherkin scenarios to define acceptance criteria.";
-    private static final List<String> EXPECTED_DEPENDENCIES = List.of("python>=3.8", "pandas>=1.5.0", "matplotlib");
-    private static final List<String> EXPECTED_MCP = List.of("server-name-1", "server-name-2");
-    private static final List<String> EXPECTED_LLM = List.of("claude-3-5-sonnet-20241022");
-    private static final List<String> EXPECTED_ASSET_URIS = List.of("assets/eval_review.html");
-    private static final List<String> EXPECTED_TEMPLATE_URIS = List.of("templates/generator_template.js");
 
     @Before
     public void resetScenarioState() {
@@ -194,10 +192,10 @@ public class SkillsParsingSteps {
         assertNoSetupError();
         List<String> expectedExecutables = firstColumnValues(dataTable, "executable");
         assertThat(skill.scriptCommands()).anyMatch(script ->
-            expectedExecutables.stream().anyMatch(prefix -> script.executable().startsWith(prefix))
+                expectedExecutables.stream().anyMatch(prefix -> script.executable().startsWith(prefix))
         );
         assertThat(skill.scriptCommands()).extracting(SkillScriptCommand::commandLine)
-            .contains("./gradlew scripts/build.gradle.kts ping");
+                .contains("./gradlew scripts/build.gradle.kts ping");
     }
 
     @When("template resources are scanned")
@@ -226,7 +224,7 @@ public class SkillsParsingSteps {
     public void aFullyParsedSkillWithAllComponents() {
         safely(() -> {
             skillFilePath = resolveFromProject(
-                "dataset/markdown/skills/sample-skill/SKILL.md");
+                    "dataset/markdown/skills/sample-skill/SKILL.md");
             skill = skillParser.getSkill(skillFilePath);
         });
     }
@@ -248,15 +246,15 @@ public class SkillsParsingSteps {
                     assertThat(skill.headers().name().value()).isEqualTo(EXPECTED_NAME);
                 }
                 case "assets" -> assertThat(skill.assets()).map(SkillAsset::uri)
-                    .containsExactlyElementsOf(EXPECTED_ASSET_URIS);
+                        .containsExactlyElementsOf(EXPECTED_ASSET_URIS);
                 case "scripts" -> {
                     assertThat(skill.scriptCommands()).isNotEmpty();
                     assertThat(skill.scriptCommands()).contains(
-                        new SkillScriptCommand("./gradlew", "./gradlew scripts/build.gradle.kts ping")
+                            new SkillScriptCommand("./gradlew", "./gradlew scripts/build.gradle.kts ping")
                     );
                 }
                 case "templates" -> assertThat(skill.templates()).map(SkillTemplate::uri)
-                    .containsExactlyElementsOf(EXPECTED_TEMPLATE_URIS);
+                        .containsExactlyElementsOf(EXPECTED_TEMPLATE_URIS);
                 case "content", "links", "references" -> assertThat(skill.content().sections()).isNotEmpty();
                 default -> throw new IllegalArgumentException("Unknown expected section: " + section);
             }
@@ -312,9 +310,9 @@ public class SkillsParsingSteps {
         }
         int startIndex = rows.getFirst().size() == 1 && headerName.equalsIgnoreCase(rows.getFirst().getFirst()) ? 1 : 0;
         return rows.subList(startIndex, rows.size()).stream()
-            .filter(row -> !row.isEmpty())
-            .map(List::getFirst)
-            .toList();
+                .filter(row -> !row.isEmpty())
+                .map(List::getFirst)
+                .toList();
     }
 
     private int countOccurrences(String text, String needle) {

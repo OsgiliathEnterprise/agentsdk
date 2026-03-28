@@ -6,6 +6,7 @@ import net.osgiliath.agentsdk.common.parsing.LlmHeader;
 import net.osgiliath.agentsdk.common.parsing.McpHeader;
 import net.osgiliath.agentsdk.common.parsing.NameHeader;
 import net.osgiliath.agentsdk.common.parsing.ParsingValueCoercions;
+import net.osgiliath.agentsdk.llm.LLMS_KIND;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownHeader;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownHeaders;
 
@@ -16,16 +17,16 @@ import java.util.Objects;
 import java.util.Optional;
 
 public record AgentHeaders(
-    NameHeader name,
-    DescriptionHeader description,
-    AgentArgumentHintHeader argumentHint,
-    McpHeader mcp,
-    LlmHeader llm,
-    AgentUserInvokableHeader userInvokable,
-    AgentDisableModelInvocationHeader disableModelInvocation,
-    AgentSubagentsHeader subagents,
-    AgentHandoffsHeader handoffs,
-    AgentSkillsHeader skills
+        NameHeader name,
+        DescriptionHeader description,
+        AgentArgumentHintHeader argumentHint,
+        McpHeader mcp,
+        LlmHeader llm,
+        AgentUserInvokableHeader userInvokable,
+        AgentDisableModelInvocationHeader disableModelInvocation,
+        AgentSubagentsHeader subagents,
+        AgentHandoffsHeader handoffs,
+        AgentSkillsHeader skills
 ) implements MarkdownHeaders {
 
     public static final String AGENT = "agent";
@@ -47,28 +48,28 @@ public record AgentHeaders(
     }
 
     public AgentHeaders(
-        String name,
-        String description,
-        String argumentHint,
-        List<String> mcp,
-        List<String> llm,
-        boolean userInvokable,
-        boolean disableModelInvocation,
-        List<String> subagents,
-        List<AgentHandoff> handoffs,
-        List<String> skills
+            String name,
+            String description,
+            String argumentHint,
+            List<String> mcp,
+            List<LLMS_KIND> llm,
+            boolean userInvokable,
+            boolean disableModelInvocation,
+            List<String> subagents,
+            List<AgentHandoff> handoffs,
+            List<String> skills
     ) {
         this(
-            new NameHeader(name),
-            new DescriptionHeader(description),
-            new AgentArgumentHintHeader(argumentHint),
-            new McpHeader(mcp),
-            new LlmHeader(llm),
-            new AgentUserInvokableHeader(userInvokable),
-            new AgentDisableModelInvocationHeader(disableModelInvocation),
-            new AgentSubagentsHeader(subagents),
-            new AgentHandoffsHeader(handoffs),
-            new AgentSkillsHeader(skills)
+                new NameHeader(name),
+                new DescriptionHeader(description),
+                new AgentArgumentHintHeader(argumentHint),
+                new McpHeader(mcp),
+                new LlmHeader(llm),
+                new AgentUserInvokableHeader(userInvokable),
+                new AgentDisableModelInvocationHeader(disableModelInvocation),
+                new AgentSubagentsHeader(subagents),
+                new AgentHandoffsHeader(handoffs),
+                new AgentSkillsHeader(skills)
         );
     }
 
@@ -77,6 +78,66 @@ public record AgentHeaders(
         Map<String, Object> values = new LinkedHashMap<>();
         headers.forEach(header -> values.put(header.key(), header.value()));
         return fromRawHeaders(values);
+    }
+
+    public static AgentHeaders fromRawHeaders(Map<String, Object> rawHeaders) {
+        Map<String, Object> values = new LinkedHashMap<>(rawHeaders);
+        List<AgentHandoff> parsedHandoffs = asHandoffs(values.get(AgentHandoffsHeader.HANDOFFS));
+        boolean missingStructuredFields = parsedHandoffs.stream()
+                .allMatch(h -> h.agent().isBlank() && h.prompt().isBlank());
+        if (parsedHandoffs.isEmpty() || missingStructuredFields) {
+            parsedHandoffs = parseHandoffsFromMarkdownText(ParsingValueCoercions.asString(values.get("text")));
+        }
+        return new AgentHeaders(
+                new NameHeader(ParsingValueCoercions.requiredString(values, NameHeader.NAME, AGENT)),
+                new DescriptionHeader(ParsingValueCoercions.requiredString(values, DescriptionHeader.DESCRIPTION, AGENT)),
+                new AgentArgumentHintHeader(ParsingValueCoercions.asString(values.get(AgentArgumentHintHeader.ARGUMENT_HINT))),
+                new McpHeader(ParsingValueCoercions.asStringList(firstNonNull(values, McpHeader.MCP, McpHeader.TOOLS_ALIAS))),
+                new LlmHeader(ParsingValueCoercions.asLlmKindList(firstNonNull(values, LlmHeader.LLM, LlmHeader.MODEL_ALIAS))),
+                new AgentUserInvokableHeader(ParsingValueCoercions.asBoolean(values.get(AgentUserInvokableHeader.USER_INVOKABLE))),
+                new AgentDisableModelInvocationHeader(ParsingValueCoercions.asBoolean(values.get(AgentDisableModelInvocationHeader.DISABLE_MODEL_INVOCATION))),
+                new AgentSubagentsHeader(ParsingValueCoercions.asStringList(firstNonNull(values, AgentSubagentsHeader.SUBAGENTS, AgentSubagentsHeader.AGENTS_ALIAS))),
+                new AgentHandoffsHeader(parsedHandoffs),
+                new AgentSkillsHeader(ParsingValueCoercions.asStringList(values.get(AgentSkillsHeader.SKILLS)))
+        );
+    }
+
+    private static List<AgentHandoff> asHandoffs(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream()
+                .map(item -> {
+                    if (item instanceof AgentHandoff handoff) {
+                        return handoff;
+                    }
+                    if (!(item instanceof Map<?, ?> map)) {
+                        return null;
+                    }
+                    return new AgentHandoff(
+                            ParsingValueCoercions.asString(map.get(LABEL)),
+                            ParsingValueCoercions.asString(map.get(AGENT)),
+                            ParsingValueCoercions.asString(map.get(PROMPT)),
+                            ParsingValueCoercions.asBoolean(map.get(SEND))
+                    );
+                })
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private static List<AgentHandoff> parseHandoffsFromMarkdownText(String markdown) {
+        Map<String, Object> frontMatter = FrontMatterParsing.parseYamlFrontMatter(markdown);
+        return asHandoffs(frontMatter.get(AgentHandoffsHeader.HANDOFFS));
+    }
+
+    private static Object firstNonNull(Map<String, Object> values, String... keys) {
+        for (String key : keys) {
+            Object value = values.get(key);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     @Override
@@ -104,71 +165,12 @@ public record AgentHeaders(
             case McpHeader.MCP, McpHeader.TOOLS_ALIAS -> Optional.of(mcp.value());
             case LlmHeader.LLM, LlmHeader.MODEL_ALIAS -> Optional.of(llm.value());
             case AgentUserInvokableHeader.USER_INVOKABLE -> Optional.of(userInvokable.value());
-            case AgentDisableModelInvocationHeader.DISABLE_MODEL_INVOCATION -> Optional.of(disableModelInvocation.value());
+            case AgentDisableModelInvocationHeader.DISABLE_MODEL_INVOCATION ->
+                    Optional.of(disableModelInvocation.value());
             case AgentSubagentsHeader.SUBAGENTS, AgentSubagentsHeader.AGENTS_ALIAS -> Optional.of(subagents.value());
             case AgentHandoffsHeader.HANDOFFS -> Optional.of(handoffs.value());
             case AgentSkillsHeader.SKILLS -> Optional.of(skills.value());
             default -> Optional.empty();
         };
-    }
-
-    public static AgentHeaders fromRawHeaders(Map<String, Object> rawHeaders) {
-        Map<String, Object> values = new LinkedHashMap<>(rawHeaders);
-        List<AgentHandoff> parsedHandoffs = asHandoffs(values.get(AgentHandoffsHeader.HANDOFFS));
-        boolean missingStructuredFields = parsedHandoffs.stream()
-            .allMatch(h -> h.agent().isBlank() && h.prompt().isBlank());
-        if (parsedHandoffs.isEmpty() || missingStructuredFields) {
-            parsedHandoffs = parseHandoffsFromMarkdownText(ParsingValueCoercions.asString(values.get("text")));
-        }
-        return new AgentHeaders(
-            new NameHeader(ParsingValueCoercions.requiredString(values, NameHeader.NAME, AGENT)),
-            new DescriptionHeader(ParsingValueCoercions.requiredString(values, DescriptionHeader.DESCRIPTION, AGENT)),
-            new AgentArgumentHintHeader(ParsingValueCoercions.asString(values.get(AgentArgumentHintHeader.ARGUMENT_HINT))),
-            new McpHeader(ParsingValueCoercions.asStringList(firstNonNull(values, McpHeader.MCP, McpHeader.TOOLS_ALIAS))),
-            new LlmHeader(ParsingValueCoercions.asStringList(firstNonNull(values, LlmHeader.LLM, LlmHeader.MODEL_ALIAS))),
-            new AgentUserInvokableHeader(ParsingValueCoercions.asBoolean(values.get(AgentUserInvokableHeader.USER_INVOKABLE))),
-            new AgentDisableModelInvocationHeader(ParsingValueCoercions.asBoolean(values.get(AgentDisableModelInvocationHeader.DISABLE_MODEL_INVOCATION))),
-            new AgentSubagentsHeader(ParsingValueCoercions.asStringList(firstNonNull(values, AgentSubagentsHeader.SUBAGENTS, AgentSubagentsHeader.AGENTS_ALIAS))),
-            new AgentHandoffsHeader(parsedHandoffs),
-            new AgentSkillsHeader(ParsingValueCoercions.asStringList(values.get(AgentSkillsHeader.SKILLS)))
-        );
-    }
-
-    private static List<AgentHandoff> asHandoffs(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
-        }
-        return list.stream()
-            .map(item -> {
-                if (item instanceof AgentHandoff handoff) {
-                    return handoff;
-                }
-                if (!(item instanceof Map<?, ?> map)) {
-                    return null;
-                }
-                return new AgentHandoff(
-                    ParsingValueCoercions.asString(map.get(LABEL)),
-                    ParsingValueCoercions.asString(map.get(AGENT)),
-                    ParsingValueCoercions.asString(map.get(PROMPT)),
-                    ParsingValueCoercions.asBoolean(map.get(SEND))
-                );
-            })
-            .filter(Objects::nonNull)
-            .toList();
-    }
-
-    private static List<AgentHandoff> parseHandoffsFromMarkdownText(String markdown) {
-        Map<String, Object> frontMatter = FrontMatterParsing.parseYamlFrontMatter(markdown);
-        return asHandoffs(frontMatter.get(AgentHandoffsHeader.HANDOFFS));
-    }
-
-    private static Object firstNonNull(Map<String, Object> values, String... keys) {
-        for (String key : keys) {
-            Object value = values.get(key);
-            if (value != null) {
-                return value;
-            }
-        }
-        return null;
     }
 }

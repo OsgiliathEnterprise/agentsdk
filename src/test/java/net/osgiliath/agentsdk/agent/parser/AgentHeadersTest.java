@@ -5,6 +5,7 @@ import net.osgiliath.agentsdk.common.parsing.LlmHeader;
 import net.osgiliath.agentsdk.common.parsing.McpHeader;
 import net.osgiliath.agentsdk.common.parsing.NameHeader;
 import net.osgiliath.agentsdk.common.parsing.ParsingHeader;
+import net.osgiliath.agentsdk.llm.LLMS_KIND;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownHeader;
 import org.junit.jupiter.api.Test;
 
@@ -39,7 +40,7 @@ class AgentHeadersTest {
                 new ParsingHeader("description", "Reviews code changes"),
                 new ParsingHeader("argument-hint", "[file or code to review]"),
                 new ParsingHeader("tools", List.of("read", "search")),
-                new ParsingHeader("llm", List.of("claude-3-5-sonnet-20241022", "gpt-4.1")),
+                new ParsingHeader("llm", List.of("mini", "thinking")),
                 new ParsingHeader("user-invokable", true),
                 new ParsingHeader("disable-model-invocation", false),
                 new ParsingHeader("agents", List.of("backend", "frontend")),
@@ -53,7 +54,7 @@ class AgentHeadersTest {
         assertThat(parsed.description().value()).isEqualTo("Reviews code changes");
         assertThat(parsed.argumentHint().value()).isEqualTo("[file or code to review]");
         assertThat(parsed.mcp().value()).containsExactly("read", "search");
-        assertThat(parsed.llm().value()).containsExactly("claude-3-5-sonnet-20241022", "gpt-4.1");
+        assertThat(parsed.llm().value()).containsExactly(LLMS_KIND.MINI, LLMS_KIND.THINKING);
         assertThat(parsed.userInvokable().value()).isTrue();
         assertThat(parsed.disableModelInvocation().value()).isFalse();
         assertThat(parsed.subagents().value()).containsExactly("backend", "frontend");
@@ -106,12 +107,12 @@ class AgentHeadersTest {
         AgentHeaders parsed = AgentHeaders.fromRawHeaders(Map.of(
                 "name", "Code Review Agent",
                 "description", "Reviews code changes",
-                "model", List.of("gpt-4.1", "claude-3-5-sonnet-20241022")
+                "model", List.of("mini", "thinking")
         ));
 
-        assertThat(parsed.llm().value()).containsExactly("gpt-4.1", "claude-3-5-sonnet-20241022");
-        assertThat(parsed.header("llm")).contains(List.of("gpt-4.1", "claude-3-5-sonnet-20241022"));
-        assertThat(parsed.header("model")).contains(List.of("gpt-4.1", "claude-3-5-sonnet-20241022"));
+        assertThat(parsed.llm().value()).containsExactly(LLMS_KIND.MINI, LLMS_KIND.THINKING);
+        assertThat(parsed.header("llm")).contains(List.of(LLMS_KIND.MINI, LLMS_KIND.THINKING));
+        assertThat(parsed.header("model")).contains(List.of(LLMS_KIND.MINI, LLMS_KIND.THINKING));
     }
 
     @Test
@@ -119,12 +120,12 @@ class AgentHeadersTest {
         AgentHeaders parsed = AgentHeaders.fromRawHeaders(Map.of(
                 "name", "Code Review Agent",
                 "description", "Reviews code changes",
-                "llm", List.of("claude-3-5-sonnet-20241022"),
-                "model", List.of("gpt-4.1")
+                "llm", List.of("mini"),
+                "model", List.of("thinking")
         ));
 
-        assertThat(parsed.llm().value()).containsExactly("claude-3-5-sonnet-20241022");
-        assertThat(parsed.header("model")).contains(List.of("claude-3-5-sonnet-20241022"));
+        assertThat(parsed.llm().value()).containsExactly(LLMS_KIND.MINI);
+        assertThat(parsed.header("model")).contains(List.of(LLMS_KIND.MINI));
     }
 
     @Test
@@ -192,7 +193,7 @@ class AgentHeadersTest {
                 "Reviews code changes",
                 "[file or code to review]",
                 List.of("read", "search"),
-                List.of("claude-3-5-sonnet-20241022"),
+                List.of(LLMS_KIND.MINI),
                 true,
                 false,
                 List.of("backend"),
@@ -215,7 +216,7 @@ class AgentHeadersTest {
         assertThat(headers.header("name")).contains("Code Review Agent");
         assertThat(headers.header("mcp")).contains(List.of("read", "search"));
         assertThat(headers.header("tools")).contains(List.of("read", "search"));
-        assertThat(headers.header("model")).contains(List.of("claude-3-5-sonnet-20241022"));
+        assertThat(headers.header("model")).contains(List.of(LLMS_KIND.MINI));
         assertThat(headers.header("unknown")).isEmpty();
     }
 
@@ -231,5 +232,42 @@ class AgentHeadersTest {
         assertThatThrownBy(() -> AgentHeaders.from(List.of(
                 new ParsingHeader("name", "Code Review Agent")
         ))).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("description");
+    }
+
+    @Test
+    void shouldSupportAllHeaderKeysAndAliases() {
+        AgentHeaders headers = new AgentHeaders(
+                "Code Review Agent",
+                "Reviews code changes",
+                "[file or code to review]",
+                List.of("read", "search"),
+                List.of(LLMS_KIND.MINI),
+                true,
+                false,
+                List.of("backend"),
+                List.of(new AgentHandoff("Backend", "backend", "Continue on backend", false)),
+                List.of("Security Analysis")
+        );
+
+        assertThat(headers.header("name")).contains("Code Review Agent");
+        assertThat(headers.header("description")).contains("Reviews code changes");
+        assertThat(headers.header("argument-hint")).contains("[file or code to review]");
+
+        assertThat(headers.header("mcp")).contains(List.of("read", "search"));
+        assertThat(headers.header("tools")).contains(List.of("read", "search"));
+
+        assertThat(headers.header("llm")).contains(List.of(LLMS_KIND.MINI));
+        assertThat(headers.header("model")).contains(List.of(LLMS_KIND.MINI));
+
+        assertThat(headers.header("user-invokable")).contains(true);
+        assertThat(headers.header("disable-model-invocation")).contains(false);
+
+        assertThat(headers.header("subagents")).contains(List.of("backend"));
+        assertThat(headers.header("agents")).contains(List.of("backend"));
+
+        assertThat(headers.header("handoffs")).contains(List.of(new AgentHandoff("Backend", "backend", "Continue on backend", false)));
+        assertThat(headers.header("skills")).contains(List.of("Security Analysis"));
+
+        assertThat(headers.header("unknown")).isEmpty();
     }
 }

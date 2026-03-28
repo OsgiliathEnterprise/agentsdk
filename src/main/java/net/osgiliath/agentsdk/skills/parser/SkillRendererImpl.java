@@ -1,5 +1,6 @@
 package net.osgiliath.agentsdk.skills.parser;
 
+import net.osgiliath.agentsdk.llm.LLMS_KIND;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 import org.springframework.stereotype.Component;
 
@@ -48,8 +49,14 @@ public class SkillRendererImpl implements SkillRenderer {
         builder.append("description: ").append(skill.getDescription()).append(System.lineSeparator());
         appendOptionalList(builder, "dependencies", skill.getDependencies());
         appendOptionalList(builder, "mcp", skill.getMcps());
-        appendOptionalList(builder, "llm", skill.getLlms());
+        appendOptionalLlmList(builder, "llm", skill.getLlms());
         builder.append(System.lineSeparator());
+    }
+
+    private void appendOptionalLlmList(StringBuilder builder, String key, List<LLMS_KIND> values) {
+        if (!values.isEmpty()) {
+            builder.append(key).append(": ").append(String.join(", ", values.stream().map(LLMS_KIND::getName).toList())).append(System.lineSeparator());
+        }
     }
 
     private void appendOptionalList(StringBuilder builder, String key, List<String> values) {

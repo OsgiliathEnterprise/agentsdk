@@ -151,6 +151,63 @@ These map to `RemoteAgentCaller` constructor properties:
 - `codeprompt.acp.remote.args` — whitespace-split command arguments
 - `codeprompt.acp.remote.cwd` — working directory for the launched process
 
+### LLM Kind Specification and Configuration
+
+The SDK introduces a tiered approach to LLM selection through **LLM Kinds**. This allows agents to request a specific
+*capability level* (e.g., "mini" for simple tasks, "super" for complex reasoning) rather than hard-coding specific model
+names.
+
+#### Available LLM Kinds
+
+| Kind       | Name       | Description                                                              |
+|------------|------------|--------------------------------------------------------------------------|
+| `THINKING` | `thinking` | Simple LLM without tool/function call support.                           |
+| `NANO`     | `nano`     | Small LLM supporting tool calls, but limited reasoning.                  |
+| `MINI`     | `mini`     | Medium LLM supporting tool calls with some reasoning.                    |
+| `MEDIUM`   | `medium`   | Large LLM supporting tool calls with complex reasoning.                  |
+| `BIG`      | `big`      | Very large LLM for very complex reasoning.                               |
+| `SUPER`    | `super`    | Extremely powerful remote API (e.g., GPT-4o, Gemini 1.5 Pro).            |
+| `MAXI`     | `maxi`     | Hypothetical future or extremely powerful model (e.g., Claude 3.5 Opus). |
+
+#### Spring Property Configuration
+
+You can configure these kinds globally or per-kind using the `codeprompt.llms` prefix.
+
+Example configuration in `application.yaml`:
+
+```yaml
+codeprompt:
+  llms:
+    primary-kind: mini
+    default-vendor: openai
+    default-base-url: http://127.0.0.1:1234/v1
+    default-timeout: 20s
+    kinds:
+      thinking:
+        model-name: thinking
+      mini:
+        model-name: mini
+        vendor: openai
+      super:
+        model-name: gpt-4o
+        vendor: openai
+        api-key: ${OPENAI_API_KEY}
+```
+
+#### Configuration Properties
+
+- `codeprompt.llms.primary-kind`: The default kind to use when none is specified.
+- `codeprompt.llms.default-vendor`: Default vendor (`ANTHROPIC`, `OPENAI`, `LLAMA`, `GEMINI`, `MISTRAL`).
+- `codeprompt.llms.default-base-url`: Default base URL for the LLM API.
+- `codeprompt.llms.default-api-key`: Default API key.
+- `codeprompt.llms.default-timeout`: Default timeout (e.g., `20s`).
+- `codeprompt.llms.kinds.<kind>`: Specific overrides for a kind:
+    - `model-name`: The actual model name (e.g., `gpt-4o`).
+    - `vendor`: Vendor override.
+    - `base-url`: URL override.
+    - `api-key`: API key override.
+    - `timeout`: Timeout override.
+
 ### `LLMToToolEdge`
 
 Reusable LangGraph edge helper used to route model output toward tool/MCP execution paths.
@@ -193,7 +250,8 @@ Optional keys:
 Parser behavior notes:
 
 - `name` and `description` are required for both agent and skill front matter.
-- If both canonical and alias keys are present, canonical keys win (`mcp` over `tools`, `llm` over `model`, `subagents` over `agents`).
+- If both canonical and alias keys are present, canonical keys win (`mcp` over `tools`, `llm` over `model`, `subagents`
+  over `agents`).
 - List values accept YAML arrays, comma-separated scalars, and bracketed inline lists.
 - Missing optional fields default to empty values (`false` for booleans, empty strings/lists depending on field type).
 - `handoffs` must be structured objects; legacy flat string payloads are ignored.
@@ -227,15 +285,15 @@ skills:
 
 ## Tech Stack
 
-| Technology                                            | Version | Purpose                                |
-|-------------------------------------------------------|---------|----------------------------------------|
-| **Java**                                              | 21      | Primary SDK implementation             |
-| **Kotlin**                                            | 2.2.20  | ACP client interoperability            |
-| **Spring Boot**                                       | 3.5.11  | Dependency injection and bootstrapping |
-| **ACP SDK** (`com.agentclientprotocol:acp`)           | 0.17.0  | Agent Client Protocol support          |
-| **LangChain4j**                                       | 1.12.2  | LLM abstraction and integrations       |
-| **LangGraph4j**                                       | 1.8.10  | Graph orchestration primitives         |
-| **CommonMark**                                        | 0.27.1  | Markdown parsing/rendering             |
+| Technology                                  | Version | Purpose                                |
+|---------------------------------------------|---------|----------------------------------------|
+| **Java**                                    | 21      | Primary SDK implementation             |
+| **Kotlin**                                  | 2.2.20  | ACP client interoperability            |
+| **Spring Boot**                             | 3.5.11  | Dependency injection and bootstrapping |
+| **ACP SDK** (`com.agentclientprotocol:acp`) | 0.17.0  | Agent Client Protocol support          |
+| **LangChain4j**                             | 1.12.2  | LLM abstraction and integrations       |
+| **LangGraph4j**                             | 1.8.10  | Graph orchestration primitives         |
+| **CommonMark**                              | 0.27.1  | Markdown parsing/rendering             |
 
 ## Complete setup for end to end tests
 

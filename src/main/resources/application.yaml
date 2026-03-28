@@ -28,3 +28,24 @@ mcp:
     protocol-version: 2024-11-05
     supported-protocol-versions:
       - 2024-11-05
+codeprompt:
+  llms:
+    primary-kind: mini
+    default-vendor: openai
+    default-base-url: http://127.0.0.1:1234/v1
+    default-timeout: 20s
+    kinds:
+      thinking:
+        model-name: thinking
+      nano:
+        model-name: nano
+      mini:
+        model-name: mini
+      medium:
+        model-name: medium
+      big:
+        model-name: big
+      super:
+        model-name: super
+      maxi:
+        model-name: maxi

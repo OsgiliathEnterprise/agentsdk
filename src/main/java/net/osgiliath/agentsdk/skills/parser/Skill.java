@@ -1,6 +1,7 @@
 package net.osgiliath.agentsdk.skills.parser;
 
 import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
+import net.osgiliath.agentsdk.llm.LLMS_KIND;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 
 import java.util.List;
@@ -11,11 +12,11 @@ import java.util.Objects;
  * Links and references are internal implementation details and are not exposed.
  */
 public record Skill(
-    SkillsHeaders headers,
-    List<SkillAsset> assets,
-    List<SkillTemplate> templates,
-    List<SkillScriptCommand> scriptCommands,
-    MarkdownContentSections content
+        SkillsHeaders headers,
+        List<SkillAsset> assets,
+        List<SkillTemplate> templates,
+        List<SkillScriptCommand> scriptCommands,
+        MarkdownContentSections content
 ) {
 
     public Skill {
@@ -46,7 +47,7 @@ public record Skill(
         return headers.mcp().value();
     }
 
-    public List<String> getLlms() {
+    public List<LLMS_KIND> getLlms() {
         return headers.llm().value();
     }
 

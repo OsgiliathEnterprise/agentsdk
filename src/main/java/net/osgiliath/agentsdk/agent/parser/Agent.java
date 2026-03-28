@@ -1,14 +1,15 @@
 package net.osgiliath.agentsdk.agent.parser;
 
 import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
+import net.osgiliath.agentsdk.llm.LLMS_KIND;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 
 import java.util.List;
 import java.util.Objects;
 
 public record Agent(
-    AgentHeaders headers,
-    MarkdownContentSections content
+        AgentHeaders headers,
+        MarkdownContentSections content
 ) {
 
     public Agent {
@@ -32,7 +33,7 @@ public record Agent(
         return headers.mcp().value();
     }
 
-    public List<String> getLlms() {
+    public List<LLMS_KIND> getLlms() {
         return headers.llm().value();
     }
 
