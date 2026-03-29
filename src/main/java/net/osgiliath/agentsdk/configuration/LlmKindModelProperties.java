@@ -61,24 +61,16 @@ public class LlmKindModelProperties {
 
     public ModelDefinition resolve(LLMS_KIND kind) {
         ModelDefinition override = kinds.get(kind);
-        if (override == null) {
+        if (override == null || override.isUseDefaultIfNoOverride()) {
             ModelDefinition definition = new ModelDefinition();
-            definition.setVendor(defaultVendor);
-            definition.setModelName(kind.getName());
-            definition.setBaseUrl(defaultBaseUrl);
-            definition.setApiKey(defaultApiKey);
-            definition.setTimeout(defaultTimeout);
+            definition.setVendor(override != null && override.getVendor() != null ? override.getVendor() : defaultVendor);
+            definition.setModelName(override != null && override.getModelName() != null ? override.getModelName() : kind.getName());
+            definition.setBaseUrl(override != null && override.getBaseUrl() != null ? override.getBaseUrl() : defaultBaseUrl);
+            definition.setApiKey(override != null && override.getApiKey() != null ? override.getApiKey() : defaultApiKey);
+            definition.setTimeout(override != null && override.getTimeout() != null ? override.getTimeout() : defaultTimeout);
             return definition;
-        } else if (!override.isUseDefaultIfNoOverride()) {
-            return override;
         } else {
-            ModelDefinition definition = new ModelDefinition();
-            definition.setVendor(override.getVendor() != null ? override.getVendor() : defaultVendor);
-            definition.setModelName(override.getModelName() != null ? override.getModelName() : kind.getName());
-            definition.setBaseUrl(override.getBaseUrl() != null ? override.getBaseUrl() : defaultBaseUrl);
-            definition.setApiKey(override.getApiKey() != null ? override.getApiKey() : defaultApiKey);
-            definition.setTimeout(override.getTimeout() != null ? override.getTimeout() : defaultTimeout);
-            return definition;
+            return override;
         }
     }
 
