@@ -26,7 +26,7 @@ class ChatModelFactoryTest {
         System.setProperty("langchain4j.http.clientBuilderFactory", "dev.langchain4j.http.client.jdk.JdkHttpClientBuilderFactory");
     }
 
-    private final ChatModelFactory factory = new ChatModelFactory();
+    private final ChatModelFactory factory = new ChatModelFactory(null, null);
 
     @Test
     void testCreateAnthropicChatModel() {

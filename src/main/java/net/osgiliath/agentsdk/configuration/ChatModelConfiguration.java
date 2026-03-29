@@ -28,83 +28,83 @@ public class ChatModelConfiguration {
 
     @Bean("thinkingChatModel")
     public ChatModel thinkingChatModel() {
-        return chatModelFactory.createChatModel(codepromptConfiguration.getLlmProperties().resolve(LLMS_KIND.THINKING));
+        return chatModelFactory.createChatModel(codepromptConfiguration.getLlms().resolve(LLMS_KIND.THINKING));
     }
 
     @Bean("nanoChatModel")
     public ChatModel nanoChatModel() {
-        return chatModelFactory.createChatModel(codepromptConfiguration.getLlmProperties().resolve(LLMS_KIND.NANO));
+        return chatModelFactory.createChatModel(codepromptConfiguration.getLlms().resolve(LLMS_KIND.NANO));
     }
 
     @Bean("miniChatModel")
     public ChatModel miniChatModel() {
-        return chatModelFactory.createChatModel(codepromptConfiguration.getLlmProperties().resolve(LLMS_KIND.MINI));
+        return chatModelFactory.createChatModel(codepromptConfiguration.getLlms().resolve(LLMS_KIND.MINI));
     }
 
     @Bean("mediumChatModel")
     public ChatModel mediumChatModel() {
-        return chatModelFactory.createChatModel(codepromptConfiguration.getLlmProperties().resolve(LLMS_KIND.MEDIUM));
+        return chatModelFactory.createChatModel(codepromptConfiguration.getLlms().resolve(LLMS_KIND.MEDIUM));
     }
 
     @Bean("bigChatModel")
     public ChatModel bigChatModel() {
-        return chatModelFactory.createChatModel(codepromptConfiguration.getLlmProperties().resolve(LLMS_KIND.BIG));
+        return chatModelFactory.createChatModel(codepromptConfiguration.getLlms().resolve(LLMS_KIND.BIG));
     }
 
     @Bean("superChatModel")
     public ChatModel superChatModel() {
-        return chatModelFactory.createChatModel(codepromptConfiguration.getLlmProperties().resolve(LLMS_KIND.SUPER));
+        return chatModelFactory.createChatModel(codepromptConfiguration.getLlms().resolve(LLMS_KIND.SUPER));
     }
 
     @Bean("maxiChatModel")
     public ChatModel maxiChatModel() {
-        return chatModelFactory.createChatModel(codepromptConfiguration.getLlmProperties().resolve(LLMS_KIND.MAXI));
+        return chatModelFactory.createChatModel(codepromptConfiguration.getLlms().resolve(LLMS_KIND.MAXI));
     }
 
     @Bean("thinkingStreamingChatModel")
     public StreamingChatModel thinkingStreamingChatModel() {
-        return chatModelFactory.createStreamingChatModel(codepromptConfiguration.getLlmProperties().resolve(LLMS_KIND.THINKING));
+        return chatModelFactory.createStreamingChatModel(codepromptConfiguration.getLlms().resolve(LLMS_KIND.THINKING));
     }
 
     @Bean("nanoStreamingChatModel")
     public StreamingChatModel nanoStreamingChatModel() {
-        return chatModelFactory.createStreamingChatModel(codepromptConfiguration.getLlmProperties().resolve(LLMS_KIND.NANO));
+        return chatModelFactory.createStreamingChatModel(codepromptConfiguration.getLlms().resolve(LLMS_KIND.NANO));
     }
 
     @Bean("miniStreamingChatModel")
     public StreamingChatModel miniStreamingChatModel() {
-        return chatModelFactory.createStreamingChatModel(codepromptConfiguration.getLlmProperties().resolve(LLMS_KIND.MINI));
+        return chatModelFactory.createStreamingChatModel(codepromptConfiguration.getLlms().resolve(LLMS_KIND.MINI));
     }
 
     @Bean("mediumStreamingChatModel")
     public StreamingChatModel mediumStreamingChatModel() {
-        return chatModelFactory.createStreamingChatModel(codepromptConfiguration.getLlmProperties().resolve(LLMS_KIND.MEDIUM));
+        return chatModelFactory.createStreamingChatModel(codepromptConfiguration.getLlms().resolve(LLMS_KIND.MEDIUM));
     }
 
     @Bean("bigStreamingChatModel")
     public StreamingChatModel bigStreamingChatModel() {
-        return chatModelFactory.createStreamingChatModel(codepromptConfiguration.getLlmProperties().resolve(LLMS_KIND.BIG));
+        return chatModelFactory.createStreamingChatModel(codepromptConfiguration.getLlms().resolve(LLMS_KIND.BIG));
     }
 
     @Bean("superStreamingChatModel")
     public StreamingChatModel superStreamingChatModel() {
-        return chatModelFactory.createStreamingChatModel(codepromptConfiguration.getLlmProperties().resolve(LLMS_KIND.SUPER));
+        return chatModelFactory.createStreamingChatModel(codepromptConfiguration.getLlms().resolve(LLMS_KIND.SUPER));
     }
 
     @Bean("maxiStreamingChatModel")
     public StreamingChatModel maxiStreamingChatModel() {
-        return chatModelFactory.createStreamingChatModel(codepromptConfiguration.getLlmProperties().resolve(LLMS_KIND.MAXI));
+        return chatModelFactory.createStreamingChatModel(codepromptConfiguration.getLlms().resolve(LLMS_KIND.MAXI));
     }
 
     @Bean("primaryChatModel")
     @Primary
     public ChatModel primaryChatModel(ConfigurableListableBeanFactory beanFactory) {
-        return beanFactory.getBean(codepromptConfiguration.getLlmProperties().getPrimaryKind().chatBeanName(), ChatModel.class);
+        return beanFactory.getBean(codepromptConfiguration.getLlms().getPrimaryKind().chatBeanName(), ChatModel.class);
     }
 
     @Bean("primaryStreamingChatModel")
     @Primary
     public StreamingChatModel primaryStreamingChatModel(ConfigurableListableBeanFactory beanFactory) {
-        return beanFactory.getBean(codepromptConfiguration.getLlmProperties().getPrimaryKind().streamingBeanName(), StreamingChatModel.class);
+        return beanFactory.getBean(codepromptConfiguration.getLlms().getPrimaryKind().streamingBeanName(), StreamingChatModel.class);
     }
 }

@@ -61,13 +61,25 @@ public class LlmKindModelProperties {
 
     public ModelDefinition resolve(LLMS_KIND kind) {
         ModelDefinition override = kinds.get(kind);
-        ModelDefinition resolved = new ModelDefinition();
-        resolved.setVendor(override != null && override.getVendor() != null ? override.getVendor() : defaultVendor);
-        resolved.setModelName(override != null && override.getModelName() != null ? override.getModelName() : kind.getName());
-        resolved.setBaseUrl(override != null && override.getBaseUrl() != null ? override.getBaseUrl() : defaultBaseUrl);
-        resolved.setApiKey(override != null && override.getApiKey() != null ? override.getApiKey() : defaultApiKey);
-        resolved.setTimeout(override != null && override.getTimeout() != null ? override.getTimeout() : defaultTimeout);
-        return resolved;
+        if (override == null) {
+            ModelDefinition definition = new ModelDefinition();
+            definition.setVendor(defaultVendor);
+            definition.setModelName(kind.getName());
+            definition.setBaseUrl(defaultBaseUrl);
+            definition.setApiKey(defaultApiKey);
+            definition.setTimeout(defaultTimeout);
+            return definition;
+        } else if (!override.isUseDefaultIfNoOverride()) {
+            return override;
+        } else {
+            ModelDefinition definition = new ModelDefinition();
+            definition.setVendor(override.getVendor() != null ? override.getVendor() : defaultVendor);
+            definition.setModelName(override.getModelName() != null ? override.getModelName() : kind.getName());
+            definition.setBaseUrl(override.getBaseUrl() != null ? override.getBaseUrl() : defaultBaseUrl);
+            definition.setApiKey(override.getApiKey() != null ? override.getApiKey() : defaultApiKey);
+            definition.setTimeout(override.getTimeout() != null ? override.getTimeout() : defaultTimeout);
+            return definition;
+        }
     }
 
     public enum Vendor {
@@ -84,6 +96,8 @@ public class LlmKindModelProperties {
         private String baseUrl;
         private String apiKey;
         private Duration timeout;
+        private boolean useDefaultIfNoOverride = true;
+
 
         public Vendor getVendor() {
             return vendor;
@@ -124,6 +138,16 @@ public class LlmKindModelProperties {
         public void setTimeout(Duration timeout) {
             this.timeout = timeout;
         }
+
+        public boolean isUseDefaultIfNoOverride() {
+            return useDefaultIfNoOverride;
+        }
+
+        public void setUseDefaultIfNoOverride(boolean useDefaultIfNoOverride) {
+            this.useDefaultIfNoOverride = useDefaultIfNoOverride;
+        }
+
+
     }
 }
 
