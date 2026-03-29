@@ -13,7 +13,7 @@ public class CodepromptConfiguration {
 
     private final AcpProperties acp = new AcpProperties();
     private final McpProperties mcp = new McpProperties();
-    private LlmKindModelProperties llmProperties = new LlmKindModelProperties();
+    private LlmKindModelProperties llms = new LlmKindModelProperties();
 
     public AcpProperties getAcp() {
         return acp;
@@ -23,12 +23,12 @@ public class CodepromptConfiguration {
         return mcp;
     }
 
-    public LlmKindModelProperties getLlmProperties() {
-        return llmProperties;
+    public LlmKindModelProperties getLlms() {
+        return llms;
     }
 
-    public void setLlmProperties(LlmKindModelProperties llmProperties) {
-        this.llmProperties = llmProperties == null ? new LlmKindModelProperties() : llmProperties;
+    public void setLlms(LlmKindModelProperties llmProperties) {
+        this.llms = llmProperties == null ? new LlmKindModelProperties() : llmProperties;
     }
 
     public static class AcpProperties {

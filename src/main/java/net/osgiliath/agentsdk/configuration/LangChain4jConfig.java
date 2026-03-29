@@ -32,8 +32,8 @@ import java.util.Map;
 public class LangChain4jConfig {
     public static final String TOOL_PROVIDER_NONE = "toolProvider";
     public static final String TOOL_PROVIDER_FULL = "allTools";
-    private static final String CHAT_MODEL_HTTP_CLIENT_BUILDER = "openAiChatModelHttpClientBuilder";
-    private static final String STREAMING_CHAT_MODEL_HTTP_CLIENT_BUILDER = "openAiStreamingChatModelHttpClientBuilder";
+    public static final String CHAT_MODEL_HTTP_CLIENT_BUILDER = "openAiChatModelHttpClientBuilder";
+    public static final String STREAMING_CHAT_MODEL_HTTP_CLIENT_BUILDER = "openAiStreamingChatModelHttpClientBuilder";
 
     /**
      * Configures a JdkHttpClientBuilder that uses HTTP/1.1.
@@ -43,7 +43,7 @@ public class LangChain4jConfig {
      * when creating OpenAI (and other) chat models.
      */
     @Bean(CHAT_MODEL_HTTP_CLIENT_BUILDER)
-    public HttpClientBuilder jdkHttpClientBuilder(ObjectProvider<RestClient.Builder> restClientBuilder) {
+    public HttpClientBuilder jdkHttpClientBuilder() {
         HttpClient.Builder httpClientBuilder = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1);
         return JdkHttpClient.builder()
@@ -51,7 +51,7 @@ public class LangChain4jConfig {
     }
 
     @Bean(STREAMING_CHAT_MODEL_HTTP_CLIENT_BUILDER)
-    public HttpClientBuilder jdkStreamingHttpClientBuilder(ObjectProvider<RestClient.Builder> restClientBuilder) {
+    public HttpClientBuilder jdkStreamingHttpClientBuilder() {
         HttpClient.Builder httpClientBuilder = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1);
 

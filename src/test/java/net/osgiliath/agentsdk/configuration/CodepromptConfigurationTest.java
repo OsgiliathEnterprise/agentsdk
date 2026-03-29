@@ -10,16 +10,16 @@ class CodepromptConfigurationTest {
     void shouldExposeDefaultLlmPropertiesWhenNothingIsBound() {
         CodepromptConfiguration configuration = new CodepromptConfiguration();
 
-        assertNotNull(configuration.getLlmProperties());
+        assertNotNull(configuration.getLlms());
     }
 
     @Test
     void shouldFallbackToDefaultLlmPropertiesWhenSetterReceivesNull() {
         CodepromptConfiguration configuration = new CodepromptConfiguration();
 
-        configuration.setLlmProperties(null);
+        configuration.setLlms(null);
 
-        assertNotNull(configuration.getLlmProperties());
+        assertNotNull(configuration.getLlms());
     }
 }
 
