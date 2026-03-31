@@ -1,9 +1,13 @@
 package net.osgiliath.agentsdk.agent.parser;
 
+import dev.langchain4j.data.message.SystemMessage;
 import net.osgiliath.agentsdk.common.parsing.DescriptionHeader;
 import net.osgiliath.agentsdk.common.parsing.NameHeader;
 import net.osgiliath.agentsdk.configuration.MarkdownConfiguration;
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
+import net.osgiliath.agentsdk.skills.parser.Skill;
+import net.osgiliath.agentsdk.skills.parser.SkillRenderer;
+import net.osgiliath.agentsdk.skills.resolver.SkillResolver;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParserImpl;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
@@ -16,6 +20,9 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class AgentParserTest {
 
@@ -26,12 +33,16 @@ class AgentParserTest {
             "src/test/resources/dataset/markdown/agents/agent1.md");
 
     private AgentParser agentParser;
+    private SkillResolver skillResolver;
+    private SkillRenderer skillRenderer;
 
     @BeforeEach
     void setUp() {
         Parser commonmarkParser = new MarkdownConfiguration().markdownParser();
         MarkdownParser markdownParser = new MarkdownParserImpl(commonmarkParser);
-        agentParser = new AgentParserImpl(markdownParser);
+        skillResolver = mock(SkillResolver.class);
+        skillRenderer = mock(SkillRenderer.class);
+        agentParser = new AgentParserImpl(markdownParser, skillResolver, skillRenderer);
     }
 
     @Test
@@ -102,6 +113,29 @@ class AgentParserTest {
         assertThat(agent.getSubagents()).isEmpty();
         assertThat(agent.getHandoffs()).isEmpty();
         assertThat(agent.getSkills()).isEmpty();
+    }
+
+    @Test
+    void shouldBuildSystemPromptContainingAgentContentAndRenderedSkills() {
+        Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
+        Skill mockSkill = mock(Skill.class);
+        when(skillResolver.resolveSkills(any())).thenReturn(List.of(mockSkill));
+        when(skillRenderer.renderFlat(mockSkill)).thenReturn("## Rendered Skill Section");
+
+        SystemMessage systemMessage = agentParser.getSystemPrompt(agent);
+
+        assertThat(systemMessage.text()).contains("Code Review Agent");
+        assertThat(systemMessage.text()).contains("## Rendered Skill Section");
+    }
+
+    @Test
+    void shouldBuildSystemPromptWithNoSkillsWhenAgentDeclaredNone() {
+        Agent agent = agentParser.getAgent(SIMPLE_AGENT_FILE);
+        when(skillResolver.resolveSkills(List.of())).thenReturn(List.of());
+
+        SystemMessage systemMessage = agentParser.getSystemPrompt(agent);
+
+        assertThat(systemMessage.text()).contains("Cloud Engineer");
     }
 
     @Test
