@@ -3,6 +3,7 @@ package net.osgiliath.agentsdk.configuration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +14,7 @@ public class CodepromptConfiguration {
 
     private final AcpProperties acp = new AcpProperties();
     private final McpProperties mcp = new McpProperties();
+    private final AgentProperties agent = new AgentProperties();
     private LlmKindModelProperties llms = new LlmKindModelProperties();
 
     public AcpProperties getAcp() {
@@ -22,6 +24,32 @@ public class CodepromptConfiguration {
     public McpProperties getMcp() {
         return mcp;
     }
+
+    public AgentProperties getAgent() {
+        return agent;
+    }
+
+    public static class AgentProperties {
+        private List<String> skillFolders = new ArrayList<>();
+        private List<String> agentFolders = new ArrayList<>();
+
+        public List<String> getSkillFolders() {
+            return skillFolders;
+        }
+
+        public void setSkillFolders(List<String> skillFolders) {
+            this.skillFolders = skillFolders == null ? new ArrayList<>() : new ArrayList<>(skillFolders);
+        }
+
+        public List<String> getAgentFolders() {
+            return agentFolders;
+        }
+
+        public void setAgentFolders(List<String> agentFolders) {
+            this.agentFolders = agentFolders == null ? new ArrayList<>() : new ArrayList<>(agentFolders);
+        }
+    }
+
 
     public LlmKindModelProperties getLlms() {
         return llms;
