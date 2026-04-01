@@ -5,10 +5,10 @@ import org.commonmark.node.AbstractVisitor;
 import org.commonmark.node.Heading;
 import org.commonmark.node.Link;
 import org.commonmark.node.Node;
-import org.commonmark.node.SoftLineBreak;
-import org.commonmark.node.HardLineBreak;
-import org.commonmark.node.Text;
+import org.commonmark.node.Paragraph;
 import org.commonmark.parser.Parser;
+import org.commonmark.renderer.markdown.MarkdownRenderer;
+import org.commonmark.renderer.text.TextContentRenderer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -33,10 +33,14 @@ import java.util.Map;
 public class MarkdownParserImpl implements MarkdownParser {
 
     private final Parser parser;
+    private final MarkdownRenderer markdownRenderer;
+    private final TextContentRenderer textContentRenderer;
     Logger logger = LoggerFactory.getLogger(MarkdownParserImpl.class);
 
     public MarkdownParserImpl(Parser markdownParser) {
         this.parser = markdownParser;
+        this.markdownRenderer = MarkdownRenderer.builder().build();
+        this.textContentRenderer = TextContentRenderer.builder().build();
     }
 
     @Override
@@ -145,6 +149,34 @@ public class MarkdownParserImpl implements MarkdownParser {
         return Document.from(text.isBlank() ? "(no content selected)" : text);
     }
 
+    @Override
+    public String renderSectionsAsMarkdown(List<MarkdownSection> sections) {
+        if (sections == null || sections.isEmpty()) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (MarkdownSection section : sections) {
+            renderSectionAsMarkdown(builder, section, 1);
+        }
+        return builder.toString().trim();
+    }
+
+    private void renderSectionAsMarkdown(StringBuilder builder, MarkdownSection section, int level) {
+        String heading = "#".repeat(level);
+        String title = section.getTitle() == null ? "" : section.getTitle();
+        if (!title.isBlank()) {
+            builder.append(heading).append(' ').append(title).append(System.lineSeparator());
+        }
+        String content = section.getContent() == null ? "" : section.getContent().trim();
+        if (!content.isBlank()) {
+            builder.append(content).append(System.lineSeparator());
+        }
+        builder.append(System.lineSeparator());
+        for (MarkdownSection sub : section.getSubSections()) {
+            renderSectionAsMarkdown(builder, sub, level + 1);
+        }
+    }
+
     private void appendSampleSections(boolean includeSamples, List<MarkdownSection> mainSections, StringBuilder builder) {
         if (includeSamples) {
             List<MarkdownSection> sampleSections = extractSampleSections(mainSections);
@@ -247,13 +279,7 @@ public class MarkdownParserImpl implements MarkdownParser {
     }
 
     private String extractFullMarkdownContent(Node document) {
-        StringBuilder text = new StringBuilder();
-        Node node = document.getFirstChild();
-        while (node != null) {
-            extractNodeTextRecursive(node, text);
-            node = node.getNext();
-        }
-        return text.toString().trim();
+        return markdownRenderer.render(document).trim();
     }
 
     private Path resolveMarkdownPath(Path folderPath, String fileName) {
@@ -403,104 +429,15 @@ public class MarkdownParserImpl implements MarkdownParser {
     }
 
     private String extractNodeTextForSection(Node node) {
-        StringBuilder text = new StringBuilder();
-        extractNodeTextForSectionRecursive(node, text);
-        return text.toString();
-    }
-
-    /**
-     * Renders a commonmark {@link Node} tree to a Markdown-preserving text representation,
-     * used when extracting section content (headings already split out, double blank lines
-     * between blocks for readability).
-     */
-    private void extractNodeTextForSectionRecursive(Node node, StringBuilder text) {
-        renderNodeToText(node, text, false, System.lineSeparator() + System.lineSeparator());
+        String rendered = markdownRenderer.render(node);
+        if (node instanceof Paragraph) {
+            return rendered + System.lineSeparator() + System.lineSeparator();
+        }
+        return rendered;
     }
 
     private String extractHeadingText(Heading heading) {
-        StringBuilder text = new StringBuilder();
-        Node child = heading.getFirstChild();
-        while (child != null) {
-            if (child instanceof Text textNode) {
-                text.append(textNode.getLiteral());
-            }
-            child = child.getNext();
-        }
-        return text.toString().trim();
-    }
-
-    /**
-     * Renders a commonmark {@link Node} tree to a Markdown-preserving text representation,
-     * used when a file has no heading-based sections (the whole file becomes a single block).
-     * Heading markers are preserved so the structure remains readable.
-     */
-    private void extractNodeTextRecursive(Node node, StringBuilder text) {
-        renderNodeToText(node, text, true, System.lineSeparator());
-    }
-
-    /**
-     * Shared Markdown-to-text renderer used by both {@link #extractNodeTextRecursive} and
-     * {@link #extractNodeTextForSectionRecursive}.
-     *
-     * <p>The two callers differ in two ways:
-     * <ul>
-     *   <li>{@code preserveHeadings} – when {@code true}, heading nodes are rendered with their
-     *       {@code #…} markers; when {@code false} they fall through to generic child traversal
-     *       (section content has already been split on headings, so re-emitting them is redundant).
-     *   <li>{@code blockSeparator} – the string appended after block-level elements (paragraphs,
-     *       fenced code blocks). Full-file rendering uses a single newline; section-content
-     *       rendering uses a double newline for readability.
-     * </ul>
-     *
-     * <p>Note: commonmark's built-in {@code TextContentRenderer} strips all markdown syntax
-     * (code fences, link targets, …), which does not meet our requirements of preserving
-     * those elements for downstream LLM consumption.
-     */
-    private void renderNodeToText(Node node, StringBuilder text, boolean preserveHeadings, String blockSeparator) {
-        if (node instanceof Text textNode) {
-            text.append(textNode.getLiteral());
-        } else if (node instanceof SoftLineBreak || node instanceof HardLineBreak) {
-            text.append(System.lineSeparator());
-        } else if (preserveHeadings && node instanceof Heading heading) {
-            text.append("#".repeat(heading.getLevel())).append(" ");
-            Node child = heading.getFirstChild();
-            while (child != null) {
-                renderNodeToText(child, text, preserveHeadings, blockSeparator);
-                child = child.getNext();
-            }
-            text.append(System.lineSeparator());
-        } else if (node instanceof org.commonmark.node.Paragraph) {
-            Node child = node.getFirstChild();
-            while (child != null) {
-                renderNodeToText(child, text, preserveHeadings, blockSeparator);
-                child = child.getNext();
-            }
-            text.append(blockSeparator);
-        } else if (node instanceof org.commonmark.node.Code codeNode) {
-            text.append("`").append(codeNode.getLiteral()).append("`");
-        } else if (node instanceof org.commonmark.node.FencedCodeBlock codeBlock) {
-            text.append("```");
-            if (codeBlock.getInfo() != null) {
-                text.append(codeBlock.getInfo());
-            }
-            text.append(System.lineSeparator());
-            text.append(codeBlock.getLiteral());
-            text.append("```").append(blockSeparator);
-        } else if (node instanceof Link link) {
-            text.append("[");
-            Node child = link.getFirstChild();
-            while (child != null) {
-                renderNodeToText(child, text, preserveHeadings, blockSeparator);
-                child = child.getNext();
-            }
-            text.append("](").append(link.getDestination()).append(")");
-        } else if (node.getFirstChild() != null) {
-            Node child = node.getFirstChild();
-            while (child != null) {
-                renderNodeToText(child, text, preserveHeadings, blockSeparator);
-                child = child.getNext();
-            }
-        }
+        return textContentRenderer.render(heading).trim();
     }
 
     private List<MarkdownSection> extractSampleSections(List<MarkdownSection> sections) {

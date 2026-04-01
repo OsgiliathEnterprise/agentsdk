@@ -21,10 +21,10 @@ class SkillsHeadersTest {
         assertThat(MarkdownHeader.class).isAssignableFrom(SkillHeader.class);
         assertThat(SkillHeader.class).isAssignableFrom(SkillDependenciesHeader.class);
         // common types flow through MarkdownHeader
-        assertThat(MarkdownHeader.class).isAssignableFrom(NameHeader.class);
-        assertThat(MarkdownHeader.class).isAssignableFrom(DescriptionHeader.class);
-        assertThat(MarkdownHeader.class).isAssignableFrom(McpHeader.class);
-        assertThat(MarkdownHeader.class).isAssignableFrom(LlmHeader.class);
+        assertThat(MarkdownHeader.class).isAssignableFrom(NameHeader.class)
+                .isAssignableFrom(DescriptionHeader.class)
+                .isAssignableFrom(McpHeader.class)
+                .isAssignableFrom(LlmHeader.class);
     }
 
     @Test

@@ -1,7 +1,12 @@
 package net.osgiliath.agentsdk.agent.parser;
 
+import dev.langchain4j.data.document.Document;
+import dev.langchain4j.data.message.SystemMessage;
 import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.common.parsing.ParsingHeader;
+import net.osgiliath.agentsdk.skills.parser.Skill;
+import net.osgiliath.agentsdk.skills.parser.SkillRenderer;
+import net.osgiliath.agentsdk.skills.resolver.SkillResolver;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownFile;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownHeader;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownHeaders;
@@ -10,16 +15,24 @@ import org.springframework.stereotype.Component;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 @Component
 public class AgentParserImpl implements AgentParser {
 
     private final MarkdownParser markdownParser;
+    private final SkillResolver skillResolver;
+    private final SkillRenderer skillRenderer;
 
-    public AgentParserImpl(MarkdownParser markdownParser) {
+    public AgentParserImpl(MarkdownParser markdownParser,
+                           SkillResolver skillResolver,
+                           SkillRenderer skillRenderer) {
         this.markdownParser = markdownParser;
+        this.skillResolver = skillResolver;
+        this.skillRenderer = skillRenderer;
     }
 
     @Override
@@ -41,6 +54,43 @@ public class AgentParserImpl implements AgentParser {
         AgentHeaders headers = AgentHeaders.from(headerList);
         return new Agent(headers, new MarkdownContentSections(markdownFile.getSubSections()));
     }
+
+    @Override
+    public SystemMessage getSystemPrompt(Agent agent) {
+        return SystemMessage.from(buildSystemPromptText(agent));
+    }
+
+    private String buildSystemPromptText(Agent agent) {
+        Objects.requireNonNull(agent, "agent must not be null");
+        String contentMarkdown = markdownParser.renderSectionsAsMarkdown(agent.getLevel1Content());
+
+        Set<String> uniqueBlocks = new LinkedHashSet<>();
+        addPromptBlock(uniqueBlocks, contentMarkdown);
+
+        List<Skill> skills = skillResolver.resolveSkills(agent.getSkills());
+        for (Skill skill : skills) {
+            addPromptBlock(uniqueBlocks, skillRenderer.renderFlat(skill));
+        }
+
+        return String.join(System.lineSeparator() + System.lineSeparator(), uniqueBlocks).trim();
+    }
+
+    @Override
+    public Document getSystemPromptDocument(Agent agent) {
+        String promptText = buildSystemPromptText(agent);
+        return Document.from(promptText.isBlank() ? "(no content selected)" : promptText);
+    }
+
+    private void addPromptBlock(Set<String> blocks, String text) {
+        if (text == null) {
+            return;
+        }
+        String normalized = text.trim();
+        if (!normalized.isBlank()) {
+            blocks.add(normalized);
+        }
+    }
+
 
     private Path validateAgentFile(Path agentFile) {
         Objects.requireNonNull(agentFile, "agentFile must not be null");
