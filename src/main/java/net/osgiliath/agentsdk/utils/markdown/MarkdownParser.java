@@ -71,4 +71,12 @@ public interface MarkdownParser {
      * @return a Document containing the selected content
      */
     Document toDocument(MarkdownFile markdownFile, boolean includeHeaders, boolean includeSections, boolean includeSamples);
+
+    /**
+     * Renders a section tree as markdown text using heading levels.
+     *
+     * @param sections root sections to render
+     * @return markdown text representation
+     */
+    String renderSectionsAsMarkdown(List<MarkdownSection> sections);
 }

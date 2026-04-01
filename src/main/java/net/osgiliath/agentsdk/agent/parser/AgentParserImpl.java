@@ -1,5 +1,6 @@
 package net.osgiliath.agentsdk.agent.parser;
 
+import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.message.SystemMessage;
 import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.common.parsing.ParsingHeader;
@@ -10,13 +11,14 @@ import net.osgiliath.agentsdk.utils.markdown.MarkdownFile;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownHeader;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownHeaders;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
-import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 @Component
 public class AgentParserImpl implements AgentParser {
@@ -55,36 +57,40 @@ public class AgentParserImpl implements AgentParser {
 
     @Override
     public SystemMessage getSystemPrompt(Agent agent) {
-        StringBuilder sb = new StringBuilder();
+        return SystemMessage.from(buildSystemPromptText(agent));
+    }
 
-        for (MarkdownSection section : agent.getLevel1Content()) {
-            renderSection(sb, section, 1);
-        }
+    private String buildSystemPromptText(Agent agent) {
+        Objects.requireNonNull(agent, "agent must not be null");
+        String contentMarkdown = markdownParser.renderSectionsAsMarkdown(agent.getLevel1Content());
+
+        Set<String> uniqueBlocks = new LinkedHashSet<>();
+        addPromptBlock(uniqueBlocks, contentMarkdown);
 
         List<Skill> skills = skillResolver.resolveSkills(agent.getSkills());
         for (Skill skill : skills) {
-            sb.append("\n\n");
-            sb.append(skillRenderer.renderFlat(skill));
+            addPromptBlock(uniqueBlocks, skillRenderer.renderFlat(skill));
         }
 
-        return SystemMessage.from(sb.toString());
+        return String.join(System.lineSeparator() + System.lineSeparator(), uniqueBlocks).trim();
     }
 
-    private void renderSection(StringBuilder builder, MarkdownSection section, int level) {
-        String heading = "#".repeat(level);
-        String title = section.getTitle() == null ? "" : section.getTitle();
-        if (!title.isBlank()) {
-            builder.append(heading).append(' ').append(title).append(System.lineSeparator());
+    @Override
+    public Document getSystemPromptDocument(Agent agent) {
+        String promptText = buildSystemPromptText(agent);
+        return Document.from(promptText.isBlank() ? "(no content selected)" : promptText);
+    }
+
+    private void addPromptBlock(Set<String> blocks, String text) {
+        if (text == null) {
+            return;
         }
-        String content = section.getContent() == null ? "" : section.getContent().trim();
-        if (!content.isBlank()) {
-            builder.append(content).append(System.lineSeparator());
-        }
-        builder.append(System.lineSeparator());
-        for (MarkdownSection sub : section.getSubSections()) {
-            renderSection(builder, sub, level + 1);
+        String normalized = text.trim();
+        if (!normalized.isBlank()) {
+            blocks.add(normalized);
         }
     }
+
 
     private Path validateAgentFile(Path agentFile) {
         Objects.requireNonNull(agentFile, "agentFile must not be null");

@@ -1,5 +1,6 @@
 package net.osgiliath.agentsdk.agent.parser;
 
+import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.message.SystemMessage;
 import net.osgiliath.agentsdk.common.parsing.DescriptionHeader;
 import net.osgiliath.agentsdk.common.parsing.NameHeader;
@@ -21,7 +22,9 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentParserTest {
@@ -126,6 +129,36 @@ class AgentParserTest {
 
         assertThat(systemMessage.text()).contains("Code Review Agent");
         assertThat(systemMessage.text()).contains("## Rendered Skill Section");
+    }
+
+    @Test
+    void shouldBuildSystemPromptTextAndDocumentFromSharedLogic() {
+        Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
+        Skill mockSkill = mock(Skill.class);
+        when(skillResolver.resolveSkills(any())).thenReturn(List.of(mockSkill));
+        when(skillRenderer.renderFlat(mockSkill)).thenReturn("## Rendered Skill Section");
+
+        SystemMessage systemPrompt = agentParser.getSystemPrompt(agent);
+        Document documentPrompt = agentParser.getSystemPromptDocument(agent);
+
+        assertThat(systemPrompt.text()).contains("Code Review Agent");
+        assertThat(systemPrompt.text()).contains("## Rendered Skill Section");
+        assertThat(documentPrompt.text()).isEqualTo(systemPrompt.text());
+        verify(skillResolver, atLeastOnce()).resolveSkills(agent.getSkills());
+    }
+
+    @Test
+    void shouldAvoidDuplicatingPromptBlocksWhenSkillRenderingMatchesAgentContent() {
+        Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
+        Skill mockSkill = mock(Skill.class);
+        when(skillResolver.resolveSkills(any())).thenReturn(List.of(mockSkill));
+
+        String baseText = agentParser.getSystemPrompt(agent).text();
+        when(skillRenderer.renderFlat(mockSkill)).thenReturn(baseText);
+
+        String deduplicatedText = agentParser.getSystemPrompt(agent).text();
+
+        assertThat(deduplicatedText).isEqualTo(baseText);
     }
 
     @Test

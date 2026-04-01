@@ -547,5 +547,37 @@ class MarkdownParserImplTest {
                     .doesNotEndWith("\n");
         }
     }
+
+    @Nested
+    class RenderSectionsAsMarkdown {
+
+        @Test
+        void emptyInputReturnsEmptyString() {
+            assertThat(parser.renderSectionsAsMarkdown(List.of())).isEmpty();
+            assertThat(parser.renderSectionsAsMarkdown(null)).isEmpty();
+        }
+
+        @Test
+        void rendersHeadingLevelsRecursively() throws IOException {
+            write("tree.md", """
+                    # Root
+
+                    Root content.
+
+                    ## Child
+
+                    Child content.
+                    """);
+            MarkdownFile file = parser.getMarkdownFile(tempDir, "tree.md").orElseThrow();
+
+            String rendered = parser.renderSectionsAsMarkdown(file.getSubSections());
+
+            assertThat(rendered)
+                    .contains("# Root")
+                    .contains("Root content.")
+                    .contains("## Child")
+                    .contains("Child content.");
+        }
+    }
 }
 
