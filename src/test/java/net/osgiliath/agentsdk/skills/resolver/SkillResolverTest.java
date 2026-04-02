@@ -35,10 +35,10 @@ class SkillResolverTest {
 
     @Test
     void shouldResolveSkillByFolderName() {
-        List<Skill> skills = skillResolver.resolveSkills(List.of("sample-skill"));
+        List<Skill> skills = skillResolver.resolveSkills(List.of("implements_features_file"));
 
         assertThat(skills).hasSize(1);
-        assertThat(skills.get(0).getName()).isEqualTo("implements features file");
+        assertThat(skills.get(0).getName()).isEqualTo("implements_features_file");
     }
 
     @Test

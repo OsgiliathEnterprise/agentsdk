@@ -44,3 +44,9 @@ mcp:
     protocol-version: 2024-11-05
     supported-protocol-versions:
       - 2024-11-05
+codeprompt:
+  agent:
+    agent-folders:
+      - classpath:dataset/acp-client/agents
+    skill-folders:
+      - classpath:dataset/acp-client/skills

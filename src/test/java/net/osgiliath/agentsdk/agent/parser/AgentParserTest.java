@@ -74,7 +74,7 @@ class AgentParserTest {
         assertThat(agent.headers().disableModelInvocation().value()).isFalse();
         assertThat(agent.headers().subagents().value()).containsExactly("subagent-1", "subagent-2", "...");
         assertThat(agent.headers().skills().value())
-                .containsExactly("Security Analysis", "Code Quality Assessment", "Performance Optimization", "Best Practices Enforcement");
+                .containsExactly("implements_features_file");
     }
 
     @Test
@@ -101,7 +101,7 @@ class AgentParserTest {
         assertThat(agent.isUserInvokable()).isTrue();
         assertThat(agent.isModelInvocationDisabled()).isFalse();
         assertThat(agent.getSubagents()).containsExactly("subagent-1", "subagent-2", "...");
-        assertThat(agent.getSkillsName()).contains("Security Analysis");
+        assertThat(agent.getSkillsName()).contains("implements_features_file");
         assertThat(agent.getSkills()).containsExactly(resolvedSkill);
     }
 
@@ -195,7 +195,7 @@ class AgentParserTest {
         assertThat(agent.getSkills()).hasSize(1);
 
         Skill skill = agent.getSkills().iterator().next();
-        assertThat(skill.getName()).isEqualTo("implements features file");
+        assertThat(skill.getName()).isEqualTo("implements_features_file");
         assertThat(skill.getAssets()).map(SkillAsset::uri).containsExactly("assets/eval_review.html");
         assertThat(skill.getTemplates()).map(SkillTemplate::uri).containsExactly("templates/generator_template.js");
         assertThat(skill.getCommands())

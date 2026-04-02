@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class SkillsParsingSteps {
 
-    private static final String EXPECTED_NAME = "implements features file";
+    private static final String EXPECTED_NAME = "implements_features_file";
     private static final String EXPECTED_DESCRIPTION = "You're a Gherkin scenario writer. You will be given a feature file and a user story and you will have to write the Gherkin scenarios to define acceptance criteria.";
     private static final List<String> EXPECTED_DEPENDENCIES = List.of("python>=3.8", "pandas>=1.5.0", "matplotlib");
     private static final List<String> EXPECTED_MCP = List.of("server-name-1", "server-name-2");
@@ -224,7 +224,7 @@ public class SkillsParsingSteps {
     public void aFullyParsedSkillWithAllComponents() {
         safely(() -> {
             skillFilePath = resolveFromProject(
-                    "dataset/markdown/skills/sample-skill/SKILL.md");
+                    "dataset/markdown/skills/implements_features_file/SKILL.md");
             skill = skillParser.getSkill(skillFilePath);
         });
     }

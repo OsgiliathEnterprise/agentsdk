@@ -10,7 +10,7 @@ model:
 user-invokable: true
 disable-model-invocation: false
 skills:
-  - "sample-skill"
+  - "implements_features_file"
 ---
 
 # Skill Loaded Agent
