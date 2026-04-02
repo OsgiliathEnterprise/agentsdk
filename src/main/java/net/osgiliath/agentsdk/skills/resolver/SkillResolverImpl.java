@@ -97,27 +97,7 @@ public class SkillResolverImpl implements SkillResolver {
         return value.substring(0, end);
     }
 
-    private Skill tryResolve(Resource resource) {
-        try {
-            return skillParser.getSkill(resource.getFile().toPath());
-        } catch (IOException e) {
-            return resolveFromUri(resource);
-        }
-    }
-
-    private Skill resolveFromUri(Resource resource) {
-        try {
-            URI uri = resource.getURI();
-            try {
-                return skillParser.getSkill(Paths.get(uri));
-            } catch (FileSystemNotFoundException e) {
-                // jar:file:... URIs need an explicit file system before creating a Path.
-                try (FileSystem ignored = FileSystems.newFileSystem(uri, Map.of())) {
-                    return skillParser.getSkill(Paths.get(uri));
-                }
-            }
-        } catch (Exception e) {
-            throw new IllegalStateException("Unable to resolve skill resource path: " + resource, e);
-        }
+    private Skill tryResolve(Resource resource) throws IOException {
+        return skillParser.getSkill(resource.getFile().toPath());
     }
 }
