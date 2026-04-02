@@ -53,10 +53,7 @@ Feature: Agent Parsing
   Scenario: Should parse Skills
     When the agent parser reads the headers
     Then the parsed skills should include:
-      | Security Analysis          |
-      | Code Quality Assessment    |
-      | Performance Optimization   |
-      | Best Practices Enforcement |
+      | implements_features_file |
 
   Scenario: Should parse introduction
     When the agent parser reads the content

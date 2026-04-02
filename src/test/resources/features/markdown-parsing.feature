@@ -5,12 +5,13 @@ Feature: Markdown Parsing
 
   Scenario: SC1 - List markdown files in a folder
     Given a folder "test-markdown" containing markdown files
-      | agent1.md        |
-      | agent2.md        |
+      | agent1.md |
+      | agent2.md |
     When I list all markdown files in the folder
-    Then I should find 2 markdown files
+    Then I should find 3 markdown files
     And the files should include "agent1.md"
     And the files should include "agent2.md"
+    And the files should include "agent-with-sample-skill.md"
 
   Scenario: SC2 - Parse headers of markdown files
     Given a markdown file "example.md" with the following content:
@@ -34,10 +35,10 @@ Feature: Markdown Parsing
       """
     When I parse the headers of the markdown file
     Then I should extract the following headers:
-      | text           |
-      | name           |
-      | description    |
-      | license        |
+      | text        |
+      | name        |
+      | description |
+      | license     |
 
   Scenario: SC3 - Parse the Main section of a markdown file
     Given a markdown file "document.md" with the following content:

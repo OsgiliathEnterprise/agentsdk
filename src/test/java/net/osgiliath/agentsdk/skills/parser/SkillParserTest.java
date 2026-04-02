@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SkillParserTest {
 
     private static final Path SKILL_FILE = Path.of(
-            "src/test/resources/dataset/markdown/skills/sample-skill/SKILL.md");
+            "src/test/resources/dataset/markdown/skills/implements_features_file/SKILL.md");
 
     private SkillParser skillParser;
 
@@ -40,7 +40,7 @@ class SkillParserTest {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
         assertThat(skill.getName())
-                .isEqualTo("implements features file");
+                .isEqualTo("implements_features_file");
     }
 
     @Test

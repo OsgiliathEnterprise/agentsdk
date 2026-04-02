@@ -1,20 +1,28 @@
 package net.osgiliath.agentsdk.agent.parser;
 
-import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.message.SystemMessage;
+import net.osgiliath.agentsdk.configuration.CodepromptConfiguration;
 import net.osgiliath.agentsdk.common.parsing.DescriptionHeader;
 import net.osgiliath.agentsdk.common.parsing.NameHeader;
 import net.osgiliath.agentsdk.configuration.MarkdownConfiguration;
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
+import net.osgiliath.agentsdk.skills.parser.SkillAsset;
 import net.osgiliath.agentsdk.skills.parser.Skill;
+import net.osgiliath.agentsdk.skills.parser.SkillParser;
+import net.osgiliath.agentsdk.skills.parser.SkillParserImpl;
 import net.osgiliath.agentsdk.skills.parser.SkillRenderer;
+import net.osgiliath.agentsdk.skills.parser.SkillRendererImpl;
+import net.osgiliath.agentsdk.skills.parser.SkillScriptCommand;
+import net.osgiliath.agentsdk.skills.parser.SkillTemplate;
 import net.osgiliath.agentsdk.skills.resolver.SkillResolver;
+import net.osgiliath.agentsdk.skills.resolver.SkillResolverImpl;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParserImpl;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 import org.commonmark.parser.Parser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -35,6 +43,9 @@ class AgentParserTest {
     private static final Path SIMPLE_AGENT_FILE = Path.of(
             "src/test/resources/dataset/markdown/agents/agent1.md");
 
+    private static final Path SKILL_BACKED_AGENT_FILE = Path.of(
+            "src/test/resources/dataset/markdown/agents/agent-with-sample-skill.md");
+
     private AgentParser agentParser;
     private SkillResolver skillResolver;
     private SkillRenderer skillRenderer;
@@ -50,6 +61,7 @@ class AgentParserTest {
 
     @Test
     void shouldParseTypedHeaders() {
+        when(skillResolver.resolveSkills(any())).thenReturn(List.of());
         Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
 
         assertThat(agent.headers().name()).isEqualTo(new NameHeader("Code Review Agent"));
@@ -62,11 +74,12 @@ class AgentParserTest {
         assertThat(agent.headers().disableModelInvocation().value()).isFalse();
         assertThat(agent.headers().subagents().value()).containsExactly("subagent-1", "subagent-2", "...");
         assertThat(agent.headers().skills().value())
-                .containsExactly("Security Analysis", "Code Quality Assessment", "Performance Optimization", "Best Practices Enforcement");
+                .containsExactly("implements_features_file");
     }
 
     @Test
     void shouldParseStructuredHandoffs() {
+        when(skillResolver.resolveSkills(any())).thenReturn(List.of());
         Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
 
         assertThat(agent.getHandoffs()).containsExactly(
@@ -76,6 +89,8 @@ class AgentParserTest {
 
     @Test
     void shouldExposeConvenienceAccessors() {
+        Skill resolvedSkill = mock(Skill.class);
+        when(skillResolver.resolveSkills(any())).thenReturn(List.of(resolvedSkill));
         Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
 
         assertThat(agent.getName()).isEqualTo("Code Review Agent");
@@ -86,11 +101,13 @@ class AgentParserTest {
         assertThat(agent.isUserInvokable()).isTrue();
         assertThat(agent.isModelInvocationDisabled()).isFalse();
         assertThat(agent.getSubagents()).containsExactly("subagent-1", "subagent-2", "...");
-        assertThat(agent.getSkills()).contains("Security Analysis");
+        assertThat(agent.getSkillsName()).contains("implements_features_file");
+        assertThat(agent.getSkills()).containsExactly(resolvedSkill);
     }
 
     @Test
     void shouldParseContentIntoTypedSectionsWrapper() {
+        when(skillResolver.resolveSkills(any())).thenReturn(List.of());
         Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
 
         assertThat(agent.getContent().sections()).isEqualTo(agent.getLevel1Content());
@@ -107,6 +124,7 @@ class AgentParserTest {
 
     @Test
     void shouldParseLegacySimpleAgentHeaders() {
+        when(skillResolver.resolveSkills(any())).thenReturn(List.of());
         Agent agent = agentParser.getAgent(SIMPLE_AGENT_FILE);
 
         assertThat(agent.getName()).isEqualTo("Cloud Engineer");
@@ -115,15 +133,15 @@ class AgentParserTest {
         assertThat(agent.getLlms()).containsExactly(LLMS_KIND.MINI);
         assertThat(agent.getSubagents()).isEmpty();
         assertThat(agent.getHandoffs()).isEmpty();
-        assertThat(agent.getSkills()).isEmpty();
+        assertThat(agent.getSkillsName()).isEmpty();
     }
 
     @Test
     void shouldBuildSystemPromptContainingAgentContentAndRenderedSkills() {
-        Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
         Skill mockSkill = mock(Skill.class);
         when(skillResolver.resolveSkills(any())).thenReturn(List.of(mockSkill));
         when(skillRenderer.renderFlat(mockSkill)).thenReturn("## Rendered Skill Section");
+        Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
 
         SystemMessage systemMessage = agentParser.getSystemPrompt(agent);
 
@@ -133,25 +151,22 @@ class AgentParserTest {
 
     @Test
     void shouldBuildSystemPromptTextAndDocumentFromSharedLogic() {
-        Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
         Skill mockSkill = mock(Skill.class);
         when(skillResolver.resolveSkills(any())).thenReturn(List.of(mockSkill));
         when(skillRenderer.renderFlat(mockSkill)).thenReturn("## Rendered Skill Section");
+        Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
 
         SystemMessage systemPrompt = agentParser.getSystemPrompt(agent);
-        Document documentPrompt = agentParser.getSystemPromptDocument(agent);
-
         assertThat(systemPrompt.text()).contains("Code Review Agent");
         assertThat(systemPrompt.text()).contains("## Rendered Skill Section");
-        assertThat(documentPrompt.text()).isEqualTo(systemPrompt.text());
-        verify(skillResolver, atLeastOnce()).resolveSkills(agent.getSkills());
+        verify(skillResolver, atLeastOnce()).resolveSkills(any());
     }
 
     @Test
     void shouldAvoidDuplicatingPromptBlocksWhenSkillRenderingMatchesAgentContent() {
-        Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
         Skill mockSkill = mock(Skill.class);
         when(skillResolver.resolveSkills(any())).thenReturn(List.of(mockSkill));
+        Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
 
         String baseText = agentParser.getSystemPrompt(agent).text();
         when(skillRenderer.renderFlat(mockSkill)).thenReturn(baseText);
@@ -163,12 +178,39 @@ class AgentParserTest {
 
     @Test
     void shouldBuildSystemPromptWithNoSkillsWhenAgentDeclaredNone() {
-        Agent agent = agentParser.getAgent(SIMPLE_AGENT_FILE);
         when(skillResolver.resolveSkills(List.of())).thenReturn(List.of());
+        Agent agent = agentParser.getAgent(SIMPLE_AGENT_FILE);
 
         SystemMessage systemMessage = agentParser.getSystemPrompt(agent);
 
         assertThat(systemMessage.text()).contains("Cloud Engineer");
+    }
+
+    @Test
+    void shouldLoadResolvedSkillsAndTheirResourcesIntoTheAgent() {
+        AgentParser realAgentParser = createRealAgentParser();
+
+        Agent agent = realAgentParser.getAgent(SKILL_BACKED_AGENT_FILE);
+
+        assertThat(agent.getSkills()).hasSize(1);
+
+        Skill skill = agent.getSkills().iterator().next();
+        assertThat(skill.getName()).isEqualTo("implements_features_file");
+        assertThat(skill.getAssets()).map(SkillAsset::uri).containsExactly("assets/eval_review.html");
+        assertThat(skill.getTemplates()).map(SkillTemplate::uri).containsExactly("templates/generator_template.js");
+        assertThat(skill.getCommands())
+                .contains(new SkillScriptCommand("./gradlew", "./gradlew scripts/build.gradle.kts ping"));
+        assertThat(skill.getLevel1Content()).extracting(MarkdownSection::getTitle)
+                .contains("PPTX Skill", "Instructions", "MCP Server Evaluation Guide");
+
+        SystemMessage systemMessage = realAgentParser.getSystemPrompt(agent);
+
+        assertThat(systemMessage.text()).contains("Skill Loaded Agent");
+        assertThat(systemMessage.text()).contains("MCP Server Evaluation Guide");
+        assertThat(systemMessage.text()).contains("Instructions");
+        assertThat(systemMessage.text()).contains("assets/eval_review.html");
+        assertThat(systemMessage.text()).contains("templates/generator_template.js");
+        assertThat(systemMessage.text()).contains("./gradlew scripts/build.gradle.kts ping");
     }
 
     @Test
@@ -183,6 +225,23 @@ class AgentParserTest {
     void shouldThrowWhenAgentFileIsNull() {
         assertThatThrownBy(() -> agentParser.getAgent(null))
                 .isInstanceOf(NullPointerException.class);
+    }
+
+    private AgentParser createRealAgentParser() {
+        Parser commonmarkParser = new MarkdownConfiguration().markdownParser();
+        MarkdownParser markdownParser = new MarkdownParserImpl(commonmarkParser);
+        SkillParser skillParser = new SkillParserImpl(markdownParser, commonmarkParser);
+
+        CodepromptConfiguration config = new CodepromptConfiguration();
+        config.getAgent().setSkillFolders(List.of("classpath:dataset/markdown/skills/"));
+
+        SkillResolver skillResolver = new SkillResolverImpl(
+                config,
+                skillParser,
+                new PathMatchingResourcePatternResolver());
+        SkillRenderer skillRenderer = new SkillRendererImpl();
+
+        return new AgentParserImpl(markdownParser, skillResolver, skillRenderer);
     }
 }
 

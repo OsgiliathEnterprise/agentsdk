@@ -8,6 +8,8 @@ import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,8 +21,8 @@ public class SkillResolverImpl implements SkillResolver {
     private final ResourcePatternResolver resourcePatternResolver;
 
     public SkillResolverImpl(CodepromptConfiguration config,
-                              SkillParser skillParser,
-                              ResourcePatternResolver resourcePatternResolver) {
+                             SkillParser skillParser,
+                             ResourcePatternResolver resourcePatternResolver) {
         this.config = config;
         this.skillParser = skillParser;
         this.resourcePatternResolver = resourcePatternResolver;
@@ -39,19 +41,58 @@ public class SkillResolverImpl implements SkillResolver {
     }
 
     private Skill resolveSkill(String skillName) {
-        for (String folder : config.getAgent().getSkillFolders()) {
-            String base = folder.endsWith("/") ? folder : folder + "/";
-            String location = base + skillName + "/SKILL.md";
-            Resource resource = resourcePatternResolver.getResource(location);
-            if (resource.exists()) {
-                try {
-                    return skillParser.getSkill(resource.getFile().toPath());
-                } catch (IOException e) {
-                    throw new IllegalStateException("Unable to read skill file: " + location, e);
-                }
+        for (String baseFolder : config.getAgent().getSkillFolders()) {
+            Skill foundSkill = resolveSkillFromBaseFolder(baseFolder, skillName);
+            if (foundSkill != null) {
+                return foundSkill;
             }
         }
         throw new IllegalArgumentException("Skill '" + skillName + "' not found in any configured skill folder: "
                 + config.getAgent().getSkillFolders());
+    }
+
+    private Skill resolveSkillFromBaseFolder(String baseFolder, String skillName) {
+        String locationPattern = toLocationPrefix(baseFolder) + "/**/" + skillName + "/SKILL.md";
+        try {
+            for (Resource resource : resourcePatternResolver.getResources(locationPattern)) {
+                Skill resolvedSkill = tryResolve(resource);
+                if (resolvedSkill != null) {
+                    return resolvedSkill;
+                }
+            }
+            return null;
+        } catch (IOException e) {
+            throw new IllegalStateException("Error resolving skills with pattern: " + locationPattern, e);
+        }
+    }
+
+    private String toLocationPrefix(String baseFolder) {
+        String sanitized = trimTrailingSlashes(baseFolder);
+        if (sanitized.startsWith("classpath*:")) {
+            return sanitized;
+        }
+        if (sanitized.startsWith(ResourcePatternResolver.CLASSPATH_URL_PREFIX)) {
+            return "classpath*:" + sanitized.substring(ResourcePatternResolver.CLASSPATH_URL_PREFIX.length());
+        }
+        if (sanitized.startsWith("file:")) {
+            return sanitized;
+        }
+        Path basePath = Paths.get(sanitized).toAbsolutePath().normalize();
+        return trimTrailingSlashes(basePath.toUri().toString());
+    }
+
+    private String trimTrailingSlashes(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        int end = value.length();
+        while (end > 0 && value.charAt(end - 1) == '/') {
+            end--;
+        }
+        return value.substring(0, end);
+    }
+
+    private Skill tryResolve(Resource resource) throws IOException {
+        return skillParser.getSkill(resource.getFile().toPath());
     }
 }

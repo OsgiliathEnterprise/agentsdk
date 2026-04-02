@@ -10,17 +10,14 @@ model:
   - thinking
 user-invokable: true
 disable-model-invocation: false
-agents: ["subagent-1", "subagent-2", ...]
-handoffs:                               # Include for multi-agent setups
+agents: [ "subagent-1", "subagent-2", ... ]
+handoffs: # Include for multi-agent setups
   - label: "Hand off to Backend"
     agent: "subagent-1"         # MUST match target agent's name field EXACTLY
     prompt: "Continue working on the backend for this task."
     send: false
 skills:
-  - "Security Analysis" # must match a skill in the skills directory
-  - "Code Quality Assessment"
-  - "Performance Optimization"
-  - "Best Practices Enforcement"
+  - "implements_features_file" # must match a skill in the skills directory
 ---
 
 # Code Review Agent

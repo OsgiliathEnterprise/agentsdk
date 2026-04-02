@@ -44,3 +44,10 @@ mcp:
     protocol-version: 2024-11-05
     supported-protocol-versions:
       - 2024-11-05
+codeprompt:
+  agent:
+    agent-folders:
+      - classpath:dataset/markdown/agents
+      - classpath:dataset/markdown/skills
+    skill-folders:
+      - classpath:dataset/markdown/skills
