@@ -47,6 +47,7 @@ mcp:
 codeprompt:
   agent:
     agent-folders:
-      - classpath:dataset/acp-client/agents
+      - classpath:dataset/markdown/agents
+      - classpath:dataset/markdown/skills
     skill-folders:
-      - classpath:dataset/acp-client/skills
+      - classpath:dataset/markdown/skills
