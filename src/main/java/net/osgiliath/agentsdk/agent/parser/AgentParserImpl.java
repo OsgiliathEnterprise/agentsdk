@@ -1,6 +1,5 @@
 package net.osgiliath.agentsdk.agent.parser;
 
-import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.message.SystemMessage;
 import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.common.parsing.ParsingHeader;
@@ -27,9 +26,11 @@ public class AgentParserImpl implements AgentParser {
     private final SkillResolver skillResolver;
     private final SkillRenderer skillRenderer;
 
+
     public AgentParserImpl(MarkdownParser markdownParser,
                            SkillResolver skillResolver,
-                           SkillRenderer skillRenderer) {
+                           SkillRenderer skillRenderer
+    ) {
         this.markdownParser = markdownParser;
         this.skillResolver = skillResolver;
         this.skillRenderer = skillRenderer;
@@ -52,7 +53,8 @@ public class AgentParserImpl implements AgentParser {
                 .map(key -> (MarkdownHeader) new ParsingHeader(key, rawHeaders.header(key).orElse(null)))
                 .toList();
         AgentHeaders headers = AgentHeaders.from(headerList);
-        return new Agent(headers, new MarkdownContentSections(markdownFile.getSubSections()));
+        List<Skill> skills = skillResolver.resolveSkills(headers.skills().value());
+        return new Agent(headers, new MarkdownContentSections(markdownFile.getSubSections()), skills);
     }
 
     @Override
@@ -67,18 +69,11 @@ public class AgentParserImpl implements AgentParser {
         Set<String> uniqueBlocks = new LinkedHashSet<>();
         addPromptBlock(uniqueBlocks, contentMarkdown);
 
-        List<Skill> skills = skillResolver.resolveSkills(agent.getSkills());
-        for (Skill skill : skills) {
+        for (Skill skill : agent.getSkills()) {
             addPromptBlock(uniqueBlocks, skillRenderer.renderFlat(skill));
         }
 
         return String.join(System.lineSeparator() + System.lineSeparator(), uniqueBlocks).trim();
-    }
-
-    @Override
-    public Document getSystemPromptDocument(Agent agent) {
-        String promptText = buildSystemPromptText(agent);
-        return Document.from(promptText.isBlank() ? "(no content selected)" : promptText);
     }
 
     private void addPromptBlock(Set<String> blocks, String text) {
@@ -91,7 +86,6 @@ public class AgentParserImpl implements AgentParser {
         }
     }
 
-
     private Path validateAgentFile(Path agentFile) {
         Objects.requireNonNull(agentFile, "agentFile must not be null");
         Path normalized = agentFile.toAbsolutePath().normalize();
@@ -100,4 +94,5 @@ public class AgentParserImpl implements AgentParser {
         }
         return normalized;
     }
+
 }

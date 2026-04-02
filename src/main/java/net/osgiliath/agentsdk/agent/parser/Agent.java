@@ -2,19 +2,25 @@ package net.osgiliath.agentsdk.agent.parser;
 
 import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
+import net.osgiliath.agentsdk.skills.parser.Skill;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
 public record Agent(
         AgentHeaders headers,
-        MarkdownContentSections content
+        MarkdownContentSections content,
+        Collection<Skill> skills
 ) {
 
     public Agent {
         Objects.requireNonNull(headers, "headers must not be null");
         Objects.requireNonNull(content, "content must not be null");
+        Objects.requireNonNull(skills, "skills must not be null");
+
+        skills = List.copyOf(skills);
     }
 
     public String getName() {
@@ -53,8 +59,12 @@ public record Agent(
         return headers.handoffs().value();
     }
 
-    public List<String> getSkills() {
+    public List<String> getSkillsName() {
         return headers.skills().value();
+    }
+
+    public Collection<Skill> getSkills() {
+        return skills;
     }
 
     public MarkdownContentSections getContent() {

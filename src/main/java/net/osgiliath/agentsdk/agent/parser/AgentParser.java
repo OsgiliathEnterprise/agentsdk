@@ -10,5 +10,4 @@ public interface AgentParser {
 
     SystemMessage getSystemPrompt(Agent agent);
 
-    Document getSystemPromptDocument(Agent agent);
 }
