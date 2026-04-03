@@ -235,13 +235,13 @@ class AgentParserTest {
         CodepromptConfiguration config = new CodepromptConfiguration();
         config.getAgent().setSkillFolders(List.of("classpath:dataset/markdown/skills/"));
 
-        SkillResolver skillResolver = new SkillResolverImpl(
+        SkillResolver resolver = new SkillResolverImpl(
                 config,
                 skillParser,
                 new PathMatchingResourcePatternResolver());
-        SkillRenderer skillRenderer = new SkillRendererImpl();
+        SkillRenderer renderer = new SkillRendererImpl();
 
-        return new AgentParserImpl(markdownParser, skillResolver, skillRenderer);
+        return new AgentParserImpl(markdownParser, resolver, renderer);
     }
 }
 
