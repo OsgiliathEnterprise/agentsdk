@@ -4,6 +4,7 @@ import net.osgiliath.agentsdk.configuration.CodepromptConfiguration;
 import net.osgiliath.agentsdk.skills.parser.Skill;
 import net.osgiliath.agentsdk.skills.parser.SkillParser;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Component;
 
@@ -71,8 +72,8 @@ public class SkillResolverImpl implements SkillResolver {
         if (sanitized.startsWith("classpath*:")) {
             return sanitized;
         }
-        if (sanitized.startsWith(ResourcePatternResolver.CLASSPATH_URL_PREFIX)) {
-            return "classpath*:" + sanitized.substring(ResourcePatternResolver.CLASSPATH_URL_PREFIX.length());
+        if (sanitized.startsWith(ResourceLoader.CLASSPATH_URL_PREFIX)) {
+            return "classpath*:" + sanitized.substring(ResourceLoader.CLASSPATH_URL_PREFIX.length());
         }
         if (sanitized.startsWith("file:")) {
             return sanitized;
