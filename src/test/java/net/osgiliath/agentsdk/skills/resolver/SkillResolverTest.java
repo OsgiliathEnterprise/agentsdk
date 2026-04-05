@@ -36,7 +36,16 @@ class SkillResolverTest {
     }
 
     private static SkillParser skillParser() {
-        return skillFile -> null;
+        return new SkillParser() {
+            @Override
+            public Skill getSkill(java.nio.file.Path skillFile) {
+                return null;
+            }
+            @Override
+            public Skill getSkill(org.springframework.core.io.Resource resource) {
+                return null;
+            }
+        };
     }
 
     private static ResourcePatternResolver failingResourcePatternResolver() {
@@ -73,7 +82,7 @@ class SkillResolverTest {
     void setUp() {
         Parser commonmarkParser = new MarkdownConfiguration().markdownParser();
         MarkdownParser markdownParser = new MarkdownParserImpl(commonmarkParser);
-        SkillParser skillParser = new SkillParserImpl(markdownParser, commonmarkParser);
+        SkillParser skillParser = new SkillParserImpl(markdownParser, commonmarkParser, new PathMatchingResourcePatternResolver());
 
         CodepromptConfiguration config = new CodepromptConfiguration();
         config.getAgent().setSkillFolders(List.of("classpath:dataset/markdown/skills/"));

@@ -12,9 +12,14 @@ import org.commonmark.node.FencedCodeBlock;
 import org.commonmark.node.Link;
 import org.commonmark.node.Node;
 import org.commonmark.parser.Parser;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -40,43 +45,42 @@ public class SkillParserImpl implements SkillParser {
 
     private final MarkdownParser markdownParser;
     private final Parser commonMarkParser;
+    private final ResourcePatternResolver resourcePatternResolver;
 
-    public SkillParserImpl(MarkdownParser markdownParser, Parser commonMarkParser) {
+    public SkillParserImpl(MarkdownParser markdownParser, Parser commonMarkParser,
+                           ResourcePatternResolver resourcePatternResolver) {
         this.markdownParser = markdownParser;
         this.commonMarkParser = commonMarkParser;
+        this.resourcePatternResolver = resourcePatternResolver;
+    }
+
+    @Override
+    public Skill getSkill(Resource skillFileResource) {
+        Objects.requireNonNull(skillFileResource, "skillFileResource must not be null");
+        if (!skillFileResource.exists()) {
+            throw new IllegalArgumentException("Skill file does not exist: " + skillFileResource.getDescription());
+        }
+
+        MarkdownFile markdownFile = parseMainMarkdown(skillFileResource);
+        SkillsHeaders headers = parseHeaders(markdownFile.getHeaders());
+
+        List<SkillLink> discoveredLinks = discoverLinks(skillFileResource);
+        List<SkillAsset> assets = toAssets(discoveredLinks);
+        List<SkillTemplate> templates = scanTemplates(skillFileResource);
+        List<SkillScriptCommand> scriptCommands = extractScriptCommands(skillFileResource);
+
+        MarkdownContentSections content = buildContent(markdownFile, skillFileResource);
+        return new Skill(headers, assets, templates, scriptCommands, content);
     }
 
     @Override
     public Skill getSkill(Path skillFile) {
-        Path normalized = validateSkillFile(skillFile);
-        Path skillRoot = normalized.getParent();
-
-        MarkdownFile markdownFile = parseMainMarkdown(normalized);
-        SkillsHeaders headers = parseHeaders(markdownFile.getHeaders());
-
-        List<SkillLink> discoveredLinks = discoverLinks(normalized);
-        List<SkillAsset> assets = toAssets(discoveredLinks);
-        List<SkillTemplate> templates = scanTemplates(skillRoot);
-        List<SkillScriptCommand> scriptCommands = extractScriptCommands(normalized);
-
-        MarkdownContentSections content = buildContent(markdownFile, skillRoot);
-        return new Skill(headers, assets, templates, scriptCommands, content);
-    }
-
-    private Path validateSkillFile(Path skillFile) {
         Objects.requireNonNull(skillFile, "skillFile must not be null");
         Path normalized = skillFile.toAbsolutePath().normalize();
         if (!Files.isRegularFile(normalized)) {
             throw new IllegalArgumentException("Skill file does not exist: " + normalized);
         }
-        return normalized;
-    }
-
-    private MarkdownFile parseMainMarkdown(Path skillFile) {
-        Path folder = skillFile.getParent();
-        String fileName = skillFile.getFileName().toString();
-        return markdownParser.getMarkdownFile(folder, fileName)
-            .orElseThrow(() -> new IllegalArgumentException("Unable to parse markdown: " + skillFile));
+        return getSkill(new FileSystemResource(normalized));
     }
 
     private SkillsHeaders parseHeaders(MarkdownHeaders headers) {
@@ -95,8 +99,14 @@ public class SkillParserImpl implements SkillParser {
         throw new IllegalArgumentException("Skill markdown does not contain valid front-matter headers");
     }
 
-    private List<SkillLink> discoverLinks(Path skillFile) {
-        Node document = parseDocument(readFile(skillFile));
+    private MarkdownFile parseMainMarkdown(Resource skillFileResource) {
+        return markdownParser.getMarkdownFile(skillFileResource)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Unable to parse markdown: " + skillFileResource.getDescription()));
+    }
+
+    private List<SkillLink> discoverLinks(Resource skillFileResource) {
+        Node document = parseDocument(readResource(skillFileResource));
         List<SkillLink> links = new ArrayList<>();
         document.accept(new LinkCollector(links));
         return deduplicateLinks(links);
@@ -115,25 +125,26 @@ public class SkillParserImpl implements SkillParser {
             .toList();
     }
 
-    private MarkdownContentSections buildContent(MarkdownFile markdownFile, Path skillRoot) {
+    private MarkdownContentSections buildContent(MarkdownFile markdownFile, Resource skillFileResource) {
         List<MarkdownSection> linkedSections = List.copyOf(markdownFile.getSubSections());
-        List<MarkdownSection> referenceSections = parseReferenceSections(skillRoot);
+        List<MarkdownSection> referenceSections = parseReferenceSections(skillFileResource);
         return new MarkdownContentSections(mergeSections(linkedSections, referenceSections));
     }
 
-    private List<MarkdownSection> parseReferenceSections(Path skillRoot) {
-        Path referenceRoot = skillRoot.resolve(REFERENCE_FOLDER);
-        if (!Files.isDirectory(referenceRoot)) {
+    private List<MarkdownSection> parseReferenceSections(Resource skillFileResource) {
+        try {
+            String skillRootUrl = getParentUrl(skillFileResource);
+            String referencePattern = skillRootUrl + REFERENCE_FOLDER + "/*.md";
+            Resource[] resources = resourcePatternResolver.getResources(referencePattern);
+            List<MarkdownSection> sections = new ArrayList<>();
+            for (Resource resource : resources) {
+                markdownParser.getMarkdownFile(resource)
+                        .ifPresent(file -> sections.addAll(file.getSubSections()));
+            }
+            return sections;
+        } catch (IOException e) {
             return List.of();
         }
-
-        List<MarkdownSection> sections = new ArrayList<>();
-        List<Path> markdownFiles = markdownParser.listMarkdownFiles(referenceRoot);
-        for (Path markdownFile : markdownFiles) {
-            Optional<MarkdownFile> parsed = markdownParser.getMarkdownFile(referenceRoot, markdownFile.getFileName().toString());
-            parsed.ifPresent(file -> sections.addAll(file.getSubSections()));
-        }
-        return sections;
     }
 
     private List<MarkdownSection> mergeSections(List<MarkdownSection> first, List<MarkdownSection> second) {
@@ -148,39 +159,57 @@ public class SkillParserImpl implements SkillParser {
             (section.getContent() == null ? "" : section.getContent());
     }
 
-    private List<SkillScriptCommand> extractScriptCommands(Path skillFile) {
-        Node document = parseDocument(readFile(skillFile));
+    private List<SkillScriptCommand> extractScriptCommands(Resource skillFileResource) {
+        Node document = parseDocument(readResource(skillFileResource));
         List<SkillScriptCommand> commands = new ArrayList<>();
         document.accept(new ScriptCollector(commands));
         return commands;
     }
 
-    private List<SkillTemplate> scanTemplates(Path skillRoot) {
-        Path templatesRoot = skillRoot.resolve(TEMPLATES_FOLDER);
-        if (!Files.isDirectory(templatesRoot)) {
-            return List.of();
-        }
-        try (Stream<Path> files = Files.walk(templatesRoot)) {
-            return files
-                .filter(Files::isRegularFile)
-                .map(path -> skillRoot.relativize(path).toString().replace('\\', '/'))
-                .map(SkillTemplate::new)
-                .toList();
+    private List<SkillTemplate> scanTemplates(Resource skillFileResource) {
+        try {
+            String skillRootUrl = getParentUrl(skillFileResource);
+            String templatesPattern = skillRootUrl + TEMPLATES_FOLDER + "/**/*";
+            Resource[] resources = resourcePatternResolver.getResources(templatesPattern);
+            return Stream.of(resources)
+                    .filter(r -> r.isReadable() && r.getFilename() != null && !r.getFilename().isBlank())
+                    .map(r -> toRelativeUri(skillRootUrl, r))
+                    .filter(Objects::nonNull)
+                    .map(SkillTemplate::new)
+                    .toList();
         } catch (IOException e) {
-            throw new IllegalStateException("Unable to scan templates folder: " + templatesRoot, e);
+            return List.of();
         }
     }
 
+    /**
+     * Returns the parent-directory URL of the given resource with a trailing slash,
+     * e.g. {@code file:/path/to/skill/} for a resource at {@code file:/path/to/skill/SKILL.md}.
+     */
+    private String getParentUrl(Resource resource) throws IOException {
+        String url = resource.getURL().toString();
+        int lastSlash = url.lastIndexOf('/');
+        return lastSlash >= 0 ? url.substring(0, lastSlash + 1) : url + "/";
+    }
+
+    private String toRelativeUri(String skillRootUrl, Resource resource) {
+        try {
+            String url = resource.getURL().toString();
+            return url.startsWith(skillRootUrl) ? url.substring(skillRootUrl.length()) : null;
+        } catch (IOException e) {
+            return null;
+        }
+    }
 
     private Node parseDocument(String source) {
         return commonMarkParser.parse(source == null ? "" : source);
     }
 
-    private String readFile(Path file) {
-        try {
-            return Files.readString(file);
+    private String readResource(Resource resource) {
+        try (InputStream is = resource.getInputStream()) {
+            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException e) {
-            throw new IllegalStateException("Unable to read file: " + file, e);
+            throw new IllegalStateException("Unable to read resource: " + resource.getDescription(), e);
         }
     }
 

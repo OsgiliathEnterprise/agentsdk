@@ -1,6 +1,7 @@
 package net.osgiliath.agentsdk.utils.markdown;
 
 import dev.langchain4j.data.document.Document;
+import org.springframework.core.io.Resource;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -18,6 +19,15 @@ public interface MarkdownParser {
      * @return list of markdown file names
      */
     List<Path> listMarkdownFiles(Path folderPath);
+
+    /**
+     * Retrieves the content of a markdown file and parses it into a structured format.
+     * Supports both filesystem and classpath/JAR resources.
+     *
+     * @param fileResource the Spring Resource pointing directly to the markdown file
+     * @return an Optional containing the MarkdownFile object with headers and sections
+     */
+    Optional<MarkdownFile> getMarkdownFile(Resource fileResource);
 
     /**
      * Retrieves the content of a markdown file and parses it into a structured format.

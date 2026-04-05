@@ -11,10 +11,14 @@ import org.commonmark.renderer.markdown.MarkdownRenderer;
 import org.commonmark.renderer.text.TextContentRenderer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 import org.commonmark.ext.front.matter.YamlFrontMatterVisitor;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
@@ -42,7 +46,6 @@ public class MarkdownParserImpl implements MarkdownParser {
         this.markdownRenderer = MarkdownRenderer.builder().build();
         this.textContentRenderer = TextContentRenderer.builder().build();
     }
-
     @Override
     public List<Path> listMarkdownFiles(Path folderPath) {
         logger.debug("Listing markdown files in folder: {}", folderPath);
@@ -68,6 +71,25 @@ public class MarkdownParserImpl implements MarkdownParser {
     }
 
     @Override
+    public Optional<MarkdownFile> getMarkdownFile(Resource fileResource) {
+        if (fileResource == null) {
+            logger.warn("Resource is null");
+            return Optional.empty();
+        }
+        if (!fileResource.exists()) {
+            logger.warn("Resource does not exist: {}", fileResource.getDescription());
+            return Optional.empty();
+        }
+        logger.info("Parsing markdown resource: {}", fileResource.getDescription());
+        try {
+            return parseMarkdownResource(fileResource);
+        } catch (IOException e) {
+            logger.error("Error parsing markdown resource: {}", fileResource.getDescription(), e);
+            return Optional.empty();
+        }
+    }
+
+    @Override
     public Optional<MarkdownFile> getMarkdownFile(Path folderPath, String fileName) {
         logger.debug("Getting markdown file: {} from folder: {}", fileName, folderPath);
         Path markdownPath = resolveMarkdownPath(folderPath, fileName);
@@ -75,18 +97,23 @@ public class MarkdownParserImpl implements MarkdownParser {
             logger.warn("Markdown file not found: {}", markdownPath);
             return Optional.empty();
         }
-
         logger.info("Parsing markdown file: {}", markdownPath);
-        String source = readFile(markdownPath);
-        Node document = parser.parse(source);
-        logger.trace("Parsed document with {} bytes", source.length());
+        try {
+            return parseMarkdownResource(new FileSystemResource(markdownPath));
+        } catch (IOException e) {
+            logger.error("Error parsing markdown file: {}", markdownPath, e);
+            return Optional.empty();
+        }
+    }
 
+    private Optional<MarkdownFile> parseMarkdownResource(Resource resource) throws IOException {
+        String source = readResource(resource);
+        logger.trace("Parsed resource with {} bytes", source.length());
+        Node document = parser.parse(source);
         Optional<MarkdownHeaders> headers = parseHeaders(document, source);
         logger.debug("Extracted {} headers", headers.map(h -> h.headerKeys().size()).orElse(0));
-
-        List<MarkdownSection> consolidated = consolidateLinkedFiles(markdownPath);
-        logger.info("Consolidated {} sections from linked files", consolidated.size());
-
+        List<MarkdownSection> consolidated = consolidateLinkedResources(resource);
+        logger.info("Consolidated {} sections from linked resources", consolidated.size());
         return Optional.of(new MarkdownFile(headers.orElse(null), consolidated));
     }
 
@@ -209,54 +236,97 @@ public class MarkdownParserImpl implements MarkdownParser {
         }
     }
 
-    private List<MarkdownSection> consolidateLinkedFiles(Path rootPath) {
-        logger.debug("Starting consolidation from root file: {}", rootPath.getFileName());
+    private List<MarkdownSection> consolidateLinkedResources(Resource rootResource) {
+        logger.debug("Starting consolidation from root resource: {}", rootResource.getDescription());
         List<MarkdownSection> consolidated = new ArrayList<>();
-        Path normalizedRoot = rootPath.normalize().toAbsolutePath();
-        collectLinkedFiles(normalizedRoot, normalizedRoot, new LinkedHashSet<>(), consolidated);
-        logger.info("Consolidated total of {} sections from all linked files", consolidated.size());
+        String rootId = describeResource(rootResource);
+        collectLinkedResources(rootId, rootResource, new LinkedHashSet<>(), consolidated);
+        logger.info("Consolidated total of {} sections from all linked resources", consolidated.size());
         return consolidated;
     }
 
-    private void collectLinkedFiles(Path rootPath, Path currentPath, Set<Path> visited, List<MarkdownSection> consolidated) {
-        logger.trace("Processing file: {}", currentPath.getFileName());
-        if (!visited.add(currentPath)) {
-            logger.debug("File already visited, skipping: {}", currentPath.getFileName());
+    private void collectLinkedResources(String rootId, Resource currentResource,
+                                        Set<String> visited, List<MarkdownSection> consolidated) {
+        String currentId = describeResource(currentResource);
+        logger.trace("Processing resource: {}", currentId);
+        if (!visited.add(currentId)) {
+            logger.debug("Resource already visited, skipping: {}", currentId);
             return;
         }
 
-        logger.debug("Reading file: {}", currentPath.getFileName());
-        String source = readFile(currentPath);
+        logger.debug("Reading resource: {}", currentId);
+        String source = readResource(currentResource);
         Node document = parser.parse(source);
         List<MarkdownSection> parsedSections = parseSections(document);
-        logger.debug("Parsed {} sections from file: {}", parsedSections.size(), currentPath.getFileName());
+        logger.debug("Parsed {} sections from resource: {}", parsedSections.size(), currentId);
 
         if (parsedSections.isEmpty() && !source.isBlank()) {
-            logger.trace("No sections found, treating whole file as content");
+            logger.trace("No sections found, treating whole resource as content");
             String fullContent = extractFullMarkdownContent(document);
-            consolidated.add(new MainSection(currentPath.getFileName().toString(), fullContent.trim(), List.of()));
-        } else if (currentPath.equals(rootPath)) {
-            logger.trace("Adding {} sections from root file", parsedSections.size());
+            consolidated.add(new MainSection(currentResource.getFilename(), fullContent.trim(), List.of()));
+        } else if (rootId.equals(currentId)) {
+            logger.trace("Adding {} sections from root resource", parsedSections.size());
             consolidated.addAll(parsedSections);
         } else {
-            logger.trace("Adding {} sections with heading prefix from linked file", parsedSections.size());
+            logger.trace("Adding {} sections with heading prefix from linked resource", parsedSections.size());
             consolidated.addAll(addHeadingPrefix(parsedSections));
         }
 
         List<String> internalLinks = extractInternalLinks(document);
-        logger.debug("Found {} internal links in file: {}", internalLinks.size(), currentPath.getFileName());
+        logger.debug("Found {} internal links in resource: {}", internalLinks.size(), currentId);
         if (logger.isTraceEnabled() && !internalLinks.isEmpty()) {
             internalLinks.forEach(link -> logger.trace("  - {}", link));
         }
 
         for (String link : internalLinks) {
-            Path next = resolveLinkedFile(currentPath, link);
-            if (next != null && Files.exists(next) && Files.isRegularFile(next)) {
-                logger.debug("Following link: {} -> {}", link, next.getFileName());
-                collectLinkedFiles(rootPath, next, visited, consolidated);
+            Resource next = resolveLinkedResource(currentResource, link);
+            if (next != null) {
+                logger.debug("Following link: {} -> {}", link, describeResource(next));
+                collectLinkedResources(rootId, next, visited, consolidated);
             } else {
-                logger.trace("Link target not found or not a file: {} (resolved to: {})", link, next);
+                logger.trace("Link target not found or not a file: {}", link);
             }
+        }
+    }
+
+    private String describeResource(Resource resource) {
+        try {
+            return resource.getURL().toString();
+        } catch (IOException e) {
+            return resource.getDescription();
+        }
+    }
+
+    private Resource resolveLinkedResource(Resource currentResource, String link) {
+        String withoutAnchor = link.split("#", 2)[0].trim();
+        if (withoutAnchor.isBlank()) {
+            return null;
+        }
+        String normalized = withoutAnchor.toLowerCase(Locale.ROOT);
+        if (!normalized.endsWith(".md")) {
+            return null;
+        }
+        try {
+            Resource resolved = currentResource.createRelative(withoutAnchor);
+            if (resolved.exists() && resolved.isReadable()) {
+                return resolved;
+            }
+            logger.trace("Linked resource not found or not readable: {} (resolved: {})",
+                    link, resolved.getDescription());
+            return null;
+        } catch (IOException e) {
+            logger.trace("Could not resolve linked resource: {} from {}: {}",
+                    link, currentResource.getDescription(), e.getMessage());
+            return null;
+        }
+    }
+
+    private String readResource(Resource resource) {
+        try (InputStream is = resource.getInputStream()) {
+            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            logger.error("Error reading resource: {}", resource.getDescription(), e);
+            return "";
         }
     }
 
@@ -287,19 +357,6 @@ public class MarkdownParserImpl implements MarkdownParser {
             return null;
         }
         return folderPath.resolve(fileName).normalize().toAbsolutePath();
-    }
-
-    private Path resolveLinkedFile(Path currentPath, String link) {
-        String withoutAnchor = link.split("#", 2)[0].trim();
-        if (withoutAnchor.isBlank()) {
-            return null;
-        }
-        Path resolved = currentPath.getParent().resolve(withoutAnchor).normalize().toAbsolutePath();
-        String name = resolved.getFileName() == null ? "" : resolved.getFileName().toString().toLowerCase(Locale.ROOT);
-        if (!name.endsWith(".md")) {
-            return null;
-        }
-        return resolved;
     }
 
     private List<String> extractInternalLinks(Node document) {
@@ -460,18 +517,6 @@ public class MarkdownParserImpl implements MarkdownParser {
         String content = node.content.toString().trim();
         List<MarkdownSection> children = node.children.stream().map(this::toSection).toList();
         return new MainSection(node.title, content, children);
-    }
-
-    private String readFile(Path path) {
-        logger.trace("Reading file: {}", path);
-        try {
-            String content = Files.readString(path);
-            logger.debug("Successfully read file: {} ({} bytes)", path.getFileName(), content.length());
-            return content;
-        } catch (IOException e) {
-            logger.error("Error reading file: {}", path, e);
-            return "";
-        }
     }
 
     private void appendSection(StringBuilder builder, MarkdownSection section) {

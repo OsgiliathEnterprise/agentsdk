@@ -8,6 +8,7 @@ import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 import org.commonmark.parser.Parser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -30,7 +31,7 @@ class SkillParserTest {
     void setUp() {
         Parser commonmarkParser = new MarkdownConfiguration().markdownParser();
         MarkdownParser markdownParser = new MarkdownParserImpl(commonmarkParser);
-        skillParser = new SkillParserImpl(markdownParser, commonmarkParser);
+        skillParser = new SkillParserImpl(markdownParser, commonmarkParser, new PathMatchingResourcePatternResolver());
     }
 
     // ── headers ──────────────────────────────────────────────────────────────
@@ -258,7 +259,7 @@ class SkillParserTest {
 
     @Test
     void shouldThrowWhenSkillFileIsNull() {
-        assertThatThrownBy(() -> skillParser.getSkill(null))
+        assertThatThrownBy(() -> skillParser.getSkill((java.nio.file.Path) null))
                 .isInstanceOf(NullPointerException.class);
     }
 }
