@@ -26,7 +26,8 @@ import net.osgiliath.agentsdk.utils.resource.ResourceLocationResolverImpl;
 import org.commonmark.parser.Parser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.DefaultResourceLoader;
+
+import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 import java.nio.file.Path;
