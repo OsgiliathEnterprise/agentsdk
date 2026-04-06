@@ -1,9 +1,7 @@
 package net.osgiliath.agentsdk.utils.markdown;
 
 import dev.langchain4j.data.document.Document;
-import org.commonmark.node.AbstractVisitor;
 import org.commonmark.node.Heading;
-import org.commonmark.node.Link;
 import org.commonmark.node.Node;
 import org.commonmark.node.Paragraph;
 import org.commonmark.parser.Parser;
@@ -25,11 +23,9 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Stream;
 import java.util.Map;
 
@@ -46,6 +42,7 @@ public class MarkdownParserImpl implements MarkdownParser {
         this.markdownRenderer = MarkdownRenderer.builder().build();
         this.textContentRenderer = TextContentRenderer.builder().build();
     }
+
     @Override
     public List<Path> listMarkdownFiles(Path folderPath) {
         logger.debug("Listing markdown files in folder: {}", folderPath);
@@ -112,9 +109,13 @@ public class MarkdownParserImpl implements MarkdownParser {
         Node document = parser.parse(source);
         Optional<MarkdownHeaders> headers = parseHeaders(document, source);
         logger.debug("Extracted {} headers", headers.map(h -> h.headerKeys().size()).orElse(0));
-        List<MarkdownSection> consolidated = consolidateLinkedResources(resource);
-        logger.info("Consolidated {} sections from linked resources", consolidated.size());
-        return Optional.of(new MarkdownFile(headers.orElse(null), consolidated));
+        List<MarkdownSection> parsedSections = parseSections(document);
+        if (parsedSections.isEmpty() && !source.isBlank()) {
+            String fullContent = extractFullMarkdownContent(document);
+            parsedSections = List.of(new MainSection(resource.getFilename(), fullContent.trim(), List.of()));
+        }
+        logger.info("Parsed {} section(s) from markdown resource", parsedSections.size());
+        return Optional.of(new MarkdownFile(headers.orElse(null), parsedSections));
     }
 
     @Override
@@ -236,91 +237,6 @@ public class MarkdownParserImpl implements MarkdownParser {
         }
     }
 
-    private List<MarkdownSection> consolidateLinkedResources(Resource rootResource) {
-        logger.debug("Starting consolidation from root resource: {}", rootResource.getDescription());
-        List<MarkdownSection> consolidated = new ArrayList<>();
-        String rootId = describeResource(rootResource);
-        collectLinkedResources(rootId, rootResource, new LinkedHashSet<>(), consolidated);
-        logger.info("Consolidated total of {} sections from all linked resources", consolidated.size());
-        return consolidated;
-    }
-
-    private void collectLinkedResources(String rootId, Resource currentResource,
-                                        Set<String> visited, List<MarkdownSection> consolidated) {
-        String currentId = describeResource(currentResource);
-        logger.trace("Processing resource: {}", currentId);
-        if (!visited.add(currentId)) {
-            logger.debug("Resource already visited, skipping: {}", currentId);
-            return;
-        }
-
-        logger.debug("Reading resource: {}", currentId);
-        String source = readResource(currentResource);
-        Node document = parser.parse(source);
-        List<MarkdownSection> parsedSections = parseSections(document);
-        logger.debug("Parsed {} sections from resource: {}", parsedSections.size(), currentId);
-
-        if (parsedSections.isEmpty() && !source.isBlank()) {
-            logger.trace("No sections found, treating whole resource as content");
-            String fullContent = extractFullMarkdownContent(document);
-            consolidated.add(new MainSection(currentResource.getFilename(), fullContent.trim(), List.of()));
-        } else if (rootId.equals(currentId)) {
-            logger.trace("Adding {} sections from root resource", parsedSections.size());
-            consolidated.addAll(parsedSections);
-        } else {
-            logger.trace("Adding {} sections with heading prefix from linked resource", parsedSections.size());
-            consolidated.addAll(addHeadingPrefix(parsedSections));
-        }
-
-        List<String> internalLinks = extractInternalLinks(document);
-        logger.debug("Found {} internal links in resource: {}", internalLinks.size(), currentId);
-        if (logger.isTraceEnabled() && !internalLinks.isEmpty()) {
-            internalLinks.forEach(link -> logger.trace("  - {}", link));
-        }
-
-        for (String link : internalLinks) {
-            Resource next = resolveLinkedResource(currentResource, link);
-            if (next != null) {
-                logger.debug("Following link: {} -> {}", link, describeResource(next));
-                collectLinkedResources(rootId, next, visited, consolidated);
-            } else {
-                logger.trace("Link target not found or not a file: {}", link);
-            }
-        }
-    }
-
-    private String describeResource(Resource resource) {
-        try {
-            return resource.getURL().toString();
-        } catch (IOException e) {
-            return resource.getDescription();
-        }
-    }
-
-    private Resource resolveLinkedResource(Resource currentResource, String link) {
-        String withoutAnchor = link.split("#", 2)[0].trim();
-        if (withoutAnchor.isBlank()) {
-            return null;
-        }
-        String normalized = withoutAnchor.toLowerCase(Locale.ROOT);
-        if (!normalized.endsWith(".md")) {
-            return null;
-        }
-        try {
-            Resource resolved = currentResource.createRelative(withoutAnchor);
-            if (resolved.exists() && resolved.isReadable()) {
-                return resolved;
-            }
-            logger.trace("Linked resource not found or not readable: {} (resolved: {})",
-                    link, resolved.getDescription());
-            return null;
-        } catch (IOException e) {
-            logger.trace("Could not resolve linked resource: {} from {}: {}",
-                    link, currentResource.getDescription(), e.getMessage());
-            return null;
-        }
-    }
-
     private String readResource(Resource resource) {
         try (InputStream is = resource.getInputStream()) {
             return new String(is.readAllBytes(), StandardCharsets.UTF_8);
@@ -328,24 +244,6 @@ public class MarkdownParserImpl implements MarkdownParser {
             logger.error("Error reading resource: {}", resource.getDescription(), e);
             return "";
         }
-    }
-
-    private List<MarkdownSection> addHeadingPrefix(List<MarkdownSection> sections) {
-        List<MarkdownSection> normalized = new ArrayList<>();
-        for (MarkdownSection section : sections) {
-            StringBuilder content = new StringBuilder();
-            if (section.getTitle() != null && !section.getTitle().isBlank()) {
-                content.append("# ").append(section.getTitle());
-            }
-            if (section.getContent() != null && !section.getContent().isBlank()) {
-                if (!content.isEmpty()) {
-                    content.append(System.lineSeparator()).append(System.lineSeparator());
-                }
-                content.append(section.getContent());
-            }
-            normalized.add(new MainSection(section.getTitle(), content.toString().trim(), section.getSubSections()));
-        }
-        return normalized;
     }
 
     private String extractFullMarkdownContent(Node document) {
@@ -359,26 +257,6 @@ public class MarkdownParserImpl implements MarkdownParser {
         return folderPath.resolve(fileName).normalize().toAbsolutePath();
     }
 
-    private List<String> extractInternalLinks(Node document) {
-        logger.trace("Extracting internal links from document");
-        List<String> links = new ArrayList<>();
-        document.accept(new AbstractVisitor() {
-            @Override
-            public void visit(Link link) {
-                String destination = link.getDestination();
-                if (destination != null &&
-                        !destination.startsWith("http://") &&
-                        !destination.startsWith("https://")) {
-                    logger.trace("Found internal link: {}", destination);
-                    links.add(destination);
-                } else {
-                    logger.trace("Skipping external link: {}", destination);
-                }
-                visitChildren(link);
-            }
-        });
-        return links;
-    }
 
     private Optional<MarkdownHeaders> parseHeaders(Node document, String source) {
         logger.debug("Parsing headers from document");

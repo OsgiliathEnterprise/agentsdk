@@ -41,13 +41,13 @@ import java.util.stream.Stream;
  * }</pre>
  */
 @Component
-public class HydratedChatRequestBuilder {
+public class AgentChatRequestBuilder {
 
     private final AgentParser agentParser;
     private final McpToolProvider fullToolProvider;
     private final CodepromptConfiguration configuration;
 
-    public HydratedChatRequestBuilder(
+    public AgentChatRequestBuilder(
             AgentParser agentParser,
             @Qualifier(LangChain4jConfig.TOOL_PROVIDER_FULL) McpToolProvider fullToolProvider,
             CodepromptConfiguration configuration) {
@@ -69,7 +69,7 @@ public class HydratedChatRequestBuilder {
      */
     public ChatRequest buildChatRequest(Agent agent,
                                         UserMessage userMessage,
-                                        Object chatMemoryId,
+                                        String chatMemoryId,
                                         InvocationParameters invocationParameters) {
         SystemMessage systemMessage = agentParser.getSystemPrompt(agent);
         ToolProviderResult result = buildToolProviderResult(agent, userMessage, chatMemoryId, invocationParameters);

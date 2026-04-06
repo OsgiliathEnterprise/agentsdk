@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -64,12 +65,12 @@ public class SkillParserImpl implements SkillParser {
         MarkdownFile markdownFile = parseMainMarkdown(skillFileResource);
         SkillsHeaders headers = parseHeaders(markdownFile.getHeaders());
 
-        List<SkillLink> discoveredLinks = discoverLinks(skillFileResource);
+        List<ResolvedSkillLink> discoveredLinks = discoverLinks(skillFileResource);
         List<SkillAsset> assets = toAssets(discoveredLinks);
         List<SkillTemplate> templates = scanTemplates(skillFileResource);
         List<SkillScriptCommand> scriptCommands = extractScriptCommands(skillFileResource);
 
-        MarkdownContentSections content = buildContent(markdownFile, skillFileResource);
+        MarkdownContentSections content = buildContent(markdownFile, skillFileResource, discoveredLinks);
         return new Skill(headers, assets, templates, scriptCommands, content);
     }
 
@@ -105,30 +106,70 @@ public class SkillParserImpl implements SkillParser {
                         "Unable to parse markdown: " + skillFileResource.getDescription()));
     }
 
-    private List<SkillLink> discoverLinks(Resource skillFileResource) {
-        Node document = parseDocument(readResource(skillFileResource));
-        List<SkillLink> links = new ArrayList<>();
-        document.accept(new LinkCollector(links));
+    private List<ResolvedSkillLink> discoverLinks(Resource skillFileResource) {
+        List<ResolvedSkillLink> links = new ArrayList<>();
+        collectLinks(skillFileResource, skillFileResource, new LinkedHashSet<>(), links);
         return deduplicateLinks(links);
     }
 
-    private List<SkillLink> deduplicateLinks(List<SkillLink> links) {
-        Set<String> seen = new LinkedHashSet<>();
-        return links.stream().filter(link -> seen.add(link.uri())).toList();
+    private void collectLinks(Resource rootResource, Resource currentResource, Set<String> visitedResources,
+                              List<ResolvedSkillLink> links) {
+        String resourceId = describeResource(currentResource);
+        if (!visitedResources.add(resourceId)) {
+            return;
+        }
+
+        Node document = parseDocument(readResource(currentResource));
+        List<SkillLink> localLinks = new ArrayList<>();
+        document.accept(new LinkCollector(localLinks));
+
+        for (SkillLink link : localLinks) {
+            Resource resolved = link.external() ? null : resolveRelativeResource(currentResource, link.uri());
+            String normalizedUri = normalizeSkillUri(rootResource, link.uri(), resolved);
+            links.add(new ResolvedSkillLink(normalizedUri, link.external(), resolved));
+
+            if (!link.external() && resolved != null && isMarkdownResource(normalizedUri)) {
+                collectLinks(rootResource, resolved, visitedResources, links);
+            }
+        }
     }
 
-    private List<SkillAsset> toAssets(List<SkillLink> links) {
+    private List<ResolvedSkillLink> deduplicateLinks(List<ResolvedSkillLink> links) {
+        Set<String> seen = new LinkedHashSet<>();
+        return links.stream().filter(link -> seen.add((link.external() ? "ext:" : "int:") + link.uri())).toList();
+    }
+
+    private List<SkillAsset> toAssets(List<ResolvedSkillLink> links) {
         return links.stream()
-            .filter(link -> !link.markdown())
             .filter(link -> !link.external())
+            .filter(link -> !isMarkdownResource(link.uri()))
             .map(link -> new SkillAsset(link.uri()))
             .toList();
     }
 
-    private MarkdownContentSections buildContent(MarkdownFile markdownFile, Resource skillFileResource) {
-        List<MarkdownSection> linkedSections = List.copyOf(markdownFile.getSubSections());
+    private MarkdownContentSections buildContent(MarkdownFile markdownFile, Resource skillFileResource,
+                                                 List<ResolvedSkillLink> discoveredLinks) {
+        List<MarkdownSection> linkedSections = new ArrayList<>(markdownFile.getSubSections());
+        linkedSections.addAll(parseLinkedMarkdownSections(discoveredLinks));
         List<MarkdownSection> referenceSections = parseReferenceSections(skillFileResource);
         return new MarkdownContentSections(mergeSections(linkedSections, referenceSections));
+    }
+
+    private List<MarkdownSection> parseLinkedMarkdownSections(List<ResolvedSkillLink> discoveredLinks) {
+        List<MarkdownSection> sections = new ArrayList<>();
+        Set<String> visitedResources = new LinkedHashSet<>();
+        for (ResolvedSkillLink link : discoveredLinks) {
+            if (link.external() || !isMarkdownResource(link.uri()) || link.resolvedResource() == null) {
+                continue;
+            }
+            String resourceId = describeResource(link.resolvedResource());
+            if (!visitedResources.add(resourceId)) {
+                continue;
+            }
+            markdownParser.getMarkdownFile(link.resolvedResource())
+                    .ifPresent(file -> sections.addAll(file.getSubSections()));
+        }
+        return sections;
     }
 
     private List<MarkdownSection> parseReferenceSections(Resource skillFileResource) {
@@ -201,6 +242,57 @@ public class SkillParserImpl implements SkillParser {
         }
     }
 
+    private Resource resolveRelativeResource(Resource currentResource, String destination) {
+        try {
+            Resource resolved = currentResource.createRelative(destination);
+            return resolved.exists() && resolved.isReadable() ? resolved : null;
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    private String normalizeSkillUri(Resource skillFileResource, String rawUri, Resource resolvedResource) {
+        if (resolvedResource == null) {
+            return rawUri;
+        }
+        try {
+            String skillRootUrl = getParentUrl(skillFileResource);
+            String relativeUri = toRelativeUri(skillRootUrl, resolvedResource);
+            if (relativeUri != null && !relativeUri.isBlank()) {
+                return relativeUri;
+            }
+        } catch (IOException ignored) {
+            // Fall back to the original URI when root URL cannot be computed.
+        }
+        return relativizeAgainstParent(skillFileResource, resolvedResource).orElse(rawUri);
+    }
+
+    private Optional<String> relativizeAgainstParent(Resource baseResource, Resource targetResource) {
+        try {
+            URI baseDir = URI.create(getParentUrl(baseResource));
+            URI target = targetResource.getURL().toURI();
+            String relative = baseDir.relativize(target).getPath();
+            if (relative == null || relative.isBlank() || relative.equals(target.getPath())) {
+                return Optional.empty();
+            }
+            return Optional.of(relative);
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    private String describeResource(Resource resource) {
+        try {
+            return resource.getURL().toString();
+        } catch (IOException e) {
+            return resource.getDescription();
+        }
+    }
+
+    private boolean isMarkdownResource(String uri) {
+        return uri != null && uri.toLowerCase(Locale.ROOT).endsWith(".md");
+    }
+
     private Node parseDocument(String source) {
         return commonMarkParser.parse(source == null ? "" : source);
     }
@@ -240,6 +332,9 @@ public class SkillParserImpl implements SkillParser {
             String normalized = uri.toLowerCase(Locale.ROOT);
             return normalized.startsWith("http://") || normalized.startsWith("https://");
         }
+    }
+
+    private record ResolvedSkillLink(String uri, boolean external, Resource resolvedResource) {
     }
 
     private static final class ScriptCollector extends AbstractVisitor {

@@ -1,4 +1,4 @@
-package net.osgiliath.agentscommon.memory;
+package net.osgiliath.agentsdk.configuration;
 
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;

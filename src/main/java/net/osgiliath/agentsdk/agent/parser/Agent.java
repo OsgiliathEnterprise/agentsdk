@@ -67,6 +67,23 @@ public record Agent(
         return skills;
     }
 
+    /**
+     * Returns the deduplicated union of tool names declared by this agent (via its {@code tools} /
+     * {@code mcp} front-matter key) and by every skill it links to (via each skill's {@code tools}
+     * front-matter key).
+     *
+     * <p>This list drives which {@link dev.langchain4j.agent.tool.ToolSpecification}s should be
+     * exposed to the LLM when the agent is invoked programmatically (e.g. from
+     * {@code ProjectLayoutApplierNode}).</p>
+     */
+    public List<String> getAllToolNames() {
+        java.util.LinkedHashSet<String> all = new java.util.LinkedHashSet<>(getTools());
+        for (Skill skill : skills) {
+            all.addAll(skill.getMcps());
+        }
+        return List.copyOf(all);
+    }
+
     public MarkdownContentSections getContent() {
         return content;
     }

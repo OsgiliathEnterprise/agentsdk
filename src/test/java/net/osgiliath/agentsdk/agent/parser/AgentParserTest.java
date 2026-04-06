@@ -19,9 +19,14 @@ import net.osgiliath.agentsdk.skills.resolver.SkillResolverImpl;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParserImpl;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
+import net.osgiliath.agentsdk.utils.resource.LocationMarkdownLinkResolutionHandler;
+import net.osgiliath.agentsdk.utils.resource.MarkdownLinkedResourceResolver;
+import net.osgiliath.agentsdk.utils.resource.RelativeMarkdownLinkResolutionHandler;
+import net.osgiliath.agentsdk.utils.resource.ResourceLocationResolverImpl;
 import org.commonmark.parser.Parser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.DefaultResourceLoader;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 import java.nio.file.Path;
@@ -56,7 +61,11 @@ class AgentParserTest {
         MarkdownParser markdownParser = new MarkdownParserImpl(commonmarkParser);
         skillResolver = mock(SkillResolver.class);
         skillRenderer = mock(SkillRenderer.class);
-        agentParser = new AgentParserImpl(markdownParser, skillResolver, skillRenderer);
+        agentParser = new AgentParserImpl(
+                markdownParser,
+                skillResolver,
+                skillRenderer,
+                newMarkdownLinkedResourceResolver(commonmarkParser));
     }
 
     @Test
@@ -223,7 +232,7 @@ class AgentParserTest {
 
     @Test
     void shouldThrowWhenAgentFileIsNull() {
-        assertThatThrownBy(() -> agentParser.getAgent(null))
+        assertThatThrownBy(() -> agentParser.getAgent((Path) null))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -238,10 +247,23 @@ class AgentParserTest {
         SkillResolver resolver = new SkillResolverImpl(
                 config,
                 skillParser,
-                new PathMatchingResourcePatternResolver());
+                new ResourceLocationResolverImpl(new PathMatchingResourcePatternResolver()));
         SkillRenderer renderer = new SkillRendererImpl();
 
-        return new AgentParserImpl(markdownParser, resolver, renderer);
+        return new AgentParserImpl(
+                markdownParser,
+                resolver,
+                renderer,
+                newMarkdownLinkedResourceResolver(commonmarkParser));
+    }
+
+    private MarkdownLinkedResourceResolver newMarkdownLinkedResourceResolver(Parser commonmarkParser) {
+        return new MarkdownLinkedResourceResolver(
+                commonmarkParser,
+                List.of(
+                        new RelativeMarkdownLinkResolutionHandler(),
+                        new LocationMarkdownLinkResolutionHandler(new DefaultResourceLoader())),
+                List.of());
     }
 }
 

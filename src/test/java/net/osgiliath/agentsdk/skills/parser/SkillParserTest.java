@@ -1,5 +1,8 @@
 package net.osgiliath.agentsdk.skills.parser;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import net.osgiliath.agentsdk.configuration.MarkdownConfiguration;
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
@@ -8,8 +11,12 @@ import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 import org.commonmark.parser.Parser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -24,6 +31,9 @@ class SkillParserTest {
 
     private static final Path SKILL_FILE = Path.of(
             "src/test/resources/dataset/markdown/skills/implements_features_file/SKILL.md");
+
+    @TempDir
+    Path tempDir;
 
     private SkillParser skillParser;
 
@@ -100,6 +110,51 @@ class SkillParserTest {
 
         assertThat(skill.getAssets()).map(SkillAsset::uri)
                 .noneMatch(uri -> uri.endsWith(".md"));
+    }
+
+    @Test
+    void shouldNotLogMissingTargetForAssetOrAnchorLinks() {
+        Logger logger = (Logger) LoggerFactory.getLogger(MarkdownParserImpl.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            skillParser.getSkill(SKILL_FILE);
+
+            assertThat(appender.list)
+                    .extracting(ILoggingEvent::getFormattedMessage)
+                    .noneMatch(message -> message.contains("Link target not found or not a file"));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+    }
+
+    @Test
+    void shouldTreatMdTemplateLinksAsAssets() throws IOException {
+        Path skillRoot = tempDir.resolve("my-skill");
+        Files.createDirectories(skillRoot.resolve("templates"));
+        Files.writeString(skillRoot.resolve("templates/phase.md.template"), "# Template");
+        Files.writeString(skillRoot.resolve("details.md"), "# Details\n\nLinked content.");
+        Files.writeString(skillRoot.resolve("SKILL.md"), """
+                ---
+                name: test_skill
+                description: test
+                ---
+
+                # Skill Root
+
+                Use [details](details.md) and [template](templates/phase.md.template).
+                """);
+
+        Skill skill = skillParser.getSkill(skillRoot.resolve("SKILL.md"));
+
+        assertThat(skill.getAssets()).extracting(SkillAsset::uri)
+                .contains("templates/phase.md.template");
+        assertThat(skill.getLevel1Content()).extracting(MarkdownSection::getTitle)
+                .contains("Skill Root", "Details")
+                .doesNotContain("Template");
     }
 
     // ── templates ────────────────────────────────────────────────────────────
