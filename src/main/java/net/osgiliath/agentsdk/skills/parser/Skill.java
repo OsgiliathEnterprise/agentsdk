@@ -10,6 +10,10 @@ import java.util.Objects;
 /**
  * Public skill model returned by the parser.
  * Links and references are internal implementation details and are not exposed.
+ *
+ * @param headers   The skill's front-matter headers.
+ * @param assets    The skill's assets, including linked documents and resources.
+ * @param templates The templates
  */
 public record Skill(
         SkillsHeaders headers,

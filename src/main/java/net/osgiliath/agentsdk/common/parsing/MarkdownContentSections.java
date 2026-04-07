@@ -7,6 +7,8 @@ import java.util.Objects;
 
 /**
  * Consolidated body sections collected from markdown documents and followed links.
+ *
+ * @param sections List of markdown sections.
  */
 public record MarkdownContentSections(List<MarkdownSection> sections) {
 

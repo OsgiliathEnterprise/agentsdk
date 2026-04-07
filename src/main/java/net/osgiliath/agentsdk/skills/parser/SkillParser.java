@@ -6,7 +6,5 @@ import java.nio.file.Path;
 
 public interface SkillParser {
 
-    Skill getSkill(Path skillFile);
-
     Skill getSkill(Resource skillFileResource);
 }

@@ -14,6 +14,7 @@ import net.osgiliath.agentsdk.skills.parser.SkillTemplate;
 import net.osgiliath.agentsdk.skills.parser.SkillRenderer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.support.ResourcePatternResolver;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,7 +41,10 @@ public class SkillsParsingSteps {
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
     private SkillRenderer skillRenderer;
-    private Path skillFilePath;
+    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
+    @Autowired
+    private ResourcePatternResolver resourceResolver;
+    private String skillFilePath;
     private Path skillDatasetRoot;
     private Skill skill;
     private String renderedFlatDocument;
@@ -60,14 +64,13 @@ public class SkillsParsingSteps {
     @Given("a skill file at {string}")
     public void aSkillFileAt(String relativePath) {
         safely(() -> {
-            skillFilePath = resolveFromProject(relativePath);
-            assertThat(skillFilePath).exists();
+            skillFilePath = relativePath;
         });
     }
 
     @When("the skill parser reads the front matter header")
     public void theSkillParserReadsTheFrontMatterHeader() {
-        safely(() -> skill = skillParser.getSkill(skillFilePath));
+        safely(() -> skill = skillParser.getSkill(resourceResolver.getResource(skillFilePath)));
     }
 
     @Then("the parsed headers should contain:")
@@ -86,9 +89,8 @@ public class SkillsParsingSteps {
     @Given("a parsed skill from {string}")
     public void aParsedSkillFrom(String relativePath) {
         safely(() -> {
-            skillFilePath = resolveFromProject(relativePath);
-            assertThat(skillFilePath).exists();
-            skill = skillParser.getSkill(skillFilePath);
+            skillFilePath = relativePath;
+            skill = skillParser.getSkill(resourceResolver.getResource(skillFilePath));
         });
     }
 
@@ -145,10 +147,7 @@ public class SkillsParsingSteps {
     @Given("a skill dataset root at {string}")
     public void aSkillDatasetRootAt(String relativePath) {
         safely(() -> {
-            skillDatasetRoot = resolveFromProject(relativePath);
-            assertThat(skillDatasetRoot).isDirectory();
-            skillFilePath = skillDatasetRoot.resolve("SKILL.md");
-            assertThat(skillFilePath).exists();
+            skillFilePath = "classpath:/" + relativePath + "/SKILL.md";
         });
     }
 
@@ -156,7 +155,7 @@ public class SkillsParsingSteps {
     public void theParserReadsTheFolder(String folderName) {
         safely(() -> {
             assertThat(folderName).isEqualTo("reference");
-            skill = skillParser.getSkill(skillFilePath);
+            skill = skillParser.getSkill(resourceResolver.getResource(skillFilePath));
         });
     }
 
@@ -202,7 +201,7 @@ public class SkillsParsingSteps {
     public void templateResourcesAreScanned() {
         safely(() -> {
             if (skill == null) {
-                skill = skillParser.getSkill(skillFilePath);
+                skill = skillParser.getSkill(resourceResolver.getResource(skillFilePath));
             }
         });
     }
@@ -223,9 +222,9 @@ public class SkillsParsingSteps {
     @Given("a fully parsed skill with headers, body, links, assets, references, scripts, and templates")
     public void aFullyParsedSkillWithAllComponents() {
         safely(() -> {
-            skillFilePath = resolveFromProject(
-                    "dataset/markdown/skills/implements_features_file/SKILL.md");
-            skill = skillParser.getSkill(skillFilePath);
+            skillFilePath =
+                    "classpath:/dataset/markdown/skills/implements_features_file/SKILL.md";
+            skill = skillParser.getSkill(resourceResolver.getResource(skillFilePath));
         });
     }
 

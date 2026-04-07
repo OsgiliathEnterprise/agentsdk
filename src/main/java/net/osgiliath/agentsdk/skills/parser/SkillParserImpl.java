@@ -36,7 +36,7 @@ import java.util.stream.Stream;
 
 /**
  * Skill parser orchestrator.
- * The public API is intentionally narrow: parse and compose everything via {@link #getSkill(Path)}.
+ * The public API is intentionally narrow: parse and compose everything via {@link #getSkill(Resource)}.
  */
 @Component
 public class SkillParserImpl implements SkillParser {
@@ -74,25 +74,15 @@ public class SkillParserImpl implements SkillParser {
         return new Skill(headers, assets, templates, scriptCommands, content);
     }
 
-    @Override
-    public Skill getSkill(Path skillFile) {
-        Objects.requireNonNull(skillFile, "skillFile must not be null");
-        Path normalized = skillFile.toAbsolutePath().normalize();
-        if (!Files.isRegularFile(normalized)) {
-            throw new IllegalArgumentException("Skill file does not exist: " + normalized);
-        }
-        return getSkill(new FileSystemResource(normalized));
-    }
-
     private SkillsHeaders parseHeaders(MarkdownHeaders headers) {
         if (headers != null) {
             if (headers instanceof SkillsHeaders typed) {
                 return typed;
             }
             List<MarkdownHeader> mapped = headers.headerKeys().stream()
-                .filter(key -> !"text".equals(key))
-                .map(key -> (MarkdownHeader) new ParsingHeader(key, headers.header(key).orElse(null)))
-                .toList();
+                    .filter(key -> !"text".equals(key))
+                    .map(key -> (MarkdownHeader) new ParsingHeader(key, headers.header(key).orElse(null)))
+                    .toList();
             if (!mapped.isEmpty()) {
                 return SkillsHeaders.from(mapped);
             }
@@ -141,10 +131,10 @@ public class SkillParserImpl implements SkillParser {
 
     private List<SkillAsset> toAssets(List<ResolvedSkillLink> links) {
         return links.stream()
-            .filter(link -> !link.external())
-            .filter(link -> !isMarkdownResource(link.uri()))
-            .map(link -> new SkillAsset(link.uri()))
-            .toList();
+                .filter(link -> !link.external())
+                .filter(link -> !isMarkdownResource(link.uri()))
+                .map(link -> new SkillAsset(link.uri()))
+                .toList();
     }
 
     private MarkdownContentSections buildContent(MarkdownFile markdownFile, Resource skillFileResource) {
@@ -174,13 +164,13 @@ public class SkillParserImpl implements SkillParser {
     private List<MarkdownSection> mergeSections(List<MarkdownSection> first, List<MarkdownSection> second) {
         Map<String, MarkdownSection> uniqueByContent = new LinkedHashMap<>();
         Stream.concat(first.stream(), second.stream())
-            .forEach(section -> uniqueByContent.putIfAbsent(sectionKey(section), section));
+                .forEach(section -> uniqueByContent.putIfAbsent(sectionKey(section), section));
         return List.copyOf(uniqueByContent.values());
     }
 
     private String sectionKey(MarkdownSection section) {
         return (section.getTitle() == null ? "" : section.getTitle()) + "\n" +
-            (section.getContent() == null ? "" : section.getContent());
+                (section.getContent() == null ? "" : section.getContent());
     }
 
     private List<SkillScriptCommand> extractScriptCommands(Resource skillFileResource) {
@@ -295,15 +285,6 @@ public class SkillParserImpl implements SkillParser {
             this.links = links;
         }
 
-        @Override
-        public void visit(Link link) {
-            String destination = normalizeUri(link.getDestination());
-            if (!destination.isBlank()) {
-                links.add(new SkillLink(destination, isExternal(destination)));
-            }
-            visitChildren(link);
-        }
-
         private static String normalizeUri(String uri) {
             if (uri == null) {
                 return "";
@@ -314,6 +295,15 @@ public class SkillParserImpl implements SkillParser {
         private static boolean isExternal(String uri) {
             String normalized = uri.toLowerCase(Locale.ROOT);
             return normalized.startsWith("http://") || normalized.startsWith("https://");
+        }
+
+        @Override
+        public void visit(Link link) {
+            String destination = normalizeUri(link.getDestination());
+            if (!destination.isBlank()) {
+                links.add(new SkillLink(destination, isExternal(destination)));
+            }
+            visitChildren(link);
         }
     }
 
@@ -337,12 +327,12 @@ public class SkillParserImpl implements SkillParser {
                 return List.of();
             }
             return literal.lines()
-                .map(String::trim)
-                .filter(line -> !line.isBlank())
-                .filter(line -> !line.startsWith("#"))
-                .map(this::toCommand)
-                .flatMap(Optional::stream)
-                .toList();
+                    .map(String::trim)
+                    .filter(line -> !line.isBlank())
+                    .filter(line -> !line.startsWith("#"))
+                    .map(this::toCommand)
+                    .flatMap(Optional::stream)
+                    .toList();
         }
 
         private Optional<SkillScriptCommand> toCommand(String line) {

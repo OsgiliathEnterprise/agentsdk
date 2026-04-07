@@ -6,6 +6,9 @@ import java.util.Objects;
 
 /**
  * Immutable key/value front-matter header entry reusable across parsing domains.
+ *
+ * @param key   The header key.
+ * @param value The header value, which can be of any type.
  */
 public record ParsingHeader(String key, Object value) implements MarkdownHeader {
 

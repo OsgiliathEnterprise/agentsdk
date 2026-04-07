@@ -39,10 +39,6 @@ class SkillResolverTest {
     private static SkillParser skillParser() {
         return new SkillParser() {
             @Override
-            public Skill getSkill(java.nio.file.Path skillFile) {
-                return null;
-            }
-            @Override
             public Skill getSkill(org.springframework.core.io.Resource resource) {
                 return null;
             }
@@ -69,6 +65,14 @@ class SkillResolverTest {
                 return SkillResolverTest.class.getClassLoader();
             }
         };
+    }
+
+    private static String trimTrailingSlashes(String value) {
+        int end = value.length();
+        while (end > 0 && value.charAt(end - 1) == '/') {
+            end--;
+        }
+        return value.substring(0, end);
     }
 
     @BeforeEach
@@ -138,14 +142,6 @@ class SkillResolverTest {
         assertThatThrownBy(() -> skillResolver.resolveSkills(List.of("nonexistent-skill")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("nonexistent-skill");
-    }
-
-    private static String trimTrailingSlashes(String value) {
-        int end = value.length();
-        while (end > 0 && value.charAt(end - 1) == '/') {
-            end--;
-        }
-        return value.substring(0, end);
     }
 
     private IllegalStateException invokeResolveSkillFromBaseFolder(SkillResolverImpl resolver) {
