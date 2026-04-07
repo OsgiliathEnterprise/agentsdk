@@ -13,6 +13,7 @@ import net.osgiliath.agentsdk.mcp.McpToolAliasResolver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.support.ResourcePatternResolver;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -32,6 +33,10 @@ public class ToolsAliasesSteps {
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
     private McpToolAliasResolver aliasResolver;
+
+    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
+    @Autowired
+    private ResourcePatternResolver resourcePatternResolver;
 
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
@@ -55,9 +60,7 @@ public class ToolsAliasesSteps {
 
     @Given("a parsed agent from {string}")
     public void aParsedAgentFrom(String path) {
-        Path agentPath = resolvePath(path);
-        assertThat(agentPath).exists();
-        parsedAgent = agentParser.getAgent(agentPath);
+        parsedAgent = agentParser.getAgent(resourcePatternResolver.getResource("classpath:/" + path));
     }
 
     @Given("the MCP tool aliases configuration is loaded")
@@ -112,17 +115,4 @@ public class ToolsAliasesSteps {
         assertThat(resolvedToolNames.get(0)).isNotEmpty();
     }
 
-    private Path resolvePath(String rawPath) {
-        try {
-            ClassPathResource resource = new ClassPathResource(rawPath);
-            if (resource.exists()) {
-                return resource.getFile().toPath().toAbsolutePath().normalize();
-            }
-        } catch (Exception ignored) {
-            // fall back to filesystem resolution below
-        }
-
-        Path fileSystemPath = Paths.get(rawPath);
-        return fileSystemPath.toAbsolutePath().normalize();
-    }
 }

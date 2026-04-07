@@ -226,11 +226,12 @@ class SkillParserTest {
     void shouldIncludeLinkedMarkdownContentSections() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        List<String> titles = skill.getLevel1Content().stream()
-                .map(MarkdownSection::getTitle)
-                .toList();
+        MarkdownSection pptxSkill = skill.getLevel1Content().stream()
+                .filter(s -> "PPTX Skill".equals(s.getTitle()))
+                .findFirst()
+                .orElseThrow();
 
-        assertThat(titles).contains("Instructions");
+        assertThat(pptxSkill.getSubSection("Instructions")).isPresent();
     }
 
     @Test
@@ -259,7 +260,12 @@ class SkillParserTest {
     void shouldNotDuplicateSectionsFromRepeatedLinks() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        long instructionSectionCount = skill.getLevel1Content().stream()
+        MarkdownSection pptxSkill = skill.getLevel1Content().stream()
+                .filter(s -> "PPTX Skill".equals(s.getTitle()))
+                .findFirst()
+                .orElseThrow();
+
+        long instructionSectionCount = pptxSkill.getSubSections().stream()
                 .filter(s -> "Instructions".equals(s.getTitle()))
                 .count();
 
@@ -294,9 +300,12 @@ class SkillParserTest {
     void shouldHaveContentInSubSections() {
         Skill skill = skillParser.getSkill(SKILL_FILE);
 
-        MarkdownSection instructions = skill.getLevel1Content().stream()
-                .filter(s -> "Instructions".equals(s.getTitle()))
+        MarkdownSection pptxSkill = skill.getLevel1Content().stream()
+                .filter(s -> "PPTX Skill".equals(s.getTitle()))
                 .findFirst()
+                .orElseThrow();
+
+        MarkdownSection instructions = pptxSkill.getSubSection("Instructions")
                 .orElseThrow();
 
         assertThat(instructions.getContent()).isNotBlank();

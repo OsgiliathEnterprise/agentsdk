@@ -23,8 +23,8 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -417,24 +417,7 @@ public class MarkdownParsingSteps {
         if (maybeMarkdownFile == null || maybeMarkdownFile.getSubSections() == null) {
             return "";
         }
-        return maybeMarkdownFile.getSubSections().stream()
-                .map(this::flattenSectionContent)
-                .filter(content -> !content.isBlank())
-                .reduce("", (left, right) -> left + System.lineSeparator() + right);
-    }
-
-    private String flattenSectionContent(MarkdownSection section) {
-        if (section == null) {
-            return "";
-        }
-        StringBuilder builder = new StringBuilder(Optional.ofNullable(section.getContent()).orElse(""));
-        for (MarkdownSection subSection : Optional.ofNullable(section.getSubSections()).orElse(List.of())) {
-            String nested = flattenSectionContent(subSection);
-            if (!nested.isBlank()) {
-                builder.append(System.lineSeparator()).append(nested);
-            }
-        }
-        return builder.toString().trim();
+        return markdownParser.renderSectionsAsMarkdown(maybeMarkdownFile.getSubSections());
     }
 
     private String readDatasetFile(String fileName) {

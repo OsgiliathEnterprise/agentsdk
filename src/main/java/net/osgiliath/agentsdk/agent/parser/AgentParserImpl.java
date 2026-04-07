@@ -47,13 +47,6 @@ public class AgentParserImpl implements AgentParser {
     }
 
     @Override
-    public Agent getAgent(Path agentFile) {
-        Path normalized = validateAgentFile(agentFile);
-        Resource agentResource = new FileSystemResource(normalized);
-        return getAgent(agentResource);
-    }
-
-    @Override
     public Agent getAgent(Resource agentResource) {
         MarkdownFile markdownFile = markdownParser.getMarkdownFile(agentResource)
                 .orElseThrow(() -> new IllegalArgumentException("Unable to parse markdown: " + agentResource.getDescription()));

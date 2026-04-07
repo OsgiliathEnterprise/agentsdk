@@ -2,15 +2,20 @@ package net.osgiliath.agentsdk.utils.markdown;
 
 import dev.langchain4j.data.document.Document;
 import org.commonmark.node.Heading;
+import org.commonmark.node.Link;
 import org.commonmark.node.Node;
 import org.commonmark.node.Paragraph;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.markdown.MarkdownRenderer;
 import org.commonmark.renderer.text.TextContentRenderer;
+import net.osgiliath.agentsdk.utils.resource.ResourceLocationResolver;
+import net.osgiliath.agentsdk.utils.resource.ResourceLocationResolverImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Component;
 import org.commonmark.ext.front.matter.YamlFrontMatterVisitor;
 
@@ -23,24 +28,36 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Component
 public class MarkdownParserImpl implements MarkdownParser {
 
+    private static final Pattern MARKDOWN_LINK_PATTERN = Pattern.compile("\\[([^\\]]+)]\\(([^)]+)\\)");
     private final Parser parser;
     private final MarkdownRenderer markdownRenderer;
     private final TextContentRenderer textContentRenderer;
+    private final ResourceLocationResolver resourceLocationResolver;
     Logger logger = LoggerFactory.getLogger(MarkdownParserImpl.class);
 
     public MarkdownParserImpl(Parser markdownParser) {
+        this(markdownParser, new ResourceLocationResolverImpl(new PathMatchingResourcePatternResolver()));
+    }
+
+    @Autowired
+    public MarkdownParserImpl(Parser markdownParser, ResourceLocationResolver resourceLocationResolver) {
         this.parser = markdownParser;
         this.markdownRenderer = MarkdownRenderer.builder().build();
         this.textContentRenderer = TextContentRenderer.builder().build();
+        this.resourceLocationResolver = resourceLocationResolver;
     }
 
     @Override
@@ -103,11 +120,13 @@ public class MarkdownParserImpl implements MarkdownParser {
         }
     }
 
+    // FIXME: support inlining option (true or false)
     private Optional<MarkdownFile> parseMarkdownResource(Resource resource) throws IOException {
         String source = readResource(resource);
-        logger.trace("Parsed resource with {} bytes", source.length());
-        Node document = parser.parse(source);
-        Optional<MarkdownHeaders> headers = parseHeaders(document, source);
+        String sourceWithInlinedMarkdown = inlineMarkdownLinks(resource, source, new HashSet<>());
+        logger.trace("Parsed resource with {} bytes", sourceWithInlinedMarkdown.length());
+        Node document = parser.parse(sourceWithInlinedMarkdown);
+        Optional<MarkdownHeaders> headers = parseHeaders(document, sourceWithInlinedMarkdown);
         logger.debug("Extracted {} headers", headers.map(h -> h.headerKeys().size()).orElse(0));
         List<MarkdownSection> parsedSections = parseSections(document);
         if (parsedSections.isEmpty() && !source.isBlank()) {
@@ -116,6 +135,90 @@ public class MarkdownParserImpl implements MarkdownParser {
         }
         logger.info("Parsed {} section(s) from markdown resource", parsedSections.size());
         return Optional.of(new MarkdownFile(headers.orElse(null), parsedSections));
+    }
+
+    private String inlineMarkdownLinks(Resource resource, String source, Set<String> visited) {
+        if (source == null || source.isBlank()) {
+            return "";
+        }
+        String resourceId = describeResource(resource);
+        if (!visited.add(resourceId)) {
+            return "";
+        }
+
+        Matcher matcher = MARKDOWN_LINK_PATTERN.matcher(source);
+        StringBuffer buffer = new StringBuffer();
+        while (matcher.find()) {
+            String linkText = matcher.group(1);
+            String destination = matcher.group(2) == null ? "" : matcher.group(2).trim();
+            String replacement = "[" + linkText + "](" + destination + ")";
+
+            String normalizedDestination = normalizeDestination(destination);
+            if (!normalizedDestination.isBlank() && !isExternal(normalizedDestination)) {
+                Optional<Resource> resolved = resolveLinkedResource(resource, normalizedDestination);
+                if (resolved.isPresent() && isMarkdownResource(normalizedDestination, resolved.get())) {
+                    String linkedSource = readResource(resolved.get());
+                    String inlined = inlineMarkdownLinks(resolved.get(), linkedSource, visited).trim();
+                    if (!inlined.isBlank()) {
+                        replacement = replacement + System.lineSeparator() + System.lineSeparator() + inlined;
+                    }
+                }
+            }
+
+            matcher.appendReplacement(buffer, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(buffer);
+        return buffer.toString();
+    }
+
+    private Optional<Resource> resolveLinkedResource(Resource currentResource, String destination) {
+        String baseFolder = currentResourceBaseFolder(currentResource);
+        if (baseFolder.isBlank()) {
+            return Optional.empty();
+        }
+        return resourceLocationResolver.resolveFirstExisting(List.of(baseFolder), destination);
+    }
+
+    private String currentResourceBaseFolder(Resource resource) {
+        try {
+            String url = resource.getURL().toString();
+            int slash = url.lastIndexOf('/');
+            return slash >= 0 ? url.substring(0, slash + 1) : "";
+        } catch (IOException e) {
+            return "";
+        }
+    }
+
+    private String describeResource(Resource resource) {
+        try {
+            return resource.getURL().toString();
+        } catch (IOException e) {
+            return resource.getDescription();
+        }
+    }
+
+    private String normalizeDestination(String destination) {
+        String normalized = destination.split("#", 2)[0].trim();
+        while (normalized.startsWith("./")) {
+            normalized = normalized.substring(2);
+        }
+        if (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        return normalized;
+    }
+
+    private boolean isExternal(String destination) {
+        String lowered = destination.toLowerCase(Locale.ROOT);
+        return lowered.startsWith("http://") || lowered.startsWith("https://");
+    }
+
+    private boolean isMarkdownResource(String destination, Resource resolvedResource) {
+        if (destination.toLowerCase(Locale.ROOT).endsWith(".md")) {
+            return true;
+        }
+        String filename = resolvedResource.getFilename();
+        return filename != null && filename.toLowerCase(Locale.ROOT).endsWith(".md");
     }
 
     @Override
@@ -193,7 +296,7 @@ public class MarkdownParserImpl implements MarkdownParser {
         String heading = "#".repeat(level);
         String title = section.getTitle() == null ? "" : section.getTitle();
         if (!title.isBlank()) {
-            builder.append(heading).append(' ').append(title).append(System.lineSeparator());
+            builder.append(heading).append(' ').append(title).append(System.lineSeparator()).append(System.lineSeparator());
         }
         String content = section.getContent() == null ? "" : section.getContent().trim();
         if (!content.isBlank()) {

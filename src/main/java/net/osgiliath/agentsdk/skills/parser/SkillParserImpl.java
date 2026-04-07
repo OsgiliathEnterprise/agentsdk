@@ -70,7 +70,7 @@ public class SkillParserImpl implements SkillParser {
         List<SkillTemplate> templates = scanTemplates(skillFileResource);
         List<SkillScriptCommand> scriptCommands = extractScriptCommands(skillFileResource);
 
-        MarkdownContentSections content = buildContent(markdownFile, skillFileResource, discoveredLinks);
+        MarkdownContentSections content = buildContent(markdownFile, skillFileResource);
         return new Skill(headers, assets, templates, scriptCommands, content);
     }
 
@@ -147,30 +147,13 @@ public class SkillParserImpl implements SkillParser {
             .toList();
     }
 
-    private MarkdownContentSections buildContent(MarkdownFile markdownFile, Resource skillFileResource,
-                                                 List<ResolvedSkillLink> discoveredLinks) {
+    private MarkdownContentSections buildContent(MarkdownFile markdownFile, Resource skillFileResource) {
+        // MarkdownParser already expands linked markdown content, so only merge main+reference sections here.
         List<MarkdownSection> linkedSections = new ArrayList<>(markdownFile.getSubSections());
-        linkedSections.addAll(parseLinkedMarkdownSections(discoveredLinks));
         List<MarkdownSection> referenceSections = parseReferenceSections(skillFileResource);
         return new MarkdownContentSections(mergeSections(linkedSections, referenceSections));
     }
 
-    private List<MarkdownSection> parseLinkedMarkdownSections(List<ResolvedSkillLink> discoveredLinks) {
-        List<MarkdownSection> sections = new ArrayList<>();
-        Set<String> visitedResources = new LinkedHashSet<>();
-        for (ResolvedSkillLink link : discoveredLinks) {
-            if (link.external() || !isMarkdownResource(link.uri()) || link.resolvedResource() == null) {
-                continue;
-            }
-            String resourceId = describeResource(link.resolvedResource());
-            if (!visitedResources.add(resourceId)) {
-                continue;
-            }
-            markdownParser.getMarkdownFile(link.resolvedResource())
-                    .ifPresent(file -> sections.addAll(file.getSubSections()));
-        }
-        return sections;
-    }
 
     private List<MarkdownSection> parseReferenceSections(Resource skillFileResource) {
         try {

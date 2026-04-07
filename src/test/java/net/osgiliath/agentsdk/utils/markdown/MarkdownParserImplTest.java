@@ -105,7 +105,7 @@ class MarkdownParserImplTest {
     }
 
     @Test
-    void linkedFileContentIsNotConsolidated() throws IOException {
+    void linkedMarkdownContentIsConsolidated() throws IOException {
         write("main.md", """
                 # Main
                 
@@ -121,7 +121,27 @@ class MarkdownParserImplTest {
 
         assertThat(result).isPresent();
         List<MarkdownSection> sections = result.get().getSubSections();
-        assertThat(sections).extracting(MarkdownSection::getTitle).containsExactly("Main");
+        assertThat(sections).extracting(MarkdownSection::getTitle).contains("Main", "Details");
+        assertThat(sections)
+                .extracting(MarkdownSection::getContent)
+                .anyMatch(content -> content != null && content.contains("Detail content."));
+    }
+
+    @Test
+    void nonMarkdownLinksAreKeptAsLinks() throws IOException {
+        write("main.md", """
+                # Main
+
+                Download [spec](spec.txt).
+                """);
+        write("spec.txt", "spec content");
+
+        Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "main.md");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getSubSections())
+                .extracting(MarkdownSection::getContent)
+                .anyMatch(content -> content != null && content.contains("[spec](spec.txt)"));
     }
 
     private void write(String fileName, String content) throws IOException {

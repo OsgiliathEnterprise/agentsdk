@@ -6,8 +6,6 @@ import org.springframework.core.io.Resource;
 import java.nio.file.Path;
 
 public interface AgentParser {
-    Agent getAgent(Path agentFile);
-
     Agent getAgent(Resource agentResource);
 
     SystemMessage getSystemPrompt(Agent agent);

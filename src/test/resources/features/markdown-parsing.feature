@@ -114,7 +114,7 @@ Feature: Markdown Parsing
     And external links should be preserved but not followed
     And the consolidated content should include Easter egg values from linked files
 
-  Scenario: SC5 - Handle circular references when following links
+  Scenario: SC6 - Handle circular references when following links
     Given a markdown file "page1.md" with a link to "page2.md"
     And a markdown file "page2.md" with a link to "page1.md"
     When I follow and consolidate all markdown links
