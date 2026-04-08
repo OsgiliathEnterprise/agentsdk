@@ -23,11 +23,11 @@ import java.util.Set;
 public class MarkdownLinkedResourceResolver {
 
     private final Parser commonMarkParser;
-    private final List<MarkdownLinkResolutionHandler> resolutionHandlers;
+    private final List<LinkResolutionHandler> resolutionHandlers;
     private final List<MarkdownLinkVisitor> visitors;
 
     public MarkdownLinkedResourceResolver(Parser commonMarkParser,
-                                          List<MarkdownLinkResolutionHandler> resolutionHandlers,
+                                          List<LinkResolutionHandler> resolutionHandlers,
                                           List<MarkdownLinkVisitor> visitors) {
         this.commonMarkParser = Objects.requireNonNull(commonMarkParser, "commonMarkParser must not be null");
         Objects.requireNonNull(resolutionHandlers, "resolutionHandlers must not be null");
@@ -94,7 +94,7 @@ public class MarkdownLinkedResourceResolver {
     }
 
     private Optional<Resource> resolveWithChain(Resource sourceResource, String destination) {
-        for (MarkdownLinkResolutionHandler handler : resolutionHandlers) {
+        for (LinkResolutionHandler handler : resolutionHandlers) {
             if (!handler.supports(sourceResource, destination)) {
                 continue;
             }

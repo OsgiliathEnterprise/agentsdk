@@ -2,10 +2,9 @@ package net.osgiliath.agentsdk.utils.resource;
 
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
 
-import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -13,30 +12,23 @@ import java.util.Optional;
  */
 @Component
 @Order(200)
-public class LocationMarkdownLinkResolutionHandler implements MarkdownLinkResolutionHandler {
+public class LocationMarkdownLinkResolutionHandler implements LinkResolutionHandler {
 
-    private final ResourceLoader resourceLoader;
+    private final ResourceLocationResolver resourceLocationResolver;
 
-    public LocationMarkdownLinkResolutionHandler(ResourceLoader resourceLoader) {
-        this.resourceLoader = resourceLoader;
+    public LocationMarkdownLinkResolutionHandler(ResourceLocationResolver resourceLocationResolver) {
+        this.resourceLocationResolver = Objects.requireNonNull(resourceLocationResolver,
+                "resourceLocationResolver must not be null");
     }
 
     @Override
     public boolean supports(Resource sourceResource, String normalizedDestination) {
-        return isMarkdownResource(normalizedDestination);
+        return true;
     }
 
     @Override
     public Optional<Resource> resolve(Resource sourceResource, String normalizedDestination) {
-        Resource resolved = resourceLoader.getResource(normalizedDestination);
-        if (resolved.exists() && resolved.isReadable()) {
-            return Optional.of(resolved);
-        }
-        return Optional.empty();
-    }
-
-    private boolean isMarkdownResource(String destination) {
-        return destination != null && destination.toLowerCase(Locale.ROOT).endsWith(".md");
+        return resourceLocationResolver.resolveLocation(normalizedDestination);
     }
 }
 

@@ -12,7 +12,6 @@ import net.osgiliath.agentsdk.utils.markdown.MarkdownHeaders;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 import net.osgiliath.agentsdk.utils.resource.MarkdownLinkedResourceResolver;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
@@ -124,6 +123,4 @@ public class AgentParserImpl implements AgentParser {
         return (section.getTitle() == null ? "" : section.getTitle()) + "\n"
                 + (section.getContent() == null ? "" : section.getContent());
     }
-
-
 }

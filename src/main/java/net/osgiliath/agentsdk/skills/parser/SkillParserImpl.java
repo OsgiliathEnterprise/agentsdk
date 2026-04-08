@@ -7,22 +7,18 @@ import net.osgiliath.agentsdk.utils.markdown.MarkdownHeader;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownHeaders;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
+import net.osgiliath.agentsdk.utils.resource.ResourceLocationResolver;
 import org.commonmark.node.AbstractVisitor;
 import org.commonmark.node.FencedCodeBlock;
 import org.commonmark.node.Link;
 import org.commonmark.node.Node;
 import org.commonmark.parser.Parser;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -46,13 +42,13 @@ public class SkillParserImpl implements SkillParser {
 
     private final MarkdownParser markdownParser;
     private final Parser commonMarkParser;
-    private final ResourcePatternResolver resourcePatternResolver;
+    private final ResourceLocationResolver resourceLocationResolver;
 
     public SkillParserImpl(MarkdownParser markdownParser, Parser commonMarkParser,
-                           ResourcePatternResolver resourcePatternResolver) {
+                           ResourceLocationResolver resourceLocationResolver) {
         this.markdownParser = markdownParser;
         this.commonMarkParser = commonMarkParser;
-        this.resourcePatternResolver = resourcePatternResolver;
+        this.resourceLocationResolver = resourceLocationResolver;
     }
 
     @Override
@@ -114,7 +110,7 @@ public class SkillParserImpl implements SkillParser {
         document.accept(new LinkCollector(localLinks));
 
         for (SkillLink link : localLinks) {
-            Resource resolved = link.external() ? null : resolveRelativeResource(currentResource, link.uri());
+            Resource resolved = link.external() ? null : resourceLocationResolver.resolveRelative(currentResource, link.uri()).orElse(null);
             String normalizedUri = normalizeSkillUri(rootResource, link.uri(), resolved);
             links.add(new ResolvedSkillLink(normalizedUri, link.external(), resolved));
 
@@ -147,11 +143,8 @@ public class SkillParserImpl implements SkillParser {
 
     private List<MarkdownSection> parseReferenceSections(Resource skillFileResource) {
         try {
-            String skillRootUrl = getParentUrl(skillFileResource);
-            String referencePattern = skillRootUrl + REFERENCE_FOLDER + "/*.md";
-            Resource[] resources = resourcePatternResolver.getResources(referencePattern);
             List<MarkdownSection> sections = new ArrayList<>();
-            for (Resource resource : resources) {
+            for (Resource resource : resourceLocationResolver.resolveResources(skillFileResource, REFERENCE_FOLDER + "/*.md")) {
                 markdownParser.getMarkdownFile(resource)
                         .ifPresent(file -> sections.addAll(file.getSubSections()));
             }
@@ -182,12 +175,9 @@ public class SkillParserImpl implements SkillParser {
 
     private List<SkillTemplate> scanTemplates(Resource skillFileResource) {
         try {
-            String skillRootUrl = getParentUrl(skillFileResource);
-            String templatesPattern = skillRootUrl + TEMPLATES_FOLDER + "/**/*";
-            Resource[] resources = resourcePatternResolver.getResources(templatesPattern);
-            return Stream.of(resources)
+            return resourceLocationResolver.resolveResources(skillFileResource, TEMPLATES_FOLDER + "/**/*").stream()
                     .filter(r -> r.isReadable() && r.getFilename() != null && !r.getFilename().isBlank())
-                    .map(r -> toRelativeUri(skillRootUrl, r))
+                    .map(r -> resourceLocationResolver.relativize(skillFileResource, r).orElse(null))
                     .filter(Objects::nonNull)
                     .map(SkillTemplate::new)
                     .toList();
@@ -196,62 +186,13 @@ public class SkillParserImpl implements SkillParser {
         }
     }
 
-    /**
-     * Returns the parent-directory URL of the given resource with a trailing slash,
-     * e.g. {@code file:/path/to/skill/} for a resource at {@code file:/path/to/skill/SKILL.md}.
-     */
-    private String getParentUrl(Resource resource) throws IOException {
-        String url = resource.getURL().toString();
-        int lastSlash = url.lastIndexOf('/');
-        return lastSlash >= 0 ? url.substring(0, lastSlash + 1) : url + "/";
-    }
-
-    private String toRelativeUri(String skillRootUrl, Resource resource) {
-        try {
-            String url = resource.getURL().toString();
-            return url.startsWith(skillRootUrl) ? url.substring(skillRootUrl.length()) : null;
-        } catch (IOException e) {
-            return null;
-        }
-    }
-
-    private Resource resolveRelativeResource(Resource currentResource, String destination) {
-        try {
-            Resource resolved = currentResource.createRelative(destination);
-            return resolved.exists() && resolved.isReadable() ? resolved : null;
-        } catch (IOException e) {
-            return null;
-        }
-    }
-
     private String normalizeSkillUri(Resource skillFileResource, String rawUri, Resource resolvedResource) {
         if (resolvedResource == null) {
             return rawUri;
         }
-        try {
-            String skillRootUrl = getParentUrl(skillFileResource);
-            String relativeUri = toRelativeUri(skillRootUrl, resolvedResource);
-            if (relativeUri != null && !relativeUri.isBlank()) {
-                return relativeUri;
-            }
-        } catch (IOException ignored) {
-            // Fall back to the original URI when root URL cannot be computed.
-        }
-        return relativizeAgainstParent(skillFileResource, resolvedResource).orElse(rawUri);
-    }
-
-    private Optional<String> relativizeAgainstParent(Resource baseResource, Resource targetResource) {
-        try {
-            URI baseDir = URI.create(getParentUrl(baseResource));
-            URI target = targetResource.getURL().toURI();
-            String relative = baseDir.relativize(target).getPath();
-            if (relative == null || relative.isBlank() || relative.equals(target.getPath())) {
-                return Optional.empty();
-            }
-            return Optional.of(relative);
-        } catch (Exception e) {
-            return Optional.empty();
-        }
+        return resourceLocationResolver.relativize(skillFileResource, resolvedResource)
+                .filter(relative -> !relative.isBlank())
+                .orElse(rawUri);
     }
 
     private String describeResource(Resource resource) {

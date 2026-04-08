@@ -14,6 +14,14 @@ public interface ResourceLocationResolver {
 
     List<Resource> resolveResources(String baseFolder, String relativePattern) throws IOException;
 
+    List<Resource> resolveResources(Resource baseResource, String relativePattern) throws IOException;
+
     Optional<Resource> resolveFirstExisting(List<String> baseFolders, String relativePath);
+
+    Optional<Resource> resolveRelative(Resource currentResource, String relativePath);
+
+    Optional<Resource> resolveLocation(String location);
+
+    Optional<String> relativize(Resource baseResource, Resource targetResource);
 }
 

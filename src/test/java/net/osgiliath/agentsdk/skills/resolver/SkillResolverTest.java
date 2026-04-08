@@ -79,8 +79,8 @@ class SkillResolverTest {
     void setUp() {
         Parser commonmarkParser = new MarkdownConfiguration().markdownParser();
         MarkdownParser markdownParser = new MarkdownParserImpl(commonmarkParser);
-        SkillParser skillParser = new SkillParserImpl(markdownParser, commonmarkParser, new PathMatchingResourcePatternResolver());
         resourceLocationResolver = new ResourceLocationResolverImpl(new PathMatchingResourcePatternResolver());
+        SkillParser skillParser = new SkillParserImpl(markdownParser, commonmarkParser, resourceLocationResolver);
 
         CodepromptConfiguration config = new CodepromptConfiguration();
         config.getAgent().setSkillFolders(List.of("classpath:dataset/markdown/skills/"));

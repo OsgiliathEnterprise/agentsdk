@@ -4,8 +4,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -13,28 +12,23 @@ import java.util.Optional;
  */
 @Component
 @Order(100)
-public class RelativeMarkdownLinkResolutionHandler implements MarkdownLinkResolutionHandler {
+public class RelativeMarkdownLinkResolutionHandler implements LinkResolutionHandler {
+
+    private final ResourceLocationResolver resourceLocationResolver;
+
+    public RelativeMarkdownLinkResolutionHandler(ResourceLocationResolver resourceLocationResolver) {
+        this.resourceLocationResolver = Objects.requireNonNull(resourceLocationResolver,
+                "resourceLocationResolver must not be null");
+    }
 
     @Override
     public boolean supports(Resource sourceResource, String normalizedDestination) {
-        return isMarkdownResource(normalizedDestination);
+        return true;
     }
 
     @Override
     public Optional<Resource> resolve(Resource sourceResource, String normalizedDestination) {
-        try {
-            Resource resolved = sourceResource.createRelative(normalizedDestination);
-            if (resolved.exists() && resolved.isReadable()) {
-                return Optional.of(resolved);
-            }
-            return Optional.empty();
-        } catch (IOException e) {
-            return Optional.empty();
-        }
-    }
-
-    private boolean isMarkdownResource(String destination) {
-        return destination != null && destination.toLowerCase(Locale.ROOT).endsWith(".md");
+        return resourceLocationResolver.resolveRelative(sourceResource, normalizedDestination);
     }
 }
 

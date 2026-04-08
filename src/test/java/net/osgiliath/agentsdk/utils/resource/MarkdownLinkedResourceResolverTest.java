@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,7 +40,7 @@ class MarkdownLinkedResourceResolverTest {
         Files.writeString(child, "# Child");
 
         List<String> callOrder = new ArrayList<>();
-        MarkdownLinkResolutionHandler first = new MarkdownLinkResolutionHandler() {
+        LinkResolutionHandler first = new LinkResolutionHandler() {
             @Override
             public boolean supports(Resource sourceResource, String normalizedDestination) {
                 callOrder.add("first-supports");
@@ -53,7 +54,7 @@ class MarkdownLinkedResourceResolverTest {
             }
         };
 
-        MarkdownLinkResolutionHandler second = new MarkdownLinkResolutionHandler() {
+        LinkResolutionHandler second = new LinkResolutionHandler() {
             @Override
             public boolean supports(Resource sourceResource, String normalizedDestination) {
                 callOrder.add("second-supports");
@@ -116,9 +117,10 @@ class MarkdownLinkedResourceResolverTest {
         };
 
         Parser parser = new MarkdownConfiguration().markdownParser();
+        ResourceLocationResolver resourceLocationResolver = new ResourceLocationResolverImpl(new PathMatchingResourcePatternResolver());
         MarkdownLinkedResourceResolver resolver = new MarkdownLinkedResourceResolver(
                 parser,
-                List.of(new RelativeMarkdownLinkResolutionHandler()),
+                List.of(new RelativeMarkdownLinkResolutionHandler(resourceLocationResolver)),
                 List.of(visitor));
 
         List<Resource> resolved = resolver.resolveRecursively(new FileSystemResource(root));

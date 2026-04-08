@@ -8,6 +8,8 @@ import net.osgiliath.agentsdk.llm.LLMS_KIND;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParserImpl;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
+import net.osgiliath.agentsdk.utils.resource.ResourceLocationResolver;
+import net.osgiliath.agentsdk.utils.resource.ResourceLocationResolverImpl;
 import org.commonmark.parser.Parser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,7 +48,9 @@ class SkillParserTest {
     void setUp() {
         Parser commonmarkParser = new MarkdownConfiguration().markdownParser();
         MarkdownParser markdownParser = new MarkdownParserImpl(commonmarkParser);
-        skillParser = new SkillParserImpl(markdownParser, commonmarkParser, new PathMatchingResourcePatternResolver());
+        ResourceLocationResolver resourceLocationResolver =
+                new ResourceLocationResolverImpl(new PathMatchingResourcePatternResolver());
+        skillParser = new SkillParserImpl(markdownParser, commonmarkParser, resourceLocationResolver);
     }
 
     // ── headers ──────────────────────────────────────────────────────────────

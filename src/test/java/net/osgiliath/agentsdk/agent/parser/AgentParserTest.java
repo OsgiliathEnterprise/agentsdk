@@ -19,19 +19,14 @@ import net.osgiliath.agentsdk.skills.resolver.SkillResolverImpl;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParserImpl;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
-import net.osgiliath.agentsdk.utils.resource.LocationMarkdownLinkResolutionHandler;
-import net.osgiliath.agentsdk.utils.resource.MarkdownLinkedResourceResolver;
-import net.osgiliath.agentsdk.utils.resource.RelativeMarkdownLinkResolutionHandler;
-import net.osgiliath.agentsdk.utils.resource.ResourceLocationResolverImpl;
+import net.osgiliath.agentsdk.utils.resource.*;
 import org.commonmark.parser.Parser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
 
 import java.nio.file.Path;
@@ -63,6 +58,8 @@ class AgentParserTest {
 
     @Autowired
     private ResourcePatternResolver resourcePatternResolver;
+    @Autowired
+    private ResourceLocationResolver resourceLocationResolver;
 
     @BeforeEach
     void setUp() {
@@ -251,7 +248,7 @@ class AgentParserTest {
     private AgentParser createRealAgentParser() {
         Parser commonmarkParser = new MarkdownConfiguration().markdownParser();
         MarkdownParser markdownParser = new MarkdownParserImpl(commonmarkParser);
-        SkillParser skillParser = new SkillParserImpl(markdownParser, commonmarkParser, new PathMatchingResourcePatternResolver());
+        SkillParser skillParser = new SkillParserImpl(markdownParser, commonmarkParser, resourceLocationResolver);
 
         CodepromptConfiguration config = new CodepromptConfiguration();
         config.getAgent().setSkillFolders(List.of("classpath:dataset/markdown/skills/"));
@@ -259,7 +256,7 @@ class AgentParserTest {
         SkillResolver resolver = new SkillResolverImpl(
                 config,
                 skillParser,
-                new ResourceLocationResolverImpl(new PathMatchingResourcePatternResolver()));
+                resourceLocationResolver);
         SkillRenderer renderer = new SkillRendererImpl();
 
         return new AgentParserImpl(
@@ -270,11 +267,12 @@ class AgentParserTest {
     }
 
     private MarkdownLinkedResourceResolver newMarkdownLinkedResourceResolver(Parser commonmarkParser) {
+        ResourceLocationResolver resolver = new ResourceLocationResolverImpl(resourcePatternResolver);
         return new MarkdownLinkedResourceResolver(
                 commonmarkParser,
                 List.of(
-                        new RelativeMarkdownLinkResolutionHandler(),
-                        new LocationMarkdownLinkResolutionHandler(new DefaultResourceLoader())),
+                        new RelativeMarkdownLinkResolutionHandler(resolver),
+                        new LocationMarkdownLinkResolutionHandler(resolver)),
                 List.of());
     }
 

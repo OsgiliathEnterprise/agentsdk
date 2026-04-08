@@ -6,6 +6,7 @@ import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -53,6 +54,11 @@ public class ResourceLocationResolverImpl implements ResourceLocationResolver {
     }
 
     @Override
+    public List<Resource> resolveResources(Resource baseResource, String relativePattern) throws IOException {
+        return resolveResources(parentFolder(baseResource), relativePattern);
+    }
+
+    @Override
     public Optional<Resource> resolveFirstExisting(List<String> baseFolders, String relativePath) {
         for (String baseFolder : baseFolders) {
             try {
@@ -66,6 +72,51 @@ public class ResourceLocationResolverImpl implements ResourceLocationResolver {
             }
         }
         return Optional.empty();
+    }
+
+    @Override
+    public Optional<Resource> resolveRelative(Resource currentResource, String relativePath) {
+        if (relativePath == null || relativePath.isBlank()) {
+            return Optional.empty();
+        }
+        String normalizedPath = relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
+        try {
+            return resolveFirstExisting(List.of(parentFolder(currentResource)), normalizedPath)
+                    .filter(Resource::isReadable);
+        } catch (IOException e) {
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public Optional<Resource> resolveLocation(String location) {
+        if (location == null || location.isBlank()) {
+            return Optional.empty();
+        }
+        Resource resource = resourcePatternResolver.getResource(location);
+        return resource.exists() && resource.isReadable() ? Optional.of(resource) : Optional.empty();
+    }
+
+    @Override
+    public Optional<String> relativize(Resource baseResource, Resource targetResource) {
+        try {
+            URI baseDir = URI.create(parentFolder(baseResource) + "/");
+            URI target = targetResource.getURL().toURI();
+            String relative = baseDir.relativize(target).getPath();
+            if (relative == null || relative.isBlank() || relative.equals(target.getPath())) {
+                return Optional.empty();
+            }
+            return Optional.of(relative);
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    private String parentFolder(Resource resource) throws IOException {
+        String url = resource.getURL().toString();
+        int lastSlash = url.lastIndexOf('/');
+        String parent = lastSlash >= 0 ? url.substring(0, lastSlash + 1) : url + "/";
+        return toSearchPrefix(parent);
     }
 
     private String trimTrailingSlashes(String value) {

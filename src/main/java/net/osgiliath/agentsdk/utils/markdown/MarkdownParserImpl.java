@@ -1,6 +1,8 @@
 package net.osgiliath.agentsdk.utils.markdown;
 
 import dev.langchain4j.data.document.Document;
+import org.commonmark.node.AbstractVisitor;
+import org.commonmark.node.Block;
 import org.commonmark.node.Heading;
 import org.commonmark.node.Link;
 import org.commonmark.node.Node;
@@ -29,19 +31,22 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Component
 public class MarkdownParserImpl implements MarkdownParser {
 
-    private static final Pattern MARKDOWN_LINK_PATTERN = Pattern.compile("\\[([^\\]]+)]\\(([^)]+)\\)");
+    private static final Pattern LEADING_YAML_FRONT_MATTER_PATTERN =
+            Pattern.compile("\\A(---\\R[\\s\\S]*?\\R---(?:\\R|\\z))");
+
     private final Parser parser;
     private final MarkdownRenderer markdownRenderer;
     private final TextContentRenderer textContentRenderer;
@@ -123,7 +128,9 @@ public class MarkdownParserImpl implements MarkdownParser {
     // FIXME: support inlining option (true or false)
     private Optional<MarkdownFile> parseMarkdownResource(Resource resource) throws IOException {
         String source = readResource(resource);
-        String sourceWithInlinedMarkdown = inlineMarkdownLinks(resource, source, new HashSet<>());
+        FrontMatterSplit split = splitFrontMatterAndBody(source);
+        String inlinedBody = inlineMarkdownLinks(resource, split.body(), new HashSet<>());
+        String sourceWithInlinedMarkdown = split.frontMatter() + inlinedBody;
         logger.trace("Parsed resource with {} bytes", sourceWithInlinedMarkdown.length());
         Node document = parser.parse(sourceWithInlinedMarkdown);
         Optional<MarkdownHeaders> headers = parseHeaders(document, sourceWithInlinedMarkdown);
@@ -146,47 +153,72 @@ public class MarkdownParserImpl implements MarkdownParser {
             return "";
         }
 
-        Matcher matcher = MARKDOWN_LINK_PATTERN.matcher(source);
-        StringBuffer buffer = new StringBuffer();
-        while (matcher.find()) {
-            String linkText = matcher.group(1);
-            String destination = matcher.group(2) == null ? "" : matcher.group(2).trim();
-            String replacement = "[" + linkText + "](" + destination + ")";
+        Node document = parser.parse(source);
+        List<PendingInline> pendingInlines = new ArrayList<>();
 
-            String normalizedDestination = normalizeDestination(destination);
-            if (!normalizedDestination.isBlank() && !isExternal(normalizedDestination)) {
-                Optional<Resource> resolved = resolveLinkedResource(resource, normalizedDestination);
-                if (resolved.isPresent() && isMarkdownResource(normalizedDestination, resolved.get())) {
-                    String linkedSource = readResource(resolved.get());
-                    String inlined = inlineMarkdownLinks(resolved.get(), linkedSource, visited).trim();
-                    if (!inlined.isBlank()) {
-                        replacement = replacement + System.lineSeparator() + System.lineSeparator() + inlined;
+        document.accept(new AbstractVisitor() {
+            @Override
+            public void visit(Link link) {
+                String destination = link.getDestination() == null ? "" : link.getDestination().trim();
+                String normalizedDestination = normalizeDestination(destination);
+                if (!normalizedDestination.isBlank() && !isExternal(normalizedDestination)) {
+                    Optional<Resource> resolved = resolveLinkedResource(resource, normalizedDestination);
+                    if (resolved.isPresent() && isMarkdownResource(normalizedDestination, resolved.get())) {
+                        String linkedSource = readResource(resolved.get());
+                        String inlined = inlineMarkdownLinks(resolved.get(), linkedSource, visited).trim();
+                        if (!inlined.isBlank()) {
+                            Node insertionAnchor = findInsertionAnchor(link);
+                            if (insertionAnchor != null) {
+                                pendingInlines.add(new PendingInline(insertionAnchor, inlined));
+                            }
+                        }
                     }
                 }
+                visitChildren(link);
             }
+        });
 
-            matcher.appendReplacement(buffer, Matcher.quoteReplacement(replacement));
+        Map<Node, Node> insertionCursorByAnchor = new IdentityHashMap<>();
+        for (PendingInline pendingInline : pendingInlines) {
+            Node insertionCursor = insertionCursorByAnchor.getOrDefault(pendingInline.anchor(), pendingInline.anchor());
+            Node fragment = parser.parse(pendingInline.content());
+            Node child = fragment.getFirstChild();
+            while (child != null) {
+                Node next = child.getNext();
+                child.unlink();
+                insertionCursor.insertAfter(child);
+                insertionCursor = child;
+                child = next;
+            }
+            insertionCursorByAnchor.put(pendingInline.anchor(), insertionCursor);
         }
-        matcher.appendTail(buffer);
-        return buffer.toString();
+
+        return markdownRenderer.render(document);
+    }
+
+    private FrontMatterSplit splitFrontMatterAndBody(String source) {
+        if (source == null || source.isBlank()) {
+            return new FrontMatterSplit("", "");
+        }
+        Matcher matcher = LEADING_YAML_FRONT_MATTER_PATTERN.matcher(source);
+        if (matcher.find()) {
+            String frontMatter = matcher.group(1);
+            String body = source.substring(matcher.end());
+            return new FrontMatterSplit(frontMatter, body);
+        }
+        return new FrontMatterSplit("", source);
+    }
+
+    private Node findInsertionAnchor(Node node) {
+        Node current = node;
+        while (current != null && !(current instanceof Block)) {
+            current = current.getParent();
+        }
+        return current;
     }
 
     private Optional<Resource> resolveLinkedResource(Resource currentResource, String destination) {
-        String baseFolder = currentResourceBaseFolder(currentResource);
-        if (baseFolder.isBlank()) {
-            return Optional.empty();
-        }
-        return resourceLocationResolver.resolveFirstExisting(List.of(baseFolder), destination);
-    }
-
-    private String currentResourceBaseFolder(Resource resource) {
-        try {
-            String url = resource.getURL().toString();
-            int slash = url.lastIndexOf('/');
-            return slash >= 0 ? url.substring(0, slash + 1) : "";
-        } catch (IOException e) {
-            return "";
-        }
+        return resourceLocationResolver.resolveRelative(currentResource, destination);
     }
 
     private String describeResource(Resource resource) {
@@ -524,6 +556,12 @@ public class MarkdownParserImpl implements MarkdownParser {
             builder.append(System.lineSeparator()).append(System.lineSeparator());
         }
         builder.append(block);
+    }
+
+    private record PendingInline(Node anchor, String content) {
+    }
+
+    private record FrontMatterSplit(String frontMatter, String body) {
     }
 
     private record SectionNode(String title, int level, StringBuilder content, List<SectionNode> children) {

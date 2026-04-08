@@ -7,7 +7,7 @@ import java.util.Optional;
 /**
  * Chain-of-responsibility contract for resolving markdown links to Spring resources.
  */
-public interface MarkdownLinkResolutionHandler {
+public interface LinkResolutionHandler {
 
     boolean supports(Resource sourceResource, String normalizedDestination);
 
