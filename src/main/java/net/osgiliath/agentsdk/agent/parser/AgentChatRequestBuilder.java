@@ -13,6 +13,7 @@ import dev.langchain4j.service.tool.ToolProviderResult;
 import net.osgiliath.agentsdk.configuration.CodepromptConfiguration;
 import net.osgiliath.agentsdk.configuration.LangChain4jConfig;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -40,6 +41,7 @@ import java.util.stream.Stream;
  * ChatResponse response = chatModel.chat(chatRequest);
  * }</pre>
  */
+@Profile("!github") // Exclude from GitHub profile to avoid conflicts with GitHub Actions environment
 @Component
 public class AgentChatRequestBuilder {
 
