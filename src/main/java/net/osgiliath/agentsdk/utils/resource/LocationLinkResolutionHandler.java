@@ -12,11 +12,11 @@ import java.util.Optional;
  */
 @Component
 @Order(200)
-public class LocationMarkdownLinkResolutionHandler implements LinkResolutionHandler {
+public class LocationLinkResolutionHandler implements LinkResolutionHandler {
 
     private final ResourceLocationResolver resourceLocationResolver;
 
-    public LocationMarkdownLinkResolutionHandler(ResourceLocationResolver resourceLocationResolver) {
+    public LocationLinkResolutionHandler(ResourceLocationResolver resourceLocationResolver) {
         this.resourceLocationResolver = Objects.requireNonNull(resourceLocationResolver,
                 "resourceLocationResolver must not be null");
     }

@@ -272,7 +272,7 @@ class AgentParserTest {
                 commonmarkParser,
                 List.of(
                         new RelativeMarkdownLinkResolutionHandler(resolver),
-                        new LocationMarkdownLinkResolutionHandler(resolver)),
+                        new LocationLinkResolutionHandler(resolver)),
                 List.of());
     }
 
