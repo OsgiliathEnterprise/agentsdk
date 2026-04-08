@@ -14,7 +14,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -54,7 +53,7 @@ public class MarkdownLinkedResourceResolver {
         Node document = commonMarkParser.parse(readResource(currentResource));
         List<String> links = extractInternalLinks(document);
         for (String link : links) {
-            if (isExternal(link)) {
+            if (MarkdownLinkRules.isExternal(link)) {
                 visitors.forEach(visitor -> visitor.onExternalLinkSkipped(currentResource, link));
                 continue;
             }
@@ -83,8 +82,8 @@ public class MarkdownLinkedResourceResolver {
         document.accept(new AbstractVisitor() {
             @Override
             public void visit(Link link) {
-                String normalized = normalizeUri(link.getDestination());
-                if (!normalized.isBlank() && isMarkdownResource(normalized)) {
+                String normalized = MarkdownLinkRules.normalizeForResolver(link.getDestination());
+                if (!normalized.isBlank() && MarkdownLinkRules.isMarkdownResource(normalized)) {
                     links.add(normalized);
                 }
                 visitChildren(link);
@@ -122,26 +121,9 @@ public class MarkdownLinkedResourceResolver {
         }
     }
 
-    private String normalizeUri(String uri) {
-        if (uri == null) {
-            return "";
-        }
-        return uri.split("#", 2)[0].trim();
-    }
-
-    private boolean isExternal(String uri) {
-        String normalized = uri.toLowerCase(Locale.ROOT);
-        return normalized.startsWith("http://") || normalized.startsWith("https://");
-    }
-
-    private boolean isMarkdownResource(String uri) {
-        return uri.toLowerCase(Locale.ROOT).endsWith(".md");
-    }
-
     private <T> List<T> sortByOrder(List<T> values) {
         List<T> sorted = new ArrayList<>(values);
         AnnotationAwareOrderComparator.sort(sorted);
         return List.copyOf(sorted);
     }
 }
-

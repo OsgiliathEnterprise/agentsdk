@@ -10,6 +10,7 @@ import org.commonmark.node.Paragraph;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.markdown.MarkdownRenderer;
 import org.commonmark.renderer.text.TextContentRenderer;
+import net.osgiliath.agentsdk.utils.resource.MarkdownLinkRules;
 import net.osgiliath.agentsdk.utils.resource.ResourceLocationResolver;
 import net.osgiliath.agentsdk.utils.resource.ResourceLocationResolverImpl;
 import org.slf4j.Logger;
@@ -160,10 +161,10 @@ public class MarkdownParserImpl implements MarkdownParser {
             @Override
             public void visit(Link link) {
                 String destination = link.getDestination() == null ? "" : link.getDestination().trim();
-                String normalizedDestination = normalizeDestination(destination);
-                if (!normalizedDestination.isBlank() && !isExternal(normalizedDestination)) {
+                String normalizedDestination = MarkdownLinkRules.normalizeForRelativeLookup(destination);
+                if (!normalizedDestination.isBlank() && !MarkdownLinkRules.isExternal(normalizedDestination)) {
                     Optional<Resource> resolved = resolveLinkedResource(resource, normalizedDestination);
-                    if (resolved.isPresent() && isMarkdownResource(normalizedDestination, resolved.get())) {
+                    if (resolved.isPresent() && MarkdownLinkRules.isMarkdownResource(normalizedDestination, resolved.get())) {
                         String linkedSource = readResource(resolved.get());
                         String inlined = inlineMarkdownLinks(resolved.get(), linkedSource, visited).trim();
                         if (!inlined.isBlank()) {
@@ -229,29 +230,6 @@ public class MarkdownParserImpl implements MarkdownParser {
         }
     }
 
-    private String normalizeDestination(String destination) {
-        String normalized = destination.split("#", 2)[0].trim();
-        while (normalized.startsWith("./")) {
-            normalized = normalized.substring(2);
-        }
-        if (normalized.startsWith("/")) {
-            normalized = normalized.substring(1);
-        }
-        return normalized;
-    }
-
-    private boolean isExternal(String destination) {
-        String lowered = destination.toLowerCase(Locale.ROOT);
-        return lowered.startsWith("http://") || lowered.startsWith("https://");
-    }
-
-    private boolean isMarkdownResource(String destination, Resource resolvedResource) {
-        if (destination.toLowerCase(Locale.ROOT).endsWith(".md")) {
-            return true;
-        }
-        String filename = resolvedResource.getFilename();
-        return filename != null && filename.toLowerCase(Locale.ROOT).endsWith(".md");
-    }
 
     @Override
     public Optional<MarkdownHeaders> getHeaders(MarkdownFile markdownFile) {
