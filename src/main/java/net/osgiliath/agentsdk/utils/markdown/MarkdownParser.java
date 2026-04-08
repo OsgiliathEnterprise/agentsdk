@@ -29,14 +29,6 @@ public interface MarkdownParser {
      */
     Optional<MarkdownFile> getMarkdownFile(Resource fileResource);
 
-    /**
-     * Retrieves the content of a markdown file and parses it into a structured format.
-     *
-     * @param folderPath the path to the folder containing the file
-     * @param fileName the name of the markdown file to retrieve
-     * @return an Optional containing the MarkdownFile object with headers and sections
-     */
-    Optional<MarkdownFile> getMarkdownFile(Path folderPath, String fileName);
 
     /**
      * Retrieves the headers from a markdown file.
@@ -53,6 +45,15 @@ public interface MarkdownParser {
      * @return list of main sections
      */
     List<MarkdownSection> getMainSections(MarkdownFile markdownFile);
+
+    /**
+     * Retrieves the consolidated main sections from a markdown file with depth control.
+     *
+     * @param markdownFile the parsed markdown file
+     * @param maxDepth maximum heading depth to keep (1 = roots only)
+     * @return list of main sections truncated to the requested depth
+     */
+    List<MarkdownSection> getMainSections(MarkdownFile markdownFile, int maxDepth);
 
     /**
      * Retrieves the consolidated Sample sections from a markdown file.

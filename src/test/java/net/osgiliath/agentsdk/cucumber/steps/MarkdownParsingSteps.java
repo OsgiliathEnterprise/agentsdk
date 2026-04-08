@@ -18,6 +18,7 @@ import org.commonmark.node.Link;
 import org.commonmark.node.Node;
 import org.commonmark.parser.Parser;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.FileSystemResource;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -150,7 +151,7 @@ public class MarkdownParsingSteps {
     @When("I parse the headers of the markdown file")
     public void iParseTheHeadersOfTheMarkdownFile() {
         safely(() -> {
-            Optional<MarkdownFile> file = markdownParser.getMarkdownFile(currentFolder, currentFileName);
+            Optional<MarkdownFile> file = markdownParser.getMarkdownFile(currentFileResource());
             markdownFile = file.orElse(null);
             parsedHeaders = markdownParser.getHeaders(markdownFile).orElse(null);
         });
@@ -171,7 +172,7 @@ public class MarkdownParsingSteps {
     @When("I parse the {string} section of the markdown file")
     public void iParseTheSectionOfTheMarkdownFile(String sectionName) {
         safely(() -> {
-            Optional<MarkdownFile> file = markdownParser.getMarkdownFile(currentFolder, currentFileName);
+            Optional<MarkdownFile> file = markdownParser.getMarkdownFile(currentFileResource());
             markdownFile = file.orElse(null);
             parsedSection = markdownParser.getSection(markdownFile, sectionName).orElse(null);
         });
@@ -198,7 +199,7 @@ public class MarkdownParsingSteps {
     @When("I parse the {string} section using the specific samples parser")
     public void iParseTheSectionUsingTheSpecificSamplesParser(String sectionName) {
         safely(() -> {
-            Optional<MarkdownFile> file = markdownParser.getMarkdownFile(currentFolder, currentFileName);
+            Optional<MarkdownFile> file = markdownParser.getMarkdownFile(currentFileResource());
             markdownFile = file.orElse(null);
             parsedSection = markdownParser.getSection(markdownFile, sectionName).orElse(null);
             parsedSampleSections = safeList(markdownParser.getSampleSections(markdownFile));
@@ -247,7 +248,7 @@ public class MarkdownParsingSteps {
     @When("I follow and consolidate all markdown links")
     public void iFollowAndConsolidateAllMarkdownLinks() {
         safely(() -> {
-            Optional<MarkdownFile> file = markdownParser.getMarkdownFile(currentFolder, currentFileName);
+            Optional<MarkdownFile> file = markdownParser.getMarkdownFile(currentFileResource());
             markdownFile = file.orElse(null);
             String markdownSource = readCurrentMarkdownSource();
             classifiedLinks(markdownSource);
@@ -356,6 +357,13 @@ public class MarkdownParsingSteps {
 
     private <T> List<T> safeList(List<T> maybeList) {
         return maybeList == null ? new ArrayList<>() : maybeList;
+    }
+
+    private FileSystemResource currentFileResource() {
+        if (currentFolder == null || currentFileName == null || currentFileName.isBlank()) {
+            return new FileSystemResource("");
+        }
+        return new FileSystemResource(currentFolder.resolve(currentFileName).normalize().toAbsolutePath());
     }
 
     private void assertNoSetupError() {

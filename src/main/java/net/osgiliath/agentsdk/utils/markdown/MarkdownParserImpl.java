@@ -16,7 +16,6 @@ import net.osgiliath.agentsdk.utils.resource.ResourceLocationResolverImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Component;
@@ -105,23 +104,6 @@ public class MarkdownParserImpl implements MarkdownParser {
             return parseMarkdownResource(fileResource);
         } catch (IOException e) {
             logger.error("Error parsing markdown resource: {}", fileResource.getDescription(), e);
-            return Optional.empty();
-        }
-    }
-
-    @Override
-    public Optional<MarkdownFile> getMarkdownFile(Path folderPath, String fileName) {
-        logger.debug("Getting markdown file: {} from folder: {}", fileName, folderPath);
-        Path markdownPath = resolveMarkdownPath(folderPath, fileName);
-        if (markdownPath == null || !Files.exists(markdownPath)) {
-            logger.warn("Markdown file not found: {}", markdownPath);
-            return Optional.empty();
-        }
-        logger.info("Parsing markdown file: {}", markdownPath);
-        try {
-            return parseMarkdownResource(new FileSystemResource(markdownPath));
-        } catch (IOException e) {
-            logger.error("Error parsing markdown file: {}", markdownPath, e);
             return Optional.empty();
         }
     }
@@ -241,10 +223,33 @@ public class MarkdownParserImpl implements MarkdownParser {
 
     @Override
     public List<MarkdownSection> getMainSections(MarkdownFile markdownFile) {
+        return getMainSections(markdownFile, Integer.MAX_VALUE);
+    }
+
+    @Override
+    public List<MarkdownSection> getMainSections(MarkdownFile markdownFile, int maxDepth) {
         if (markdownFile == null) {
             return List.of();
         }
-        return markdownFile.getSubSections();
+        if (maxDepth <= 0) {
+            return List.of();
+        }
+        if (maxDepth == Integer.MAX_VALUE) {
+            return markdownFile.getSubSections();
+        }
+        return markdownFile.getSubSections().stream()
+                .map(section -> truncateSectionDepth(section, maxDepth))
+                .toList();
+    }
+
+    private MarkdownSection truncateSectionDepth(MarkdownSection section, int remainingDepth) {
+        if (remainingDepth <= 1) {
+            return new MainSection(section.getTitle(), section.getContent(), List.of());
+        }
+        List<MarkdownSection> children = section.getSubSections().stream()
+                .map(child -> truncateSectionDepth(child, remainingDepth - 1))
+                .toList();
+        return new MainSection(section.getTitle(), section.getContent(), children);
     }
 
     @Override
@@ -328,10 +333,10 @@ public class MarkdownParserImpl implements MarkdownParser {
     }
 
     private List<MarkdownSection> appendMainSections(MarkdownFile markdownFile, boolean includeSections, StringBuilder builder) {
-        List<MarkdownSection> mainSections = markdownFile.getSubSections();
+        List<MarkdownSection> mainSections = getMainSections(markdownFile);
 
         if (includeSections) {
-            List<MarkdownSection> mardownMainSections = markdownFile.getSubSections().stream().filter(section -> !section.getTitle().startsWith("Sample")).toList();
+            List<MarkdownSection> mardownMainSections = mainSections.stream().filter(section -> !section.getTitle().startsWith("Sample")).toList();
             for (MarkdownSection section : mardownMainSections) {
                 appendSection(builder, section);
             }
@@ -361,13 +366,6 @@ public class MarkdownParserImpl implements MarkdownParser {
 
     private String extractFullMarkdownContent(Node document) {
         return markdownRenderer.render(document).trim();
-    }
-
-    private Path resolveMarkdownPath(Path folderPath, String fileName) {
-        if (folderPath == null || fileName == null || fileName.isBlank()) {
-            return null;
-        }
-        return folderPath.resolve(fileName).normalize().toAbsolutePath();
     }
 
 
