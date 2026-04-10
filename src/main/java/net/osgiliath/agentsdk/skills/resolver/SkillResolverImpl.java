@@ -66,7 +66,7 @@ public class SkillResolverImpl implements SkillResolver {
     }
 
 
-    private Skill tryResolve(Resource resource) throws IOException {
+    private Skill tryResolve(Resource resource) {
         return skillParser.getSkill(resource);
     }
 }
