@@ -1,6 +1,7 @@
 package net.osgiliath.agentsdk.utils.markdown;
 
 import dev.langchain4j.data.document.Document;
+import org.springframework.core.io.Resource;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -21,12 +22,13 @@ public interface MarkdownParser {
 
     /**
      * Retrieves the content of a markdown file and parses it into a structured format.
+     * Supports both filesystem and classpath/JAR resources.
      *
-     * @param folderPath the path to the folder containing the file
-     * @param fileName the name of the markdown file to retrieve
+     * @param fileResource the Spring Resource pointing directly to the markdown file
      * @return an Optional containing the MarkdownFile object with headers and sections
      */
-    Optional<MarkdownFile> getMarkdownFile(Path folderPath, String fileName);
+    Optional<MarkdownFile> getMarkdownFile(Resource fileResource);
+
 
     /**
      * Retrieves the headers from a markdown file.
@@ -43,6 +45,15 @@ public interface MarkdownParser {
      * @return list of main sections
      */
     List<MarkdownSection> getMainSections(MarkdownFile markdownFile);
+
+    /**
+     * Retrieves the consolidated main sections from a markdown file with depth control.
+     *
+     * @param markdownFile the parsed markdown file
+     * @param maxDepth maximum heading depth to keep (1 = roots only)
+     * @return list of main sections truncated to the requested depth
+     */
+    List<MarkdownSection> getMainSections(MarkdownFile markdownFile, int maxDepth);
 
     /**
      * Retrieves the consolidated Sample sections from a markdown file.

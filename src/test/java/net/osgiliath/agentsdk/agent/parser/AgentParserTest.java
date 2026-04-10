@@ -19,10 +19,15 @@ import net.osgiliath.agentsdk.skills.resolver.SkillResolverImpl;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParserImpl;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
+import net.osgiliath.agentsdk.utils.resource.*;
 import org.commonmark.parser.Parser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.ResourcePatternResolver;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -35,20 +40,26 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@SpringBootTest
 class AgentParserTest {
 
     private static final Path SAMPLE_AGENT_FILE = Path.of(
-            "src/test/resources/dataset/markdown/skills/sample-agent/sample-agent.md");
+            "dataset/markdown/skills/sample-agent/sample-agent.md");
 
     private static final Path SIMPLE_AGENT_FILE = Path.of(
-            "src/test/resources/dataset/markdown/agents/agent1.md");
+            "dataset/markdown/agents/agent1.md");
 
     private static final Path SKILL_BACKED_AGENT_FILE = Path.of(
-            "src/test/resources/dataset/markdown/agents/agent-with-sample-skill.md");
+            "dataset/markdown/agents/agent-with-sample-skill.md");
 
     private AgentParser agentParser;
     private SkillResolver skillResolver;
     private SkillRenderer skillRenderer;
+
+    @Autowired
+    private ResourcePatternResolver resourcePatternResolver;
+    @Autowired
+    private ResourceLocationResolver resourceLocationResolver;
 
     @BeforeEach
     void setUp() {
@@ -56,13 +67,17 @@ class AgentParserTest {
         MarkdownParser markdownParser = new MarkdownParserImpl(commonmarkParser);
         skillResolver = mock(SkillResolver.class);
         skillRenderer = mock(SkillRenderer.class);
-        agentParser = new AgentParserImpl(markdownParser, skillResolver, skillRenderer);
+        agentParser = new AgentParserImpl(
+                markdownParser,
+                skillResolver,
+                skillRenderer,
+                newMarkdownLinkedResourceResolver(commonmarkParser));
     }
 
     @Test
     void shouldParseTypedHeaders() {
         when(skillResolver.resolveSkills(any())).thenReturn(List.of());
-        Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
+        Agent agent = agentParser.getAgent(resourcePatternResolver.getResource("classpath:/" + SAMPLE_AGENT_FILE));
 
         assertThat(agent.headers().name()).isEqualTo(new NameHeader("Code Review Agent"));
         assertThat(agent.headers().description())
@@ -80,7 +95,7 @@ class AgentParserTest {
     @Test
     void shouldParseStructuredHandoffs() {
         when(skillResolver.resolveSkills(any())).thenReturn(List.of());
-        Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
+        Agent agent = agentParser.getAgent(resourcePatternResolver.getResource("classpath:/" + SAMPLE_AGENT_FILE));
 
         assertThat(agent.getHandoffs()).containsExactly(
                 new AgentHandoff("Hand off to Backend", "subagent-1", "Continue working on the backend for this task.", false)
@@ -91,7 +106,7 @@ class AgentParserTest {
     void shouldExposeConvenienceAccessors() {
         Skill resolvedSkill = mock(Skill.class);
         when(skillResolver.resolveSkills(any())).thenReturn(List.of(resolvedSkill));
-        Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
+        Agent agent = agentParser.getAgent(resourcePatternResolver.getResource("classpath:/" + SAMPLE_AGENT_FILE));
 
         assertThat(agent.getName()).isEqualTo("Code Review Agent");
         assertThat(agent.getDescription()).contains("Reviews code changes");
@@ -108,7 +123,7 @@ class AgentParserTest {
     @Test
     void shouldParseContentIntoTypedSectionsWrapper() {
         when(skillResolver.resolveSkills(any())).thenReturn(List.of());
-        Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
+        Agent agent = agentParser.getAgent(resourcePatternResolver.getResource("classpath:/" + SAMPLE_AGENT_FILE));
 
         assertThat(agent.getContent().sections()).isEqualTo(agent.getLevel1Content());
         List<String> rootTitles = agent.getLevel1Content().stream()
@@ -125,7 +140,7 @@ class AgentParserTest {
     @Test
     void shouldParseLegacySimpleAgentHeaders() {
         when(skillResolver.resolveSkills(any())).thenReturn(List.of());
-        Agent agent = agentParser.getAgent(SIMPLE_AGENT_FILE);
+        Agent agent = agentParser.getAgent(resourcePatternResolver.getResource("classpath:/" + SIMPLE_AGENT_FILE));
 
         assertThat(agent.getName()).isEqualTo("Cloud Engineer");
         assertThat(agent.getDescription()).isEqualTo("Implements cloud scripts");
@@ -141,7 +156,7 @@ class AgentParserTest {
         Skill mockSkill = mock(Skill.class);
         when(skillResolver.resolveSkills(any())).thenReturn(List.of(mockSkill));
         when(skillRenderer.renderFlat(mockSkill)).thenReturn("## Rendered Skill Section");
-        Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
+        Agent agent = agentParser.getAgent(resourcePatternResolver.getResource("classpath:/" + SAMPLE_AGENT_FILE));
 
         SystemMessage systemMessage = agentParser.getSystemPrompt(agent);
 
@@ -154,7 +169,7 @@ class AgentParserTest {
         Skill mockSkill = mock(Skill.class);
         when(skillResolver.resolveSkills(any())).thenReturn(List.of(mockSkill));
         when(skillRenderer.renderFlat(mockSkill)).thenReturn("## Rendered Skill Section");
-        Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
+        Agent agent = agentParser.getAgent(resourcePatternResolver.getResource("classpath:/" + SAMPLE_AGENT_FILE));
 
         SystemMessage systemPrompt = agentParser.getSystemPrompt(agent);
         assertThat(systemPrompt.text()).contains("Code Review Agent");
@@ -166,7 +181,7 @@ class AgentParserTest {
     void shouldAvoidDuplicatingPromptBlocksWhenSkillRenderingMatchesAgentContent() {
         Skill mockSkill = mock(Skill.class);
         when(skillResolver.resolveSkills(any())).thenReturn(List.of(mockSkill));
-        Agent agent = agentParser.getAgent(SAMPLE_AGENT_FILE);
+        Agent agent = agentParser.getAgent(resourcePatternResolver.getResource("classpath:/" + SAMPLE_AGENT_FILE));
 
         String baseText = agentParser.getSystemPrompt(agent).text();
         when(skillRenderer.renderFlat(mockSkill)).thenReturn(baseText);
@@ -179,7 +194,7 @@ class AgentParserTest {
     @Test
     void shouldBuildSystemPromptWithNoSkillsWhenAgentDeclaredNone() {
         when(skillResolver.resolveSkills(List.of())).thenReturn(List.of());
-        Agent agent = agentParser.getAgent(SIMPLE_AGENT_FILE);
+        Agent agent = agentParser.getAgent(resourcePatternResolver.getResource("classpath:/" + SIMPLE_AGENT_FILE));
 
         SystemMessage systemMessage = agentParser.getSystemPrompt(agent);
 
@@ -190,7 +205,7 @@ class AgentParserTest {
     void shouldLoadResolvedSkillsAndTheirResourcesIntoTheAgent() {
         AgentParser realAgentParser = createRealAgentParser();
 
-        Agent agent = realAgentParser.getAgent(SKILL_BACKED_AGENT_FILE);
+        Agent agent = realAgentParser.getAgent(resourcePatternResolver.getResource("classpath:/" + SKILL_BACKED_AGENT_FILE));
 
         assertThat(agent.getSkills()).hasSize(1);
 
@@ -200,7 +215,10 @@ class AgentParserTest {
         assertThat(skill.getTemplates()).map(SkillTemplate::uri).containsExactly("templates/generator_template.js");
         assertThat(skill.getCommands())
                 .contains(new SkillScriptCommand("./gradlew", "./gradlew scripts/build.gradle.kts ping"));
-        assertThat(skill.getLevel1Content()).extracting(MarkdownSection::getTitle)
+        List<String> allSectionTitles = skill.getLevel1Content().stream()
+                .flatMap(this::flattenTitles)
+                .toList();
+        assertThat(allSectionTitles)
                 .contains("PPTX Skill", "Instructions", "MCP Server Evaluation Guide");
 
         SystemMessage systemMessage = realAgentParser.getSystemPrompt(agent);
@@ -215,22 +233,22 @@ class AgentParserTest {
 
     @Test
     void shouldThrowWhenAgentFileDoesNotExist() {
-        Path nonExistent = Path.of("src/test/resources/dataset/markdown/agents/no-such-agent.md");
+        Path nonExistent = Path.of("dataset/markdown/agents/no-such-agent.md");
 
-        assertThatThrownBy(() -> agentParser.getAgent(nonExistent))
+        assertThatThrownBy(() -> agentParser.getAgent(resourcePatternResolver.getResource("classpath:/" + nonExistent)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void shouldThrowWhenAgentFileIsNull() {
-        assertThatThrownBy(() -> agentParser.getAgent(null))
+        assertThatThrownBy(() -> agentParser.getAgent((Resource) null))
                 .isInstanceOf(NullPointerException.class);
     }
 
     private AgentParser createRealAgentParser() {
         Parser commonmarkParser = new MarkdownConfiguration().markdownParser();
         MarkdownParser markdownParser = new MarkdownParserImpl(commonmarkParser);
-        SkillParser skillParser = new SkillParserImpl(markdownParser, commonmarkParser);
+        SkillParser skillParser = new SkillParserImpl(markdownParser, commonmarkParser, resourceLocationResolver);
 
         CodepromptConfiguration config = new CodepromptConfiguration();
         config.getAgent().setSkillFolders(List.of("classpath:dataset/markdown/skills/"));
@@ -238,10 +256,30 @@ class AgentParserTest {
         SkillResolver resolver = new SkillResolverImpl(
                 config,
                 skillParser,
-                new PathMatchingResourcePatternResolver());
+                resourceLocationResolver);
         SkillRenderer renderer = new SkillRendererImpl();
 
-        return new AgentParserImpl(markdownParser, resolver, renderer);
+        return new AgentParserImpl(
+                markdownParser,
+                resolver,
+                renderer,
+                newMarkdownLinkedResourceResolver(commonmarkParser));
+    }
+
+    private MarkdownLinkedResourceResolver newMarkdownLinkedResourceResolver(Parser commonmarkParser) {
+        ResourceLocationResolver resolver = new ResourceLocationResolverImpl(resourcePatternResolver);
+        return new MarkdownLinkedResourceResolver(
+                commonmarkParser,
+                List.of(
+                        new RelativeMarkdownLinkResolutionHandler(resolver),
+                        new LocationLinkResolutionHandler(resolver)),
+                List.of());
+    }
+
+    private java.util.stream.Stream<String> flattenTitles(MarkdownSection section) {
+        return java.util.stream.Stream.concat(
+                java.util.stream.Stream.of(section.getTitle()),
+                section.getSubSections().stream().flatMap(this::flattenTitles));
     }
 }
 

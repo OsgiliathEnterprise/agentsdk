@@ -11,6 +11,7 @@ import net.osgiliath.agentsdk.llm.LLMS_KIND;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.support.ResourcePatternResolver;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,8 +26,10 @@ public class AgentParsingSteps {
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     @Autowired
     private AgentParser agentParser;
-
-    private Path agentFilePath;
+    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
+    @Autowired
+    private ResourcePatternResolver resourcePatternResolver;
+    private String agentFilePath;
     private Agent parsedAgent;
     private Throwable stepError;
 
@@ -40,19 +43,18 @@ public class AgentParsingSteps {
     @Given("a sample agent file at {string}")
     public void aSampleAgentFileAt(String relativePath) {
         safely(() -> {
-            agentFilePath = resolveFromProject(relativePath);
-            assertThat(agentFilePath).exists();
+            agentFilePath = relativePath;
         });
     }
 
     @When("the agent parser reads the headers")
     public void theAgentParserReadsTheHeaders() {
-        safely(() -> parsedAgent = agentParser.getAgent(agentFilePath));
+        safely(() -> parsedAgent = agentParser.getAgent(resourcePatternResolver.getResource("classpath:/" + agentFilePath)));
     }
 
     @When("the agent parser reads the content")
     public void theAgentParserReadsTheContent() {
-        safely(() -> parsedAgent = agentParser.getAgent(agentFilePath));
+        safely(() -> parsedAgent = agentParser.getAgent(resourcePatternResolver.getResource("classpath:/" + agentFilePath)));
     }
 
     @Then("the parsed agent name should be {string}")
@@ -178,24 +180,7 @@ public class AgentParsingSteps {
             stepError = throwable;
         }
     }
-
-    private Path resolveFromProject(String relativePath) {
-        try {
-            ClassPathResource resource = new ClassPathResource(relativePath);
-            if (resource.exists()) {
-                return resource.getFile().toPath().toAbsolutePath().normalize();
-            }
-        } catch (Exception e) {
-            // fall through
-        }
-
-        Path fromWorkDir = Paths.get(relativePath);
-        if (Files.exists(fromWorkDir)) {
-            return fromWorkDir.toAbsolutePath().normalize();
-        }
-        return fromWorkDir.toAbsolutePath().normalize();
-    }
-
+    
     @FunctionalInterface
     private interface ThrowingRunnable {
         void run() throws Exception;

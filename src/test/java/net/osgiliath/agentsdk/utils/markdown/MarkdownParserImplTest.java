@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.core.io.FileSystemResource;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -55,8 +56,8 @@ class MarkdownParserImplTest {
 
     @Test
     void getNullFileReturnsEmpty() {
-        assertThat(parser.getMarkdownFile(null, "file.md")).isEmpty();
-        assertThat(parser.getMarkdownFile(tempDir, null)).isEmpty();
+        assertThat(parser.getMarkdownFile(null)).isEmpty();
+        assertThat(parse(" ")).isEmpty();
     }
 
     // -----------------------------------------------------------------------
@@ -78,6 +79,55 @@ class MarkdownParserImplTest {
         assertThat(files.get(1).getFileName()).hasToString("b.md");
     }
 
+    @Nested
+    class MainSectionsDepth {
+
+        private MarkdownFile nestedFixture() throws IOException {
+            write("depth.md", """
+                    # Root
+
+                    Root content.
+
+                    ## Child
+
+                    Child content.
+
+                    ### Grandchild
+
+                    Grandchild content.
+                    """);
+            return parse("depth.md").orElseThrow();
+        }
+
+        @Test
+        void depthOneReturnsOnlyRootSections() throws IOException {
+            List<MarkdownSection> sections = parser.getMainSections(nestedFixture(), 1);
+
+            assertThat(sections).hasSize(1);
+            assertThat(sections.getFirst().getTitle()).isEqualTo("Root");
+            assertThat(sections.getFirst().getSubSections()).isEmpty();
+        }
+
+        @Test
+        void depthTwoKeepsDirectChildrenOnly() throws IOException {
+            List<MarkdownSection> sections = parser.getMainSections(nestedFixture(), 2);
+
+            assertThat(sections).hasSize(1);
+            MarkdownSection root = sections.getFirst();
+            assertThat(root.getSubSections()).hasSize(1);
+            assertThat(root.getSubSections().getFirst().getTitle()).isEqualTo("Child");
+            assertThat(root.getSubSections().getFirst().getSubSections()).isEmpty();
+        }
+
+        @Test
+        void nonPositiveDepthReturnsEmptyList() throws IOException {
+            MarkdownFile fixture = nestedFixture();
+
+            assertThat(parser.getMainSections(fixture, 0)).isEmpty();
+            assertThat(parser.getMainSections(fixture, -1)).isEmpty();
+        }
+    }
+
     // -----------------------------------------------------------------------
     // Misc public-API tests
     // -----------------------------------------------------------------------
@@ -95,7 +145,7 @@ class MarkdownParserImplTest {
                 Body text.
                 """);
 
-        Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
+        Optional<MarkdownFile> result = parse("test.md");
 
         assertThat(result).isPresent();
         Optional<MarkdownHeaders> headers = parser.getHeaders(result.get());
@@ -105,7 +155,7 @@ class MarkdownParserImplTest {
     }
 
     @Test
-    void linkedFileContentIsConsolidated() throws IOException {
+    void linkedMarkdownContentIsConsolidated() throws IOException {
         write("main.md", """
                 # Main
                 
@@ -117,15 +167,31 @@ class MarkdownParserImplTest {
                 Detail content.
                 """);
 
-        Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "main.md");
+        Optional<MarkdownFile> result = parse("main.md");
 
         assertThat(result).isPresent();
         List<MarkdownSection> sections = result.get().getSubSections();
-        // "Main" from root + "Details" from linked file
-        assertThat(sections).hasSizeGreaterThanOrEqualTo(2);
-        boolean hasDetails = sections.stream()
-                .anyMatch(s -> s.getTitle() != null && s.getTitle().contains("Details"));
-        assertThat(hasDetails).isTrue();
+        assertThat(sections).extracting(MarkdownSection::getTitle).contains("Main", "Details");
+        assertThat(sections)
+                .extracting(MarkdownSection::getContent)
+                .anyMatch(content -> content != null && content.contains("Detail content."));
+    }
+
+    @Test
+    void nonMarkdownLinksAreKeptAsLinks() throws IOException {
+        write("main.md", """
+                # Main
+
+                Download [spec](spec.txt).
+                """);
+        write("spec.txt", "spec content");
+
+        Optional<MarkdownFile> result = parse("main.md");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getSubSections())
+                .extracting(MarkdownSection::getContent)
+                .anyMatch(content -> content != null && content.contains("[spec](spec.txt)"));
     }
 
     private void write(String fileName, String content) throws IOException {
@@ -143,7 +209,7 @@ class MarkdownParserImplTest {
                     Second paragraph.
                     """);
 
-            Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
+            Optional<MarkdownFile> result = parse("test.md");
 
             assertThat(result).isPresent();
             List<MarkdownSection> sections = result.get().getSubSections();
@@ -158,7 +224,7 @@ class MarkdownParserImplTest {
         void inlineCodeBackticksArePreserved() throws IOException {
             write("test.md", "Use `System.out.println()` to print.");
 
-            Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
+            Optional<MarkdownFile> result = parse("test.md");
 
             assertThat(result).isPresent();
             assertThat(result.get().getSubSections().getFirst().getContent())
@@ -175,7 +241,7 @@ class MarkdownParserImplTest {
                     ```
                     """);
 
-            Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
+            Optional<MarkdownFile> result = parse("test.md");
 
             assertThat(result).isPresent();
             String content = result.get().getSubSections().getFirst().getContent();
@@ -189,7 +255,7 @@ class MarkdownParserImplTest {
         void linksAreRenderedInMarkdownSyntax() throws IOException {
             write("test.md", "Visit [example](https://example.com) today.");
 
-            Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
+            Optional<MarkdownFile> result = parse("test.md");
 
             assertThat(result).isPresent();
             assertThat(result.get().getSubSections().getFirst().getContent())
@@ -201,7 +267,7 @@ class MarkdownParserImplTest {
             // Two lines without a blank line between them = soft line break inside one paragraph.
             write("test.md", "Line one\nLine two");
 
-            Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
+            Optional<MarkdownFile> result = parse("test.md");
 
             assertThat(result).isPresent();
             String content = result.get().getSubSections().getFirst().getContent();
@@ -218,7 +284,7 @@ class MarkdownParserImplTest {
             // Here we verify the normal heading-produces-section path instead.
             write("test.md", "# Top Heading\n\nSome text.");
 
-            Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
+            Optional<MarkdownFile> result = parse("test.md");
 
             assertThat(result).isPresent();
             assertThat(result.get().getSubSections().getFirst().getTitle()).isEqualTo("Top Heading");
@@ -240,7 +306,7 @@ class MarkdownParserImplTest {
                     Plain text content.
                     """);
 
-            Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
+            Optional<MarkdownFile> result = parse("test.md");
 
             assertThat(result).isPresent();
             Optional<MarkdownSection> section = parser.getSection(result.get(), "My Section");
@@ -256,7 +322,7 @@ class MarkdownParserImplTest {
                     Call `doSomething()` here.
                     """);
 
-            Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
+            Optional<MarkdownFile> result = parse("test.md");
 
             assertThat(result).isPresent();
             Optional<MarkdownSection> section = parser.getSection(result.get(), "Section");
@@ -274,7 +340,7 @@ class MarkdownParserImplTest {
                     ```
                     """);
 
-            Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
+            Optional<MarkdownFile> result = parse("test.md");
 
             assertThat(result).isPresent();
             Optional<MarkdownSection> section = parser.getSection(result.get(), "Section");
@@ -293,7 +359,7 @@ class MarkdownParserImplTest {
                     See [reference](https://ref.example.com).
                     """);
 
-            Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
+            Optional<MarkdownFile> result = parse("test.md");
 
             assertThat(result).isPresent();
             Optional<MarkdownSection> section = parser.getSection(result.get(), "Section");
@@ -312,7 +378,7 @@ class MarkdownParserImplTest {
                     Second paragraph.
                     """);
 
-            Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
+            Optional<MarkdownFile> result = parse("test.md");
 
             assertThat(result).isPresent();
             Optional<MarkdownSection> section = parser.getSection(result.get(), "Section");
@@ -336,7 +402,7 @@ class MarkdownParserImplTest {
                     Child content.
                     """);
 
-            Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
+            Optional<MarkdownFile> result = parse("test.md");
 
             assertThat(result).isPresent();
             Optional<MarkdownSection> child = parser.getSection(result.get(), "Child");
@@ -356,7 +422,7 @@ class MarkdownParserImplTest {
                     Child text.
                     """);
 
-            Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
+            Optional<MarkdownFile> result = parse("test.md");
 
             assertThat(result).isPresent();
             Optional<MarkdownSection> parent = parser.getSection(result.get(), "Parent");
@@ -370,7 +436,7 @@ class MarkdownParserImplTest {
         void softLineBreakWithinSectionParagraphProducesNewline() throws IOException {
             write("test.md", "# Section\n\nLine one\nLine two");
 
-            Optional<MarkdownFile> result = parser.getMarkdownFile(tempDir, "test.md");
+            Optional<MarkdownFile> result = parse("test.md");
 
             assertThat(result).isPresent();
             Optional<MarkdownSection> section = parser.getSection(result.get(), "Section");
@@ -407,7 +473,7 @@ class MarkdownParserImplTest {
                     
                     Example one content.
                     """);
-            return parser.getMarkdownFile(tempDir, "fixture.md").orElseThrow();
+            return parse("fixture.md").orElseThrow();
         }
 
         @Test
@@ -466,7 +532,7 @@ class MarkdownParserImplTest {
                     
                     Example one content.
                     """);
-            MarkdownFile file = parser.getMarkdownFile(tempDir, "nosections.md").orElseThrow();
+            MarkdownFile file = parse("nosections.md").orElseThrow();
 
             dev.langchain4j.data.document.Document doc =
                     parser.toDocument(file, false, false, true);
@@ -526,7 +592,7 @@ class MarkdownParserImplTest {
                     
                     Child content.
                     """);
-            MarkdownFile file = parser.getMarkdownFile(tempDir, "nested.md").orElseThrow();
+            MarkdownFile file = parse("nested.md").orElseThrow();
 
             dev.langchain4j.data.document.Document doc =
                     parser.toDocument(file, false, true, false);
@@ -568,7 +634,7 @@ class MarkdownParserImplTest {
 
                     Child content.
                     """);
-            MarkdownFile file = parser.getMarkdownFile(tempDir, "tree.md").orElseThrow();
+            MarkdownFile file = parse("tree.md").orElseThrow();
 
             String rendered = parser.renderSectionsAsMarkdown(file.getSubSections());
 
@@ -579,5 +645,12 @@ class MarkdownParserImplTest {
                     .contains("Child content.");
         }
     }
-}
 
+    private Optional<MarkdownFile> parse(String fileName) {
+        return parser.getMarkdownFile(resource(fileName));
+    }
+
+    private FileSystemResource resource(String fileName) {
+        return new FileSystemResource(tempDir.resolve(fileName).normalize().toAbsolutePath());
+    }
+}

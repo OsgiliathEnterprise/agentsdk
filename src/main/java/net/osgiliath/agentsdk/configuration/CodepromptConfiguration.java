@@ -1,6 +1,7 @@
 package net.osgiliath.agentsdk.configuration;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.NestedConfigurationProperty;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.ArrayList;
@@ -12,9 +13,13 @@ import java.util.Map;
 @ConfigurationProperties(prefix = "codeprompt")
 public class CodepromptConfiguration {
 
+    @NestedConfigurationProperty
     private final AcpProperties acp = new AcpProperties();
+    @NestedConfigurationProperty
     private final McpProperties mcp = new McpProperties();
+    @NestedConfigurationProperty
     private final AgentProperties agent = new AgentProperties();
+    @NestedConfigurationProperty
     private LlmKindModelProperties llms = new LlmKindModelProperties();
 
     public AcpProperties getAcp() {
@@ -27,6 +32,14 @@ public class CodepromptConfiguration {
 
     public AgentProperties getAgent() {
         return agent;
+    }
+
+    public LlmKindModelProperties getLlms() {
+        return llms;
+    }
+
+    public void setLlms(LlmKindModelProperties llmProperties) {
+        this.llms = llmProperties == null ? new LlmKindModelProperties() : llmProperties;
     }
 
     public static class AgentProperties {
@@ -50,16 +63,8 @@ public class CodepromptConfiguration {
         }
     }
 
-
-    public LlmKindModelProperties getLlms() {
-        return llms;
-    }
-
-    public void setLlms(LlmKindModelProperties llmProperties) {
-        this.llms = llmProperties == null ? new LlmKindModelProperties() : llmProperties;
-    }
-
     public static class AcpProperties {
+        @NestedConfigurationProperty
         private final RemoteProperties remote = new RemoteProperties();
 
         public RemoteProperties getRemote() {
@@ -98,6 +103,7 @@ public class CodepromptConfiguration {
     }
 
     public static class McpProperties {
+        @NestedConfigurationProperty
         private final ToolsProperties tools = new ToolsProperties();
 
         public ToolsProperties getTools() {

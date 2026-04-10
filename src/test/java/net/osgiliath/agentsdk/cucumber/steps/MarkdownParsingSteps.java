@@ -18,13 +18,14 @@ import org.commonmark.node.Link;
 import org.commonmark.node.Node;
 import org.commonmark.parser.Parser;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.FileSystemResource;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -150,7 +151,7 @@ public class MarkdownParsingSteps {
     @When("I parse the headers of the markdown file")
     public void iParseTheHeadersOfTheMarkdownFile() {
         safely(() -> {
-            Optional<MarkdownFile> file = markdownParser.getMarkdownFile(currentFolder, currentFileName);
+            Optional<MarkdownFile> file = markdownParser.getMarkdownFile(currentFileResource());
             markdownFile = file.orElse(null);
             parsedHeaders = markdownParser.getHeaders(markdownFile).orElse(null);
         });
@@ -171,7 +172,7 @@ public class MarkdownParsingSteps {
     @When("I parse the {string} section of the markdown file")
     public void iParseTheSectionOfTheMarkdownFile(String sectionName) {
         safely(() -> {
-            Optional<MarkdownFile> file = markdownParser.getMarkdownFile(currentFolder, currentFileName);
+            Optional<MarkdownFile> file = markdownParser.getMarkdownFile(currentFileResource());
             markdownFile = file.orElse(null);
             parsedSection = markdownParser.getSection(markdownFile, sectionName).orElse(null);
         });
@@ -198,7 +199,7 @@ public class MarkdownParsingSteps {
     @When("I parse the {string} section using the specific samples parser")
     public void iParseTheSectionUsingTheSpecificSamplesParser(String sectionName) {
         safely(() -> {
-            Optional<MarkdownFile> file = markdownParser.getMarkdownFile(currentFolder, currentFileName);
+            Optional<MarkdownFile> file = markdownParser.getMarkdownFile(currentFileResource());
             markdownFile = file.orElse(null);
             parsedSection = markdownParser.getSection(markdownFile, sectionName).orElse(null);
             parsedSampleSections = safeList(markdownParser.getSampleSections(markdownFile));
@@ -247,7 +248,7 @@ public class MarkdownParsingSteps {
     @When("I follow and consolidate all markdown links")
     public void iFollowAndConsolidateAllMarkdownLinks() {
         safely(() -> {
-            Optional<MarkdownFile> file = markdownParser.getMarkdownFile(currentFolder, currentFileName);
+            Optional<MarkdownFile> file = markdownParser.getMarkdownFile(currentFileResource());
             markdownFile = file.orElse(null);
             String markdownSource = readCurrentMarkdownSource();
             classifiedLinks(markdownSource);
@@ -358,6 +359,13 @@ public class MarkdownParsingSteps {
         return maybeList == null ? new ArrayList<>() : maybeList;
     }
 
+    private FileSystemResource currentFileResource() {
+        if (currentFolder == null || currentFileName == null || currentFileName.isBlank()) {
+            return new FileSystemResource("");
+        }
+        return new FileSystemResource(currentFolder.resolve(currentFileName).normalize().toAbsolutePath());
+    }
+
     private void assertNoSetupError() {
         assertThat(stepError).as("Given/When steps should complete without failures").isNull();
     }
@@ -417,24 +425,7 @@ public class MarkdownParsingSteps {
         if (maybeMarkdownFile == null || maybeMarkdownFile.getSubSections() == null) {
             return "";
         }
-        return maybeMarkdownFile.getSubSections().stream()
-                .map(this::flattenSectionContent)
-                .filter(content -> !content.isBlank())
-                .reduce("", (left, right) -> left + System.lineSeparator() + right);
-    }
-
-    private String flattenSectionContent(MarkdownSection section) {
-        if (section == null) {
-            return "";
-        }
-        StringBuilder builder = new StringBuilder(Optional.ofNullable(section.getContent()).orElse(""));
-        for (MarkdownSection subSection : Optional.ofNullable(section.getSubSections()).orElse(List.of())) {
-            String nested = flattenSectionContent(subSection);
-            if (!nested.isBlank()) {
-                builder.append(System.lineSeparator()).append(nested);
-            }
-        }
-        return builder.toString().trim();
+        return markdownParser.renderSectionsAsMarkdown(maybeMarkdownFile.getSubSections());
     }
 
     private String readDatasetFile(String fileName) {

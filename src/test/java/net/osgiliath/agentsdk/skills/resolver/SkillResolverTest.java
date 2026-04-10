@@ -7,6 +7,8 @@ import net.osgiliath.agentsdk.skills.parser.SkillParser;
 import net.osgiliath.agentsdk.skills.parser.SkillParserImpl;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParserImpl;
+import net.osgiliath.agentsdk.utils.resource.ResourceLocationResolver;
+import net.osgiliath.agentsdk.utils.resource.ResourceLocationResolverImpl;
 import org.commonmark.parser.Parser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,8 +19,6 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.lang.NonNull;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.nio.file.Paths;
 import java.util.List;
 
@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SkillResolverTest {
 
     private SkillResolver skillResolver;
+    private ResourceLocationResolver resourceLocationResolver;
 
     private static CodepromptConfiguration configuredTestSettings() {
         CodepromptConfiguration config = new CodepromptConfiguration();
@@ -36,7 +37,12 @@ class SkillResolverTest {
     }
 
     private static SkillParser skillParser() {
-        return skillFile -> null;
+        return new SkillParser() {
+            @Override
+            public Skill getSkill(org.springframework.core.io.Resource resource) {
+                return null;
+            }
+        };
     }
 
     private static ResourcePatternResolver failingResourcePatternResolver() {
@@ -73,12 +79,13 @@ class SkillResolverTest {
     void setUp() {
         Parser commonmarkParser = new MarkdownConfiguration().markdownParser();
         MarkdownParser markdownParser = new MarkdownParserImpl(commonmarkParser);
-        SkillParser skillParser = new SkillParserImpl(markdownParser, commonmarkParser);
+        resourceLocationResolver = new ResourceLocationResolverImpl(new PathMatchingResourcePatternResolver());
+        SkillParser skillParser = new SkillParserImpl(markdownParser, commonmarkParser, resourceLocationResolver);
 
         CodepromptConfiguration config = new CodepromptConfiguration();
         config.getAgent().setSkillFolders(List.of("classpath:dataset/markdown/skills/"));
 
-        skillResolver = new SkillResolverImpl(config, skillParser, new PathMatchingResourcePatternResolver());
+        skillResolver = new SkillResolverImpl(config, skillParser, resourceLocationResolver);
     }
 
     @Test
@@ -97,12 +104,21 @@ class SkillResolverTest {
     }
 
     @Test
-    void shouldResolveToLocationPrefixForAllSupportedInputForms() {
-        assertThat(invokeToLocationPrefix("classpath*:/dataset/markdown/skills/")).isEqualTo("classpath*:/dataset/markdown/skills");
-        assertThat(invokeToLocationPrefix("classpath:/dataset/markdown/skills/")).isEqualTo("classpath*:/dataset/markdown/skills");
-        assertThat(invokeToLocationPrefix("file:/tmp/skills/")).isEqualTo("file:/tmp/skills");
-        assertThat(invokeToLocationPrefix(Paths.get("src/test/resources/dataset/markdown/skills/").toString()))
-                .isEqualTo(trimTrailingSlashes(Paths.get("src/test/resources/dataset/markdown/skills/").toAbsolutePath().normalize().toUri().toString()));
+    void shouldResolveSearchPrefixForAllSupportedInputForms() {
+        assertThat(resourceLocationResolver.toSearchPrefix("classpath*:/dataset/markdown/skills/"))
+                .isEqualTo("classpath*:/dataset/markdown/skills");
+        assertThat(resourceLocationResolver.toSearchPrefix("classpath:/dataset/markdown/skills/"))
+                .isEqualTo("classpath*:/dataset/markdown/skills");
+        assertThat(resourceLocationResolver.toSearchPrefix("file:/tmp/skills/"))
+                .isEqualTo("file:/tmp/skills");
+
+        String expectedPathPrefix = trimTrailingSlashes(Paths.get("src/test/resources/dataset/markdown/skills/")
+                .toAbsolutePath()
+                .normalize()
+                .toUri()
+                .toString());
+        assertThat(resourceLocationResolver.toSearchPrefix(Paths.get("src/test/resources/dataset/markdown/skills/").toString()))
+                .isEqualTo(expectedPathPrefix);
     }
 
     @Test
@@ -110,7 +126,7 @@ class SkillResolverTest {
         SkillResolverImpl resolver = new SkillResolverImpl(
                 configuredTestSettings(),
                 skillParser(),
-                failingResourcePatternResolver()
+                new ResourceLocationResolverImpl(failingResourcePatternResolver())
         );
 
         IllegalStateException exception = invokeResolveSkillFromBaseFolder(resolver);
@@ -128,25 +144,13 @@ class SkillResolverTest {
                 .hasMessageContaining("nonexistent-skill");
     }
 
-    private String invokeToLocationPrefix(String baseFolder) {
-        try {
-            Method method = SkillResolverImpl.class.getDeclaredMethod("toLocationPrefix", String.class);
-            method.setAccessible(true);
-            return (String) method.invoke(skillResolver, baseFolder);
-        } catch (InvocationTargetException e) {
-            throw new RuntimeException(e.getCause());
-        } catch (ReflectiveOperationException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     private IllegalStateException invokeResolveSkillFromBaseFolder(SkillResolverImpl resolver) {
         try {
-            Method method = SkillResolverImpl.class.getDeclaredMethod("resolveSkillFromBaseFolder", String.class, String.class);
+            java.lang.reflect.Method method = SkillResolverImpl.class.getDeclaredMethod("resolveSkillFromBaseFolder", String.class, String.class);
             method.setAccessible(true);
             method.invoke(resolver, "classpath:dataset/markdown/skills/", "implements_features_file");
             throw new AssertionError("Expected resolveSkillFromBaseFolder to throw an IllegalStateException");
-        } catch (InvocationTargetException e) {
+        } catch (java.lang.reflect.InvocationTargetException e) {
             if (e.getCause() instanceof IllegalStateException illegalStateException) {
                 return illegalStateException;
             }
