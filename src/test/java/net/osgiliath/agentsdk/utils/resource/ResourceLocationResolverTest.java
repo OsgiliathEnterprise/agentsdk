@@ -15,7 +15,7 @@ class ResourceLocationResolverTest {
     private ResourcePatternResolver resourcePatternResolver;
 
     @Test
-    public void testResolveLocation() {
+    void testResolveLocation() {
         // This test would require a mock ResourcePatternResolver and some setup to verify the behavior of resolveLocation.
         // For example, you could use Mockito to create a mock ResourcePatternResolver and define its behavior for certain patterns.
         // Then, you would call resolveLocation with different location strings and assert that the returned Optional<Resource> is as expected.

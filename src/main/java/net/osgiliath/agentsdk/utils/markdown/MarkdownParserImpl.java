@@ -100,16 +100,11 @@ public class MarkdownParserImpl implements MarkdownParser {
             return Optional.empty();
         }
         logger.info("Parsing markdown resource: {}", fileResource.getDescription());
-        try {
-            return parseMarkdownResource(fileResource);
-        } catch (IOException e) {
-            logger.error("Error parsing markdown resource: {}", fileResource.getDescription(), e);
-            return Optional.empty();
-        }
+        return parseMarkdownResource(fileResource);
     }
 
     // FIXME: support inlining option (true or false)
-    private Optional<MarkdownFile> parseMarkdownResource(Resource resource) throws IOException {
+    private Optional<MarkdownFile> parseMarkdownResource(Resource resource) {
         String source = readResource(resource);
         FrontMatterSplit split = splitFrontMatterAndBody(source);
         String inlinedBody = inlineMarkdownLinks(resource, split.body(), new HashSet<>());

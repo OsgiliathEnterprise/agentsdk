@@ -94,15 +94,6 @@ public class AgentParserImpl implements AgentParser {
         }
     }
 
-    private Path validateAgentFile(Path agentFile) {
-        Objects.requireNonNull(agentFile, "agentFile must not be null");
-        Path normalized = agentFile.toAbsolutePath().normalize();
-        if (!Files.isRegularFile(normalized)) {
-            throw new IllegalArgumentException("Agent file does not exist: " + normalized);
-        }
-        return normalized;
-    }
-
     private List<MarkdownSection> parseLinkedMarkdownSections(Resource rootResource) {
         List<MarkdownSection> sections = new ArrayList<>();
         for (Resource linkedResource : markdownLinkedResourceResolver.resolveRecursively(rootResource)) {

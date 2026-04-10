@@ -10,12 +10,8 @@ import net.osgiliath.agentsdk.agent.parser.AgentParser;
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.support.ResourcePatternResolver;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 
@@ -180,7 +176,7 @@ public class AgentParsingSteps {
             stepError = throwable;
         }
     }
-    
+
     @FunctionalInterface
     private interface ThrowingRunnable {
         void run() throws Exception;

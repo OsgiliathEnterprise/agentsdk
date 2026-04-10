@@ -13,12 +13,9 @@ import net.osgiliath.agentsdk.skills.parser.SkillScriptCommand;
 import net.osgiliath.agentsdk.skills.parser.SkillTemplate;
 import net.osgiliath.agentsdk.skills.parser.SkillRenderer;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.support.ResourcePatternResolver;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -334,23 +331,6 @@ public class SkillsParsingSteps {
         } catch (Throwable throwable) {
             stepError = throwable;
         }
-    }
-
-    private Path resolveFromProject(String relativePath) {
-        try {
-            ClassPathResource resource = new ClassPathResource(relativePath);
-            if (resource.exists()) {
-                return resource.getFile().toPath().toAbsolutePath().normalize();
-            }
-        } catch (Exception e) {
-            // fall through
-        }
-
-        Path fromWorkDir = Paths.get(relativePath);
-        if (Files.exists(fromWorkDir)) {
-            return fromWorkDir.toAbsolutePath().normalize();
-        }
-        return fromWorkDir.toAbsolutePath().normalize();
     }
 
     @FunctionalInterface
