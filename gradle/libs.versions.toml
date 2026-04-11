@@ -15,7 +15,7 @@ langchain4jBom = "1.12.2"
 kotlinxCoroutines = "1.9.0"
 awaitility = "4.2.2"
 junitJupiter = "5.14.2"
-junitPlatform = "1.14.2"
+junitPlatform = "6.0.3"
 
 [plugins]
 springBoot = { id = "org.springframework.boot", version.ref = "springBoot" }
