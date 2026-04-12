@@ -138,8 +138,6 @@ public class LlmKindModelProperties {
         public void setUseDefaultIfNoOverride(boolean useDefaultIfNoOverride) {
             this.useDefaultIfNoOverride = useDefaultIfNoOverride;
         }
-
-
     }
 }
 

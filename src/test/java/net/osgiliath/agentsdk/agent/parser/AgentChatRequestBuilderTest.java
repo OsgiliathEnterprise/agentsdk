@@ -13,6 +13,8 @@ import dev.langchain4j.service.tool.ToolProviderResult;
 import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.configuration.CodepromptConfiguration;
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
+import net.osgiliath.agentsdk.mcp.AliasAwareToolProviderComposer;
+import net.osgiliath.agentsdk.mcp.McpToolAliasResolverImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -31,6 +33,7 @@ class AgentChatRequestBuilderTest {
     private AgentParser agentParser;
     private McpToolProvider fullToolProvider;
     private CodepromptConfiguration configuration;
+    private AliasAwareToolProviderComposer aliasAwareToolProviderComposer;
     private AgentChatRequestBuilder builder;
 
     @BeforeEach
@@ -38,11 +41,12 @@ class AgentChatRequestBuilderTest {
         agentParser = mock(AgentParser.class);
         fullToolProvider = mock(McpToolProvider.class);
         configuration = new CodepromptConfiguration();
-        builder = new AgentChatRequestBuilder(agentParser, fullToolProvider, configuration);
+        aliasAwareToolProviderComposer = new AliasAwareToolProviderComposer(new McpToolAliasResolverImpl(configuration));
+        builder = new AgentChatRequestBuilder(agentParser, fullToolProvider, aliasAwareToolProviderComposer);
     }
 
     @Test
-    void shouldResolveAliasesAndFilterOutUndeclaredTools() {
+    void shouldExposeDeclaredToolsAndFilterOutUndeclaredTools() {
         Agent agent = newAgentWithTools(List.of("read", "run_in_terminal"));
         configuration.getMcp().getTools().setAliases(Map.of("read", List.of("read_file", "grep_search")));
 
@@ -57,7 +61,7 @@ class AgentChatRequestBuilderTest {
 
         assertThat(filtered.tools().keySet())
                 .extracting(ToolSpecification::name)
-                .containsExactlyInAnyOrder("read_file", "grep_search", "run_in_terminal");
+                .containsExactlyInAnyOrder("read", "run_in_terminal");
         verify(fullToolProvider).provideTools(any(ToolProviderRequest.class));
     }
 
