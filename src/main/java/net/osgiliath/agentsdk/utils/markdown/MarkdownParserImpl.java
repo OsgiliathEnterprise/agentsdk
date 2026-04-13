@@ -3,13 +3,10 @@ package net.osgiliath.agentsdk.utils.markdown;
 import dev.langchain4j.data.document.Document;
 import org.commonmark.node.AbstractVisitor;
 import org.commonmark.node.Block;
-import org.commonmark.node.Heading;
 import org.commonmark.node.Link;
 import org.commonmark.node.Node;
-import org.commonmark.node.Paragraph;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.markdown.MarkdownRenderer;
-import org.commonmark.renderer.text.TextContentRenderer;
 import net.osgiliath.agentsdk.utils.resource.MarkdownLinkRules;
 import net.osgiliath.agentsdk.utils.resource.ResourceLocationResolver;
 import net.osgiliath.agentsdk.utils.resource.ResourceLocationResolverImpl;
@@ -19,17 +16,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Component;
-import org.commonmark.ext.front.matter.YamlFrontMatterVisitor;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Deque;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -38,31 +32,43 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Component
 public class MarkdownParserImpl implements MarkdownParser {
 
-    private static final Pattern LEADING_YAML_FRONT_MATTER_PATTERN =
-            Pattern.compile("\\A(---\\R[\\s\\S]*?\\R---(?:\\R|\\z))");
+    private static final Logger logger = LoggerFactory.getLogger(MarkdownParserImpl.class);
 
     private final Parser parser;
     private final MarkdownRenderer markdownRenderer;
-    private final TextContentRenderer textContentRenderer;
     private final ResourceLocationResolver resourceLocationResolver;
-    Logger logger = LoggerFactory.getLogger(MarkdownParserImpl.class);
+    private final FrontMatterParser frontMatterParser;
+    private final MarkdownContentExtractor markdownContentExtractor;
 
     public MarkdownParserImpl(Parser markdownParser) {
-        this(markdownParser, new ResourceLocationResolverImpl(new PathMatchingResourcePatternResolver()));
+        this(
+                markdownParser,
+                new ResourceLocationResolverImpl(new PathMatchingResourcePatternResolver()),
+                new CommonMarkFrontMatterParser(),
+                new CommonMarkMarkdownContentExtractor()
+        );
+    }
+
+    public MarkdownParserImpl(Parser markdownParser, ResourceLocationResolver resourceLocationResolver) {
+        this(markdownParser, resourceLocationResolver, new CommonMarkFrontMatterParser(), new CommonMarkMarkdownContentExtractor());
     }
 
     @Autowired
-    public MarkdownParserImpl(Parser markdownParser, ResourceLocationResolver resourceLocationResolver) {
+    public MarkdownParserImpl(
+            Parser markdownParser,
+            ResourceLocationResolver resourceLocationResolver,
+            FrontMatterParser frontMatterParser,
+            MarkdownContentExtractor markdownContentExtractor
+    ) {
         this.parser = markdownParser;
         this.markdownRenderer = MarkdownRenderer.builder().build();
-        this.textContentRenderer = TextContentRenderer.builder().build();
         this.resourceLocationResolver = resourceLocationResolver;
+        this.frontMatterParser = frontMatterParser;
+        this.markdownContentExtractor = markdownContentExtractor;
     }
 
     @Override
@@ -106,16 +112,16 @@ public class MarkdownParserImpl implements MarkdownParser {
     // FIXME: support inlining option (true or false)
     private Optional<MarkdownFile> parseMarkdownResource(Resource resource) {
         String source = readResource(resource);
-        FrontMatterSplit split = splitFrontMatterAndBody(source);
+        FrontMatterSplit split = frontMatterParser.splitFrontMatterAndBody(source);
         String inlinedBody = inlineMarkdownLinks(resource, split.body(), new HashSet<>());
         String sourceWithInlinedMarkdown = split.frontMatter() + inlinedBody;
         logger.trace("Parsed resource with {} bytes", sourceWithInlinedMarkdown.length());
         Node document = parser.parse(sourceWithInlinedMarkdown);
-        Optional<MarkdownHeaders> headers = parseHeaders(document, sourceWithInlinedMarkdown);
+        Optional<MarkdownHeaders> headers = frontMatterParser.parseHeaders(document, sourceWithInlinedMarkdown);
         logger.debug("Extracted {} headers", headers.map(h -> h.headerKeys().size()).orElse(0));
-        List<MarkdownSection> parsedSections = parseSections(document);
+        List<MarkdownSection> parsedSections = markdownContentExtractor.parseSections(document);
         if (parsedSections.isEmpty() && !source.isBlank()) {
-            String fullContent = extractFullMarkdownContent(document);
+            String fullContent = markdownContentExtractor.extractFullMarkdownContent(document);
             parsedSections = List.of(new MainSection(resource.getFilename(), fullContent.trim(), List.of()));
         }
         logger.info("Parsed {} section(s) from markdown resource", parsedSections.size());
@@ -172,19 +178,6 @@ public class MarkdownParserImpl implements MarkdownParser {
         }
 
         return markdownRenderer.render(document);
-    }
-
-    private FrontMatterSplit splitFrontMatterAndBody(String source) {
-        if (source == null || source.isBlank()) {
-            return new FrontMatterSplit("", "");
-        }
-        Matcher matcher = LEADING_YAML_FRONT_MATTER_PATTERN.matcher(source);
-        if (matcher.find()) {
-            String frontMatter = matcher.group(1);
-            String body = source.substring(matcher.end());
-            return new FrontMatterSplit(frontMatter, body);
-        }
-        return new FrontMatterSplit("", source);
     }
 
     private Node findInsertionAnchor(Node node) {
@@ -359,128 +352,6 @@ public class MarkdownParserImpl implements MarkdownParser {
         }
     }
 
-    private String extractFullMarkdownContent(Node document) {
-        return markdownRenderer.render(document).trim();
-    }
-
-
-    private Optional<MarkdownHeaders> parseHeaders(Node document, String source) {
-        logger.debug("Parsing headers from document");
-
-        // CommonMark detects whether front matter is present
-        YamlFrontMatterVisitor visitor = new YamlFrontMatterVisitor();
-        document.accept(visitor);
-        Map<String, List<String>> frontMatter = visitor.getData();
-
-        if (frontMatter == null || frontMatter.isEmpty()) {
-            logger.debug("No YAML front matter found in document");
-            return Optional.empty();
-        }
-
-        List<MarkdownHeader> parsedHeaders = parseFrontMatterHeaders(source, frontMatter);
-        return Optional.of(new AbstractMarkdownHeaders(parsedHeaders));
-    }
-
-    private List<MarkdownHeader> parseFrontMatterHeaders(String source, Map<String, List<String>> frontMatter) {
-        logger.info("Found YAML front matter with {} keys", frontMatter.size());
-        List<MarkdownHeader> parsedHeaders = new ArrayList<>();
-        parsedHeaders.add(new SimpleMarkdownHeader("text", source));
-        for (Map.Entry<String, List<String>> entry : frontMatter.entrySet()) {
-            List<String> values = entry.getValue();
-            Object value;
-            if (values == null || values.isEmpty()) {
-                value = "";
-            } else if (values.size() == 1) {
-                value = values.getFirst();
-            } else {
-                value = List.copyOf(values);
-            }
-            logger.trace("Header: {} = {} bytes", entry.getKey(), value.toString().length());
-            parsedHeaders.add(new SimpleMarkdownHeader(entry.getKey(), value));
-        }
-        logger.debug("Successfully parsed {} headers from YAML front matter", parsedHeaders.size());
-        return parsedHeaders;
-    }
-
-
-    private List<MarkdownSection> parseSections(Node document) {
-        logger.trace("Parsing sections from document");
-        List<SectionNode> rootSections = new ArrayList<>();
-        Deque<SectionNode> stack = new ArrayDeque<>();
-        SectionNode currentSection = null;
-        StringBuilder contentBuffer = new StringBuilder();
-        int headingCount = 0;
-
-        Node node = document.getFirstChild();
-        while (node != null) {
-            if (node instanceof Heading heading) {
-                headingCount++;
-                logger.trace("Found heading level {}: ", heading.getLevel());
-
-                // Save any buffered content to current section
-                if (currentSection != null && !contentBuffer.isEmpty()) {
-                    String content = contentBuffer.toString();
-                    currentSection.content.append(content.trim());
-                    logger.trace("Buffered content ({} bytes) added to section: {}", content.length(), currentSection.title);
-                    contentBuffer.setLength(0);
-                }
-
-                int level = heading.getLevel();
-                String title = extractHeadingText(heading);
-                logger.debug("Processing heading level {}: '{}'", level, title);
-
-                // Pop sections from stack until we find the parent level
-                while (!stack.isEmpty() && stack.peek().level >= level) {
-                    stack.pop();
-                }
-
-                SectionNode newSection = new SectionNode(title, level);
-
-                if (stack.isEmpty()) {
-                    rootSections.add(newSection);
-                    logger.trace("Added root section: {}", title);
-                } else {
-                    stack.peek().children.add(newSection);
-                    if (logger.isTraceEnabled()) {
-                        logger.trace("Added subsection to '{}': {}", stack.peek().title, title);
-                    }
-                }
-
-                stack.push(newSection);
-                currentSection = newSection;
-            } else {
-                String nodeText = extractNodeTextForSection(node);
-                if (!nodeText.isBlank()) {
-                    contentBuffer.append(nodeText);
-                }
-            }
-            node = node.getNext();
-        }
-
-        // Save final buffered content
-        if (currentSection != null && !contentBuffer.isEmpty()) {
-            String content = contentBuffer.toString();
-            currentSection.content.append(content.trim());
-            logger.trace("Final content ({} bytes) added to section: {}", content.length(), currentSection.title);
-        }
-
-        List<MarkdownSection> result = rootSections.stream().map(this::toSection).toList();
-        logger.info("Parsed {} root sections and {} headings total", rootSections.size(), headingCount);
-        return result;
-    }
-
-    private String extractNodeTextForSection(Node node) {
-        String rendered = markdownRenderer.render(node);
-        if (node instanceof Paragraph) {
-            return rendered + System.lineSeparator() + System.lineSeparator();
-        }
-        return rendered;
-    }
-
-    private String extractHeadingText(Heading heading) {
-        return textContentRenderer.render(heading).trim();
-    }
-
     private List<MarkdownSection> extractSampleSections(List<MarkdownSection> sections) {
         MarkdownSection samples = null;
         for (MarkdownSection section : sections) {
@@ -495,12 +366,6 @@ public class MarkdownParserImpl implements MarkdownParser {
             }
         }
         return samples == null ? List.of() : samples.getSubSections();
-    }
-
-    private MarkdownSection toSection(SectionNode node) {
-        String content = node.content.toString().trim();
-        List<MarkdownSection> children = node.children.stream().map(this::toSection).toList();
-        return new MainSection(node.title, content, children);
     }
 
     private void appendSection(StringBuilder builder, MarkdownSection section) {
@@ -530,17 +395,5 @@ public class MarkdownParserImpl implements MarkdownParser {
     }
 
     private record PendingInline(Node anchor, String content) {
-    }
-
-    private record FrontMatterSplit(String frontMatter, String body) {
-    }
-
-    private record SectionNode(String title, int level, StringBuilder content, List<SectionNode> children) {
-        private SectionNode(String title, int level) {
-            this(title, level, new StringBuilder(), new ArrayList<>());
-        }
-    }
-
-    private record SimpleMarkdownHeader(String key, Object value) implements MarkdownHeader {
     }
 }

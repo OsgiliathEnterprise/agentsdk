@@ -10,18 +10,14 @@ import dev.langchain4j.mcp.McpToolProvider;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.service.tool.ToolProviderRequest;
 import dev.langchain4j.service.tool.ToolProviderResult;
-import net.osgiliath.agentsdk.configuration.CodepromptConfiguration;
 import net.osgiliath.agentsdk.configuration.LangChain4jConfig;
+import net.osgiliath.agentsdk.mcp.AliasAwareToolProviderComposer;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Facade for building fully-hydrated {@link ChatRequest} instances from agents.
@@ -31,7 +27,7 @@ import java.util.stream.Stream;
  * {@value LangChain4jConfig#TOOL_PROVIDER_FULL} {@link McpToolProvider}.
  * The resulting tool set is then filtered to the names the agent declares in its skill
  * front-matter, with logical names expanded through the aliases configured in
- * {@link CodepromptConfiguration.ToolsProperties}.</p>
+ * {@code codeprompt.mcp.tools.aliases}.</p>
  *
  * <h2>Usage Example</h2>
  * <pre>{@code
@@ -47,15 +43,15 @@ public class AgentChatRequestBuilder {
 
     private final AgentParser agentParser;
     private final McpToolProvider fullToolProvider;
-    private final CodepromptConfiguration configuration;
+    private final AliasAwareToolProviderComposer aliasAwareToolProviderComposer;
 
     public AgentChatRequestBuilder(
             AgentParser agentParser,
             @Qualifier(LangChain4jConfig.TOOL_PROVIDER_FULL) McpToolProvider fullToolProvider,
-            CodepromptConfiguration configuration) {
+            AliasAwareToolProviderComposer aliasAwareToolProviderComposer) {
         this.agentParser = agentParser;
         this.fullToolProvider = fullToolProvider;
-        this.configuration = configuration;
+        this.aliasAwareToolProviderComposer = aliasAwareToolProviderComposer;
     }
 
     /**
@@ -97,7 +93,7 @@ public class AgentChatRequestBuilder {
      * {@code chatMemoryId}, and {@code invocationParameters}, passed to
      * {@value LangChain4jConfig#TOOL_PROVIDER_FULL}, and the result is narrowed to the tool
      * names declared by the agent (with logical names resolved through
-     * {@link CodepromptConfiguration.ToolsProperties#getAliases()}).</p>
+     * configured MCP aliases).</p>
      *
      * @param agent                the parsed agent with headers and skills loaded
      * @param userMessage          the user message for the tool-provider context
@@ -119,24 +115,6 @@ public class AgentChatRequestBuilder {
                 .build();
 
         ToolProviderResult fullResult = fullToolProvider.provideTools(toolProviderRequest);
-
-        // Resolve declared tool names through configured aliases
-        Map<String, List<String>> aliases = configuration.getMcp().getTools().getAliases();
-        Set<String> resolvedNames = agent.getAllToolNames().stream()
-                .flatMap(name -> {
-                    List<String> aliasValues = aliases.get(name);
-                    return (aliasValues != null && !aliasValues.isEmpty())
-                            ? aliasValues.stream()
-                            : Stream.of(name);
-                })
-                .collect(Collectors.toSet());
-
-        ToolProviderResult.Builder builder = ToolProviderResult.builder();
-        fullResult.tools().forEach((spec, executor) -> {
-            if (resolvedNames.contains(spec.name())) {
-                builder.add(spec, executor);
-            }
-        });
-        return builder.build();
+        return aliasAwareToolProviderComposer.compose(fullResult, agent.getAllToolNames());
     }
 }

@@ -11,7 +11,7 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger{36} - %msg%n"
   exception-conversion-word: "%wEx"
-# Log to stderr to avoid interfering with JSON-RPC on stdout
+  # Log to stderr to avoid interfering with JSON-RPC on stdout
   level:
     root: INFO
     net.osgiliath.erp.codeprompt: DEBUG
@@ -33,7 +33,7 @@ codeprompt:
     primary-kind: mini
     default-vendor: openai
     default-base-url: http://127.0.0.1:1234/v1
-    default-timeout: 20s
+    default-timeout: 50s
     kinds:
       thinking:
         model-name: thinking
