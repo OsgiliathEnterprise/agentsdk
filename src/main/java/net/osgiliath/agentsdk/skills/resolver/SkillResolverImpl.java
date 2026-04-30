@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Component
@@ -22,15 +23,16 @@ public class SkillResolverImpl implements SkillResolver {
     public SkillResolverImpl(CodepromptConfiguration config,
                              SkillParser skillParser,
                              ResourceLocationResolver resourceLocationResolver) {
-        this.config = config;
-        this.skillParser = skillParser;
-        this.resourceLocationResolver = resourceLocationResolver;
+        this.config = Objects.requireNonNull(config, "config must not be null");
+        this.skillParser = Objects.requireNonNull(skillParser, "skillParser must not be null");
+        this.resourceLocationResolver = Objects.requireNonNull(resourceLocationResolver, "resourceLocationResolver must not be null");
     }
 
     @Override
     public List<Skill> resolveSkills(List<String> skillNames) {
+        Objects.requireNonNull(skillNames, "skillNames must not be null");
         if (skillNames.isEmpty()) {
-            return List.of();
+            throw new IllegalArgumentException("skillNames must not be empty");
         }
         List<Skill> resolved = new ArrayList<>();
         for (String skillName : skillNames) {
@@ -40,6 +42,10 @@ public class SkillResolverImpl implements SkillResolver {
     }
 
     private Skill resolveSkill(String skillName) {
+        Objects.requireNonNull(skillName, "skillName must not be null");
+        if (skillName.isBlank()) {
+            throw new IllegalArgumentException("skillName must not be blank");
+        }
         return config.getAgent().getSkillFolders().stream()
                 .map(baseFolder -> resolveSkillFromBaseFolder(baseFolder, skillName))
                 .flatMap(Optional::stream)
@@ -50,6 +56,8 @@ public class SkillResolverImpl implements SkillResolver {
     }
 
     private Optional<Skill> resolveSkillFromBaseFolder(String baseFolder, String skillName) {
+        Objects.requireNonNull(baseFolder, "baseFolder must not be null");
+        Objects.requireNonNull(skillName, "skillName must not be null");
         String relativePattern = "**/" + skillName + "/SKILL.md";
         String locationPattern = resourceLocationResolver.buildPattern(baseFolder, relativePattern);
         try {
@@ -67,6 +75,7 @@ public class SkillResolverImpl implements SkillResolver {
 
 
     private Skill tryResolve(Resource resource) {
+        Objects.requireNonNull(resource, "resource must not be null");
         return skillParser.getSkill(resource);
     }
 }

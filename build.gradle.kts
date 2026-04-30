@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.math.BigDecimal
 
 plugins {
     alias(libs.plugins.springBoot)
@@ -61,6 +62,28 @@ tasks.named<JacocoReport>("jacocoTestReport") {
         csv.required.set(false)
     }
 }
+
+tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    dependsOn(tasks.named("test"))
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = BigDecimal("0.80")
+            }
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn(tasks.named("jacocoTestCoverageVerification"))
+}
+
+tasks.named("sonar") {
+    dependsOn(tasks.named("jacocoTestCoverageVerification"))
+}
+
 // Override Spring Boot's JUnit version to match Cucumber requirements
 ext {
     set("junit-jupiter.version", libs.versions.junitJupiter.get())
@@ -125,6 +148,7 @@ dependencies {
     implementation(libs.langchain4jOpenAiSpringBootStarter)
     implementation("dev.langchain4j:langchain4j-anthropic")
     implementation("dev.langchain4j:langchain4j-ollama")
+    implementation("dev.langchain4j:langchain4j-skills")
     implementation("dev.langchain4j:langchain4j-google-ai-gemini")
     implementation("dev.langchain4j:langchain4j-mistral-ai")
     implementation(libs.langchain4jHttpClientJdk)

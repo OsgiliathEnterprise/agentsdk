@@ -39,12 +39,16 @@ public class MarkdownLinkedResourceResolver {
     }
 
     public List<Resource> resolveRecursively(Resource rootResource) {
+        Objects.requireNonNull(rootResource, "rootResource must not be null");
         List<Resource> linkedResources = new ArrayList<>();
         collectLinkedMarkdownResources(rootResource, new LinkedHashSet<>(), linkedResources);
         return List.copyOf(linkedResources);
     }
 
     private void collectLinkedMarkdownResources(Resource currentResource, Set<String> visited, List<Resource> linkedResources) {
+        Objects.requireNonNull(currentResource, "currentResource must not be null");
+        Objects.requireNonNull(visited, "visited must not be null");
+        Objects.requireNonNull(linkedResources, "linkedResources must not be null");
         String currentId = describeResource(currentResource);
         if (!visited.add(currentId)) {
             return;
@@ -78,6 +82,7 @@ public class MarkdownLinkedResourceResolver {
     }
 
     private List<String> extractInternalLinks(Node document) {
+        Objects.requireNonNull(document, "document must not be null");
         List<String> links = new ArrayList<>();
         document.accept(new AbstractVisitor() {
             @Override
@@ -93,6 +98,8 @@ public class MarkdownLinkedResourceResolver {
     }
 
     private Optional<Resource> resolveWithChain(Resource sourceResource, String destination) {
+        Objects.requireNonNull(sourceResource, "sourceResource must not be null");
+        Objects.requireNonNull(destination, "destination must not be null");
         for (LinkResolutionHandler handler : resolutionHandlers) {
             if (!handler.supports(sourceResource, destination)) {
                 continue;
@@ -106,6 +113,7 @@ public class MarkdownLinkedResourceResolver {
     }
 
     private String describeResource(Resource resource) {
+        Objects.requireNonNull(resource, "resource must not be null");
         try {
             return resource.getURL().toString();
         } catch (IOException e) {
@@ -114,6 +122,7 @@ public class MarkdownLinkedResourceResolver {
     }
 
     private String readResource(Resource resource) {
+        Objects.requireNonNull(resource, "resource must not be null");
         try (InputStream is = resource.getInputStream()) {
             return new String(is.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException e) {
@@ -122,6 +131,7 @@ public class MarkdownLinkedResourceResolver {
     }
 
     private <T> List<T> sortByOrder(List<T> values) {
+        Objects.requireNonNull(values, "values must not be null");
         List<T> sorted = new ArrayList<>(values);
         AnnotationAwareOrderComparator.sort(sorted);
         return List.copyOf(sorted);

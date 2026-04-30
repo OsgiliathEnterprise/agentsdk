@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Unit tests for {@link MarkdownParserImpl}.
@@ -56,7 +57,9 @@ class MarkdownParserImplTest {
 
     @Test
     void getNullFileReturnsEmpty() {
-        assertThat(parser.getMarkdownFile(null)).isEmpty();
+        assertThatThrownBy(() -> parser.getMarkdownFile(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("fileResource must not be null");
         assertThat(parse(" ")).isEmpty();
     }
 
@@ -620,7 +623,9 @@ class MarkdownParserImplTest {
         @Test
         void emptyInputReturnsEmptyString() {
             assertThat(parser.renderSectionsAsMarkdown(List.of())).isEmpty();
-            assertThat(parser.renderSectionsAsMarkdown(null)).isEmpty();
+            assertThatThrownBy(() -> parser.renderSectionsAsMarkdown(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessage("sections must not be null");
         }
 
         @Test

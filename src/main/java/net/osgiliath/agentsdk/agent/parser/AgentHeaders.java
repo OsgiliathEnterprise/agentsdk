@@ -81,6 +81,7 @@ public record AgentHeaders(
     }
 
     public static AgentHeaders fromRawHeaders(Map<String, Object> rawHeaders) {
+        Objects.requireNonNull(rawHeaders, "rawHeaders must not be null");
         Map<String, Object> values = new LinkedHashMap<>(rawHeaders);
         List<AgentHandoff> parsedHandoffs = asHandoffs(values.get(AgentHandoffsHeader.HANDOFFS));
         boolean missingStructuredFields = parsedHandoffs.stream()
@@ -92,11 +93,11 @@ public record AgentHeaders(
                 new NameHeader(ParsingValueCoercions.requiredString(values, NameHeader.NAME, AGENT)),
                 new DescriptionHeader(ParsingValueCoercions.requiredString(values, DescriptionHeader.DESCRIPTION, AGENT)),
                 new AgentArgumentHintHeader(ParsingValueCoercions.asString(values.get(AgentArgumentHintHeader.ARGUMENT_HINT))),
-                new McpHeader(ParsingValueCoercions.asStringList(firstNonNull(values, McpHeader.MCP, McpHeader.TOOLS_ALIAS))),
-                new LlmHeader(ParsingValueCoercions.asLlmKindList(firstNonNull(values, LlmHeader.LLM, LlmHeader.MODEL_ALIAS))),
+                new McpHeader(ParsingValueCoercions.asStringList(firstNonNull(values, McpHeader.MCP, McpHeader.TOOLS_ALIAS).orElse(null))),
+                new LlmHeader(ParsingValueCoercions.asLlmKindList(firstNonNull(values, LlmHeader.LLM, LlmHeader.MODEL_ALIAS).orElse(null))),
                 new AgentUserInvokableHeader(ParsingValueCoercions.asBoolean(values.get(AgentUserInvokableHeader.USER_INVOKABLE))),
                 new AgentDisableModelInvocationHeader(ParsingValueCoercions.asBoolean(values.get(AgentDisableModelInvocationHeader.DISABLE_MODEL_INVOCATION))),
-                new AgentSubagentsHeader(ParsingValueCoercions.asStringList(firstNonNull(values, AgentSubagentsHeader.SUBAGENTS, AgentSubagentsHeader.AGENTS_ALIAS))),
+                new AgentSubagentsHeader(ParsingValueCoercions.asStringList(firstNonNull(values, AgentSubagentsHeader.SUBAGENTS, AgentSubagentsHeader.AGENTS_ALIAS).orElse(null))),
                 new AgentHandoffsHeader(parsedHandoffs),
                 new AgentSkillsHeader(ParsingValueCoercions.asStringList(values.get(AgentSkillsHeader.SKILLS)))
         );
@@ -106,22 +107,25 @@ public record AgentHeaders(
         if (!(value instanceof List<?> list)) {
             return List.of();
         }
+        if (list.isEmpty()) {
+            return List.of();
+        }
         return list.stream()
                 .map(item -> {
                     if (item instanceof AgentHandoff handoff) {
-                        return handoff;
+                        return Optional.of(handoff);
                     }
                     if (!(item instanceof Map<?, ?> map)) {
-                        return null;
+                        return Optional.<AgentHandoff>empty();
                     }
-                    return new AgentHandoff(
+                    return Optional.of(new AgentHandoff(
                             ParsingValueCoercions.asString(map.get(LABEL)),
                             ParsingValueCoercions.asString(map.get(AGENT)),
                             ParsingValueCoercions.asString(map.get(PROMPT)),
                             ParsingValueCoercions.asBoolean(map.get(SEND))
-                    );
+                    ));
                 })
-                .filter(Objects::nonNull)
+                .flatMap(Optional::stream)
                 .toList();
     }
 
@@ -130,14 +134,19 @@ public record AgentHeaders(
         return asHandoffs(frontMatter.get(AgentHandoffsHeader.HANDOFFS));
     }
 
-    private static Object firstNonNull(Map<String, Object> values, String... keys) {
+    private static Optional<Object> firstNonNull(Map<String, Object> values, String... keys) {
+        Objects.requireNonNull(values, "values must not be null");
+        Objects.requireNonNull(keys, "keys must not be null");
+        if (keys.length == 0) {
+            throw new IllegalArgumentException("keys must not be empty");
+        }
         for (String key : keys) {
             Object value = values.get(key);
             if (value != null) {
-                return value;
+                return Optional.of(value);
             }
         }
-        return null;
+        return Optional.empty();
     }
 
     @Override
