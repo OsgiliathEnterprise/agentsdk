@@ -80,7 +80,8 @@ class SkillResolverTest {
         Parser commonmarkParser = new MarkdownConfiguration().markdownParser();
         MarkdownParser markdownParser = new MarkdownParserImpl(commonmarkParser);
         resourceLocationResolver = new ResourceLocationResolverImpl(new PathMatchingResourcePatternResolver());
-        SkillParser skillParser = new SkillParserImpl(markdownParser, commonmarkParser, resourceLocationResolver);
+        SkillParser skillParser = new SkillParserImpl(markdownParser, commonmarkParser, resourceLocationResolver,
+                new net.osgiliath.agentsdk.skills.assertions.SkillAssertionSetParser(resourceLocationResolver, new com.fasterxml.jackson.databind.ObjectMapper()));
 
         CodepromptConfiguration config = new CodepromptConfiguration();
         config.getAgent().setSkillFolders(List.of("classpath:dataset/markdown/skills/"));
@@ -97,10 +98,10 @@ class SkillResolverTest {
     }
 
     @Test
-    void shouldReturnEmptyListWhenNoSkillNamesGiven() {
-        List<Skill> skills = skillResolver.resolveSkills(List.of());
-
-        assertThat(skills).isEmpty();
+    void shouldThrowWhenNoSkillNamesGiven() {
+        assertThatThrownBy(() -> skillResolver.resolveSkills(List.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("skillNames must not be empty");
     }
 
     @Test

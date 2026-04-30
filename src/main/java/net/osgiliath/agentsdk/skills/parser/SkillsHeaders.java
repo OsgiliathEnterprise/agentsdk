@@ -60,17 +60,24 @@ public record SkillsHeaders(
                 new NameHeader(ParsingValueCoercions.requiredString(values, NameHeader.NAME, "skill")),
                 new DescriptionHeader(ParsingValueCoercions.requiredString(values, DescriptionHeader.DESCRIPTION, "skill")),
                 new SkillDependenciesHeader(ParsingValueCoercions.asStringList(values.get(SkillDependenciesHeader.DEPENDENCIES))),
-                new McpHeader(ParsingValueCoercions.asStringList(firstNonNull(values, McpHeader.MCP, McpHeader.TOOLS_ALIAS))),
-                new LlmHeader(ParsingValueCoercions.asLlmKindList(firstNonNull(values, LlmHeader.LLM, LlmHeader.MODEL_ALIAS)))
+                new McpHeader(ParsingValueCoercions.asStringList(firstNonNull(values, McpHeader.MCP, McpHeader.TOOLS_ALIAS).orElse(null))),
+                new LlmHeader(ParsingValueCoercions.asLlmKindList(firstNonNull(values, LlmHeader.LLM, LlmHeader.MODEL_ALIAS).orElse(null)))
         );
     }
 
-    private static Object firstNonNull(Map<String, Object> values, String... keys) {
+    private static Optional<Object> firstNonNull(Map<String, Object> values, String... keys) {
+        Objects.requireNonNull(values, "values must not be null");
+        Objects.requireNonNull(keys, "keys must not be null");
+        if (keys.length == 0) {
+            throw new IllegalArgumentException("keys must not be empty");
+        }
         for (String key : keys) {
             Object value = values.get(key);
-            if (value != null) return value;
+            if (value != null) {
+                return Optional.of(value);
+            }
         }
-        return null;
+        return Optional.empty();
     }
 
     @Override

@@ -2,6 +2,7 @@ package net.osgiliath.agentsdk.skills.parser;
 
 import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSet;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 
 import java.util.List;
@@ -11,16 +12,18 @@ import java.util.Objects;
  * Public skill model returned by the parser.
  * Links and references are internal implementation details and are not exposed.
  *
- * @param headers   The skill's front-matter headers.
- * @param assets    The skill's assets, including linked documents and resources.
- * @param templates The templates
+ * @param headers        The skill's front-matter headers.
+ * @param assets         The skill's assets, including linked documents and resources.
+ * @param templates      The templates
+ * @param assertionSets  Assertion checks parsed from {@code asserts/*.json} next to the skill file.
  */
 public record Skill(
         SkillsHeaders headers,
         List<SkillAsset> assets,
         List<SkillTemplate> templates,
         List<SkillScriptCommand> scriptCommands,
-        MarkdownContentSections content
+        MarkdownContentSections content,
+        List<SkillAssertionSet> assertionSets
 ) {
 
     public Skill {
@@ -29,10 +32,12 @@ public record Skill(
         Objects.requireNonNull(templates, "templates must not be null");
         Objects.requireNonNull(scriptCommands, "scriptCommands must not be null");
         Objects.requireNonNull(content, "content must not be null");
+        Objects.requireNonNull(assertionSets, "assertionSets must not be null");
 
         assets = List.copyOf(assets);
         templates = List.copyOf(templates);
         scriptCommands = List.copyOf(scriptCommands);
+        assertionSets = List.copyOf(assertionSets);
     }
 
     public String getName() {
@@ -73,5 +78,9 @@ public record Skill(
 
     public List<SkillScriptCommand> getCommands() {
         return scriptCommands;
+    }
+
+    public List<SkillAssertionSet> getAssertionSets() {
+        return assertionSets;
     }
 }

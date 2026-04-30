@@ -2,7 +2,7 @@ package net.osgiliath.agentsdk.agent.parser;
 
 import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
-import net.osgiliath.agentsdk.skills.parser.Skill;
+import net.osgiliath.agentsdk.skills.parser.SkillsHeaders;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 
 import java.util.Collection;
@@ -12,15 +12,15 @@ import java.util.Objects;
 public record Agent(
         AgentHeaders headers,
         MarkdownContentSections content,
-        Collection<Skill> skills
+        Collection<SkillsHeaders> skillHeaders
 ) {
 
     public Agent {
         Objects.requireNonNull(headers, "headers must not be null");
         Objects.requireNonNull(content, "content must not be null");
-        Objects.requireNonNull(skills, "skills must not be null");
+        Objects.requireNonNull(skillHeaders, "skillHeaders must not be null");
 
-        skills = List.copyOf(skills);
+        skillHeaders = List.copyOf(skillHeaders);
     }
 
     public String getName() {
@@ -63,8 +63,8 @@ public record Agent(
         return headers.skills().value();
     }
 
-    public Collection<Skill> getSkills() {
-        return skills;
+    public Collection<SkillsHeaders> getSkillHeaders() {
+        return skillHeaders;
     }
 
     /**
@@ -78,8 +78,8 @@ public record Agent(
      */
     public List<String> getAllToolNames() {
         java.util.LinkedHashSet<String> all = new java.util.LinkedHashSet<>(getTools());
-        for (Skill skill : skills) {
-            all.addAll(skill.getMcps());
+        for (SkillsHeaders skillHeader : skillHeaders) {
+            all.addAll(skillHeader.mcp().value());
         }
         return List.copyOf(all);
     }

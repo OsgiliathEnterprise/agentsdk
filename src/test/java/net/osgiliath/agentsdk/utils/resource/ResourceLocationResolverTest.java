@@ -7,6 +7,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePatternResolver;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 class ResourceLocationResolverTest {
@@ -20,8 +21,10 @@ class ResourceLocationResolverTest {
         // For example, you could use Mockito to create a mock ResourcePatternResolver and define its behavior for certain patterns.
         // Then, you would call resolveLocation with different location strings and assert that the returned Optional<Resource> is as expected.
         ResourceLocationResolver resolver = new ResourceLocationResolverImpl(resourcePatternResolver);
-        // Test null input
-        assertThat(resolver.resolveLocation(null)).isEmpty();
+        // Null input is rejected by contract.
+        assertThatThrownBy(() -> resolver.resolveLocation(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("location must not be null");
         // Test empty input
         assertThat(resolver.resolveLocation("")).isEmpty();
         // Test unexisting location

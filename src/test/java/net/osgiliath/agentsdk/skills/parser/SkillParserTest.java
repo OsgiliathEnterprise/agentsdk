@@ -5,6 +5,9 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import net.osgiliath.agentsdk.configuration.MarkdownConfiguration;
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
+
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSet;
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSetParser;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParserImpl;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
@@ -49,7 +52,9 @@ class SkillParserTest {
         MarkdownParser markdownParser = new MarkdownParserImpl(commonmarkParser);
         ResourceLocationResolver resourceLocationResolver =
                 new ResourceLocationResolverImpl(new PathMatchingResourcePatternResolver());
-        skillParser = new SkillParserImpl(markdownParser, commonmarkParser, resourceLocationResolver);
+        com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        SkillAssertionSetParser assertionSetParser = new SkillAssertionSetParser(resourceLocationResolver, objectMapper);
+        skillParser = new SkillParserImpl(markdownParser, commonmarkParser, resourceLocationResolver, assertionSetParser);
     }
 
     // ── headers ──────────────────────────────────────────────────────────────
@@ -156,7 +161,7 @@ class SkillParserTest {
                 Use [details](details.md) and [template](templates/phase.md.template).
                 """);
 
-        Skill skill = skillParser.getSkill(resourceResolver.getResource("file:" + skillRoot.resolve("SKILL.md").toString()));
+        Skill skill = skillParser.getSkill(resourceResolver.getResource("file:" + skillRoot.resolve("SKILL.md")));
 
         assertThat(skill.getAssets()).extracting(SkillAsset::uri)
                 .contains("templates/phase.md.template");
@@ -317,6 +322,72 @@ class SkillParserTest {
                 .orElseThrow();
 
         assertThat(instructions.getContent()).isNotBlank();
+    }
+
+    // ── assertion sets ────────────────────────────────────────────────────────
+
+    @Test
+    void shouldParseAssertionSetsFromAssertsFolder() {
+        Skill skill = skillParser.getSkill(resourceResolver.getResource(SKILL_FILE));
+
+        assertThat(skill.getAssertionSets()).isNotEmpty();
+    }
+
+    @Test
+    void shouldParseAssertionSetDomain() {
+        Skill skill = skillParser.getSkill(resourceResolver.getResource(SKILL_FILE));
+
+        assertThat(skill.getAssertionSets())
+                .anyMatch(set -> "structure".equals(set.domain()));
+    }
+
+    @Test
+    void shouldParseAssertionChecks() {
+        Skill skill = skillParser.getSkill(resourceResolver.getResource(SKILL_FILE));
+
+        List<SkillAssertionSet> sets = skill.getAssertionSets();
+        assertThat(sets).flatMap(SkillAssertionSet::checks)
+                .extracting(c -> c.id())
+                .contains("IFF-001", "IFF-002", "IFF-003");
+    }
+
+    @Test
+    void shouldParseOutputContractSuccessToken() {
+        Skill skill = skillParser.getSkill(resourceResolver.getResource(SKILL_FILE));
+
+        assertThat(skill.getAssertionSets())
+                .filteredOn(set -> set.outputContract() != null)
+                .anyMatch(set -> "Feature file written".equals(set.outputContract().successToken()));
+    }
+
+    @Test
+    void shouldClassifyMechanicalVsRuleOnlyChecks() {
+        Skill skill = skillParser.getSkill(resourceResolver.getResource(SKILL_FILE));
+
+        List<SkillAssertionSet> sets = skill.getAssertionSets();
+        assertThat(sets).flatMap(SkillAssertionSet::checks)
+                .filteredOn(c -> "IFF-001".equals(c.id()))
+                .allMatch(net.osgiliath.agentsdk.skills.assertions.SkillAssertionCheck::isMechanical);
+        assertThat(sets).flatMap(SkillAssertionSet::checks)
+                .filteredOn(c -> "IFF-003".equals(c.id()))
+                .noneMatch(net.osgiliath.agentsdk.skills.assertions.SkillAssertionCheck::isMechanical);
+    }
+
+    @Test
+    void shouldReturnEmptyAssertionSetsWhenNoAssertsFolder() throws IOException {
+        Path skillRoot = tempDir.resolve("no-asserts-skill");
+        Files.createDirectories(skillRoot);
+        Files.writeString(skillRoot.resolve("SKILL.md"), """
+                ---
+                name: minimal_skill
+                description: skill without asserts
+                ---
+                # Minimal
+                """);
+
+        Skill skill = skillParser.getSkill(resourceResolver.getResource("file:" + skillRoot.resolve("SKILL.md")));
+
+        assertThat(skill.getAssertionSets()).isEmpty();
     }
 
     // ── error handling ────────────────────────────────────────────────────────

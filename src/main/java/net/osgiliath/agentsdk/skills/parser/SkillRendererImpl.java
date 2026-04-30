@@ -44,6 +44,8 @@ public class SkillRendererImpl implements SkillRenderer {
     }
 
     private void appendHeaders(StringBuilder builder, Skill skill) {
+        Objects.requireNonNull(builder, "builder must not be null");
+        Objects.requireNonNull(skill, "skill must not be null");
         builder.append("# Skill").append(System.lineSeparator());
         builder.append("name: ").append(skill.getName()).append(System.lineSeparator());
         builder.append("description: ").append(skill.getDescription()).append(System.lineSeparator());
@@ -54,25 +56,38 @@ public class SkillRendererImpl implements SkillRenderer {
     }
 
     private void appendOptionalLlmList(StringBuilder builder, String key, List<LLMS_KIND> values) {
+        Objects.requireNonNull(builder, "builder must not be null");
+        Objects.requireNonNull(key, "key must not be null");
+        Objects.requireNonNull(values, "values must not be null");
         if (!values.isEmpty()) {
             builder.append(key).append(": ").append(String.join(", ", values.stream().map(LLMS_KIND::getName).toList())).append(System.lineSeparator());
         }
     }
 
     private void appendOptionalList(StringBuilder builder, String key, List<String> values) {
+        Objects.requireNonNull(builder, "builder must not be null");
+        Objects.requireNonNull(key, "key must not be null");
+        Objects.requireNonNull(values, "values must not be null");
         if (!values.isEmpty()) {
             builder.append(key).append(": ").append(String.join(", ", values)).append(System.lineSeparator());
         }
     }
 
     private void appendSections(StringBuilder builder, List<MarkdownSection> sections) {
+        Objects.requireNonNull(builder, "builder must not be null");
+        Objects.requireNonNull(sections, "sections must not be null");
         for (MarkdownSection section : sections) {
             appendSection(builder, section, 2);
         }
     }
 
     private void appendSection(StringBuilder builder, MarkdownSection section, int level) {
-        String heading = "#".repeat(Math.max(1, level));
+        Objects.requireNonNull(builder, "builder must not be null");
+        Objects.requireNonNull(section, "section must not be null");
+        if (level <= 0) {
+            throw new IllegalArgumentException("level must be greater than 0");
+        }
+        String heading = "#".repeat(level);
         String title = section.getTitle() == null || section.getTitle().isBlank() ? "Section" : section.getTitle();
         builder.append(heading).append(' ').append(title).append(System.lineSeparator());
 
@@ -88,6 +103,8 @@ public class SkillRendererImpl implements SkillRenderer {
     }
 
     private void appendAssets(StringBuilder builder, List<SkillAsset> assets) {
+        Objects.requireNonNull(builder, "builder must not be null");
+        Objects.requireNonNull(assets, "assets must not be null");
         if (assets.isEmpty()) {
             return;
         }
@@ -99,6 +116,8 @@ public class SkillRendererImpl implements SkillRenderer {
     }
 
     private void appendTemplates(StringBuilder builder, List<SkillTemplate> templates) {
+        Objects.requireNonNull(builder, "builder must not be null");
+        Objects.requireNonNull(templates, "templates must not be null");
         if (templates.isEmpty()) {
             return;
         }
@@ -110,6 +129,8 @@ public class SkillRendererImpl implements SkillRenderer {
     }
 
     private void appendScriptCommands(StringBuilder builder, List<SkillScriptCommand> scriptCommands) {
+        Objects.requireNonNull(builder, "builder must not be null");
+        Objects.requireNonNull(scriptCommands, "scriptCommands must not be null");
         if (scriptCommands.isEmpty()) {
             return;
         }
@@ -121,6 +142,7 @@ public class SkillRendererImpl implements SkillRenderer {
     }
 
     private String escape(String input) {
+        Objects.requireNonNull(input, "input must not be null");
         return input.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }
