@@ -110,7 +110,10 @@ public class SkillRendererImpl implements SkillRenderer {
         }
         builder.append("## Assets").append(System.lineSeparator());
         for (SkillAsset asset : assets) {
-            builder.append("- ").append(asset.uri()).append(System.lineSeparator());
+            builder.append("### Asset: ").append(asset.uri()).append(System.lineSeparator());
+            builder.append("```").append(System.lineSeparator());
+            builder.append(asset.content()).append(System.lineSeparator());
+            builder.append("```").append(System.lineSeparator());
         }
         builder.append(System.lineSeparator());
     }
@@ -123,7 +126,10 @@ public class SkillRendererImpl implements SkillRenderer {
         }
         builder.append("## Templates").append(System.lineSeparator());
         for (SkillTemplate template : templates) {
-            builder.append("- ").append(template.uri()).append(System.lineSeparator());
+            builder.append("### Template: ").append(template.uri()).append(System.lineSeparator());
+            builder.append("```").append(System.lineSeparator());
+            builder.append(template.content()).append(System.lineSeparator());
+            builder.append("```").append(System.lineSeparator());
         }
         builder.append(System.lineSeparator());
     }

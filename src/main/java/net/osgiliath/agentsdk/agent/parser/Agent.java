@@ -2,6 +2,7 @@ package net.osgiliath.agentsdk.agent.parser;
 
 import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSet;
 import net.osgiliath.agentsdk.skills.parser.SkillsHeaders;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 
@@ -12,15 +13,24 @@ import java.util.Objects;
 public record Agent(
         AgentHeaders headers,
         MarkdownContentSections content,
-        Collection<SkillsHeaders> skillHeaders
+        Collection<SkillsHeaders> skillHeaders,
+        List<SkillAssertionSet> assertionSets
 ) {
+
+    public Agent(AgentHeaders headers,
+                 MarkdownContentSections content,
+                 Collection<SkillsHeaders> skillHeaders) {
+        this(headers, content, skillHeaders, List.of());
+    }
 
     public Agent {
         Objects.requireNonNull(headers, "headers must not be null");
         Objects.requireNonNull(content, "content must not be null");
         Objects.requireNonNull(skillHeaders, "skillHeaders must not be null");
+        Objects.requireNonNull(assertionSets, "assertionSets must not be null");
 
         skillHeaders = List.copyOf(skillHeaders);
+        assertionSets = List.copyOf(assertionSets);
     }
 
     public String getName() {
@@ -65,6 +75,10 @@ public record Agent(
 
     public Collection<SkillsHeaders> getSkillHeaders() {
         return skillHeaders;
+    }
+
+    public List<SkillAssertionSet> getAssertionSets() {
+        return assertionSets;
     }
 
     /**

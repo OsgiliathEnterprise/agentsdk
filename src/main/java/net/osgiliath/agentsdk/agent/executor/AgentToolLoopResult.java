@@ -19,7 +19,8 @@ public record AgentToolLoopResult(
         TERMINAL_MESSAGE,
         REPEAT_GUARD,
         ERROR,
-        ITERATION_LIMIT
+        ITERATION_LIMIT,
+        STUCK
     }
 
     /** Convenience constructor for results without assertion evaluation (backwards-compatible). */

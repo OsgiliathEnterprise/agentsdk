@@ -1,13 +1,18 @@
 package net.osgiliath.agentsdk.agent.executor;
 
 import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.invocation.InvocationParameters;
 import dev.langchain4j.model.chat.request.ChatRequest;
+import net.osgiliath.agentsdk.agent.parser.Agent;
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSet;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class AgentExecutorValueObjectsTest {
 
@@ -25,11 +30,13 @@ class AgentExecutorValueObjectsTest {
 
     @Test
     void shouldNormalizeToolLoopRequestBoundsAndDefaults() {
+        Agent agent = mock(Agent.class);
+        when(agent.getAssertionSets()).thenReturn(List.of());
         AgentToolLoopRequest request = new AgentToolLoopRequest(
-                null,
+                agent,
                 UserMessage.from("test"),
                 "memory",
-                null,
+                InvocationParameters.from("cwd", "/tmp"),
                 ChatRequest.builder().messages(List.of(UserMessage.from("u"))).build(),
                 null,
                 null,
@@ -45,6 +52,28 @@ class AgentExecutorValueObjectsTest {
         assertThat(request.maxRepeatPerToolCall()).isEqualTo(0);
         assertThat(request.toolCallHistoryLimit()).isEqualTo(1);
         assertThat(request.blockingToolFailureStrategy()).isSameAs(BlockingToolFailureStrategy.NONE);
+    }
+
+    @Test
+    void shouldCarryAgentAssertionSetsWhenUsingFactory() {
+        SkillAssertionSet assertionSet = new SkillAssertionSet("domain", "owner", "1.0", List.of(), null);
+        Agent agent = mock(Agent.class);
+        when(agent.getAssertionSets()).thenReturn(List.of(assertionSet));
+
+        AgentToolLoopRequest request = AgentToolLoopRequest.of(
+                agent,
+                UserMessage.from("test"),
+                "memory",
+                InvocationParameters.from("cwd", "/tmp"),
+                ChatRequest.builder().messages(List.of(UserMessage.from("u"))).build(),
+                "/tmp",
+                "loop",
+                3,
+                1,
+                8,
+                BlockingToolFailureStrategy.NONE);
+
+        assertThat(request.assertionSets()).containsExactly(assertionSet);
     }
 
     @Test

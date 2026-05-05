@@ -1,8 +1,10 @@
 package net.osgiliath.agentsdk.agent.parser;
 
 import dev.langchain4j.data.message.SystemMessage;
+import net.osgiliath.agentsdk.agent.assertions.AgentAssertionSetParser;
 import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.common.parsing.ParsingHeader;
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSet;
 import net.osgiliath.agentsdk.skills.parser.Skill;
 import net.osgiliath.agentsdk.skills.parser.SkillsHeaders;
 import net.osgiliath.agentsdk.skills.resolver.SkillResolver;
@@ -22,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Stream;
 
 @Component
 public class AgentParserImpl implements AgentParser {
@@ -29,15 +32,18 @@ public class AgentParserImpl implements AgentParser {
     private final MarkdownParser markdownParser;
     private final SkillResolver skillResolver;
     private final MarkdownLinkedResourceResolver markdownLinkedResourceResolver;
+    private final AgentAssertionSetParser assertionSetParser;
 
 
     public AgentParserImpl(MarkdownParser markdownParser,
                            SkillResolver skillResolver,
-                           MarkdownLinkedResourceResolver markdownLinkedResourceResolver
+                           MarkdownLinkedResourceResolver markdownLinkedResourceResolver,
+                           AgentAssertionSetParser assertionSetParser
     ) {
         this.markdownParser = Objects.requireNonNull(markdownParser, "markdownParser must not be null");
         this.skillResolver = Objects.requireNonNull(skillResolver, "skillResolver must not be null");
         this.markdownLinkedResourceResolver = Objects.requireNonNull(markdownLinkedResourceResolver, "markdownLinkedResourceResolver must not be null");
+        this.assertionSetParser = Objects.requireNonNull(assertionSetParser, "assertionSetParser must not be null");
     }
 
     @Override
@@ -54,13 +60,18 @@ public class AgentParserImpl implements AgentParser {
                 .map(key -> (MarkdownHeader) new ParsingHeader(key, rawHeaders.header(key).orElse(null)))
                 .toList();
         AgentHeaders headers = AgentHeaders.from(headerList);
-        List<SkillsHeaders> skillHeaders = skillResolver.resolveSkills(headers.skills().value()).stream()
+        List<Skill> resolvedSkills = skillResolver.resolveSkills(headers.skills().value());
+        List<SkillsHeaders> skillHeaders = resolvedSkills.stream()
                 .map(Skill::headers)
+                .toList();
+        List<SkillAssertionSet> assertionSets = Stream.concat(
+                        assertionSetParser.parseAssertionSets(agentResource).stream(),
+                        resolvedSkills.stream().flatMap(skill -> skill.getAssertionSets().stream()))
                 .toList();
         List<MarkdownSection> level1Content = mergeSections(
                 markdownFile.getSubSections(),
                 parseLinkedMarkdownSections(agentResource));
-        return new Agent(headers, new MarkdownContentSections(level1Content), skillHeaders);
+        return new Agent(headers, new MarkdownContentSections(level1Content), skillHeaders, assertionSets);
     }
 
     @Override

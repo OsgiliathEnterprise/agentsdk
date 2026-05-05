@@ -25,7 +25,7 @@ public class StructuredOutcomeInterpreter {
 
     public AgentOutcome classifyTerminalResult(AgentToolLoopResult toolLoopResult, OutcomeTextRules rules) {
         return switch (toolLoopResult.exitReason()) {
-            case ERROR, ITERATION_LIMIT -> AgentOutcome.deferred(toolLoopResult.exitDetails());
+            case ERROR, ITERATION_LIMIT, STUCK -> AgentOutcome.deferred(toolLoopResult.exitDetails());
             case REPEAT_GUARD -> AgentOutcome.needMoreIteration(toolLoopResult.exitDetails());
             case TERMINAL_MESSAGE -> classifyTerminalMessage(toolLoopResult.terminalAiMessage(), toolLoopResult, rules);
         };
@@ -55,6 +55,10 @@ public class StructuredOutcomeInterpreter {
                                                  OutcomeTextRules rules) {
         String text = terminalAiMessage == null ? "" : terminalAiMessage.text();
         if (text == null || text.isBlank()) {
+            String thinking = terminalAiMessage == null ? "" : terminalAiMessage.thinking();
+            if (thinking != null && !thinking.isBlank()) {
+                return classifyText(thinking, rules);
+            }
             String lastToolResult = toolLoopResult.lastToolResultText();
             if (!lastToolResult.isBlank()) {
                 return classifyText(lastToolResult, rules);

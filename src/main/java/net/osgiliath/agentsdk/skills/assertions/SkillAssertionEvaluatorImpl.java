@@ -115,18 +115,16 @@ public class SkillAssertionEvaluatorImpl implements SkillAssertionEvaluator {
             return notEvaluated(check, "rule-only check — evaluated by the LLM");
         }
 
-        // 1. required_paths
+    // 1. required_paths
         for (String relativePath : check.requiredPaths()) {
-            Path target = workspacePath.resolve(relativePath);
-            if (!Files.isDirectory(target)) {
+            if (!anyPathMatches(workspacePath, relativePath, true)) {
                 return fail(check, "required directory not found: " + relativePath);
             }
         }
 
         // 2. required_files
         for (String relativePath : check.requiredFiles()) {
-            Path target = workspacePath.resolve(relativePath);
-            if (!Files.isRegularFile(target)) {
+            if (!anyPathMatches(workspacePath, relativePath, false)) {
                 return fail(check, "required file not found: " + relativePath);
             }
         }
@@ -216,18 +214,50 @@ public class SkillAssertionEvaluatorImpl implements SkillAssertionEvaluator {
 
         for (String signal : signals) {
             try {
-                Pattern pattern = Pattern.compile(signal, Pattern.MULTILINE);
+                Pattern pattern = Pattern.compile(signal, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
                 if (!pattern.matcher(content).find()) {
                     return Optional.of(signal);
                 }
             } catch (PatternSyntaxException e) {
-                // Treat syntactically invalid patterns as plain-text substring checks.
-                if (!content.contains(signal)) {
+                // Treat syntactically invalid patterns as plain-text substring checks (case-insensitive)
+                if (!content.toLowerCase().contains(signal.toLowerCase())) {
                     return Optional.of(signal);
                 }
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Checks if any file or directory matches the given relative path (either as a direct path or as a regex).
+     */
+    private boolean anyPathMatches(Path workspacePath, String relativePath, boolean isDirectory) {
+        // 1. Try direct literal resolution (handle both escaped and unescaped dots)
+        List<String> candidates = List.of(relativePath, relativePath.replace("\\.", "."), relativePath.replace("\\\\.", "."));
+        for (String candidate : candidates) {
+            try {
+                Path directPath = workspacePath.resolve(candidate);
+                if (isDirectory ? Files.isDirectory(directPath) : Files.isRegularFile(directPath)) {
+                    return true;
+                }
+            } catch (Exception e) {}
+        }
+
+        // 2. Normalize relativePath for regex: remove trailing slash
+        String normalizedPattern = relativePath.endsWith("/") ?
+                relativePath.substring(0, relativePath.length() - 1) : relativePath;
+
+        // 3. Try as a regex match by walking the tree
+        try (Stream<Path> stream = Files.walk(workspacePath)) {
+            Pattern pattern = Pattern.compile(normalizedPattern);
+            return stream.filter(p -> isDirectory ? Files.isDirectory(p) : Files.isRegularFile(p))
+                    .map(p -> workspacePath.relativize(p).toString())
+                    .anyMatch(rel -> pattern.matcher(rel).matches());
+        } catch (Exception e) {
+            log.debug("Regex match failed for {}: {}", relativePath, e.getMessage());
+        }
+
+        return false;
     }
 
     private static SkillAssertionCheckResult pass(SkillAssertionCheck check) {

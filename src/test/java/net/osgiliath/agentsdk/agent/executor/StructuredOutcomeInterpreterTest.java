@@ -94,6 +94,20 @@ class StructuredOutcomeInterpreterTest {
     }
 
     @Test
+    void shouldUseThinkingWhenTerminalTextIsBlank() {
+        AgentToolLoopResult terminal = new AgentToolLoopResult(
+                AgentToolLoopResult.ExitReason.TERMINAL_MESSAGE,
+                "",
+                AiMessage.builder().thinking("project audit passed").build(),
+                List.of());
+
+        AgentOutcome outcome = interpreter.classifyTerminalResult(terminal, rules);
+
+        assertThat(outcome.status()).isEqualTo(AgentOutcomeStatus.SUCCESS);
+        assertThat(outcome.reason()).isEqualTo("project audit passed");
+    }
+
+    @Test
     void shouldAskForMoreIterationWhenTerminalTextAndToolResultAreBothBlank() {
         AgentToolLoopResult terminal = new AgentToolLoopResult(
                 AgentToolLoopResult.ExitReason.TERMINAL_MESSAGE,

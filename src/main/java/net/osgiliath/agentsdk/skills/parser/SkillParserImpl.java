@@ -41,6 +41,7 @@ public class SkillParserImpl implements SkillParser {
 
     private static final String REFERENCE_FOLDER = "reference";
     private static final String TEMPLATES_FOLDER = "templates";
+    private static final String ASSETS_FOLDER = "assets";
 
     private final MarkdownParser markdownParser;
     private final Parser commonMarkParser;
@@ -67,7 +68,7 @@ public class SkillParserImpl implements SkillParser {
         SkillsHeaders headers = parseHeaders(markdownFile.getHeaders());
 
         List<ResolvedSkillLink> discoveredLinks = discoverLinks(skillFileResource);
-        List<SkillAsset> assets = toAssets(discoveredLinks);
+        List<SkillAsset> assets = mergeAssets(toAssets(discoveredLinks), scanAssets(skillFileResource));
         List<SkillTemplate> templates = scanTemplates(skillFileResource);
         List<SkillScriptCommand> scriptCommands = extractScriptCommands(skillFileResource);
         List<SkillAssertionSet> assertionSets = assertionSetParser.parseAssertionSets(skillFileResource);
@@ -144,8 +145,26 @@ public class SkillParserImpl implements SkillParser {
         return links.stream()
                 .filter(link -> !link.external())
                 .filter(link -> !isMarkdownResource(link.uri()))
-                .map(link -> new SkillAsset(link.uri()))
+                .filter(link -> link.resolvedResource().isPresent())
+                .map(link -> {
+                    String uri = link.uri();
+                    if (uri.startsWith(ASSETS_FOLDER + "/")) {
+                        uri = uri.substring(ASSETS_FOLDER.length() + 1);
+                    } else if (uri.startsWith(TEMPLATES_FOLDER + "/")) {
+                        uri = uri.substring(TEMPLATES_FOLDER.length() + 1);
+                    }
+                    return new SkillAsset(uri, readResource(link.resolvedResource().get()));
+                })
                 .toList();
+    }
+
+    private List<SkillAsset> mergeAssets(List<SkillAsset> first, List<SkillAsset> second) {
+        Objects.requireNonNull(first, "first must not be null");
+        Objects.requireNonNull(second, "second must not be null");
+        Map<String, SkillAsset> uniqueByUri = new LinkedHashMap<>();
+        Stream.concat(first.stream(), second.stream())
+                .forEach(asset -> uniqueByUri.putIfAbsent(asset.uri(), asset));
+        return List.copyOf(uniqueByUri.values());
     }
 
     private MarkdownContentSections buildContent(MarkdownFile markdownFile, Resource skillFileResource) {
@@ -191,16 +210,35 @@ public class SkillParserImpl implements SkillParser {
     }
 
     private List<SkillTemplate> scanTemplates(Resource skillFileResource) {
+        return scanFolder(skillFileResource, TEMPLATES_FOLDER).entrySet().stream()
+                .map(e -> new SkillTemplate(e.getKey(), readResource(e.getValue())))
+                .toList();
+    }
+
+    private List<SkillAsset> scanAssets(Resource skillFileResource) {
+        return scanFolder(skillFileResource, ASSETS_FOLDER).entrySet().stream()
+                .map(e -> new SkillAsset(e.getKey(), readResource(e.getValue())))
+                .toList();
+    }
+
+    private Map<String, Resource> scanFolder(Resource skillFileResource, String folderName) {
         Objects.requireNonNull(skillFileResource, "skillFileResource must not be null");
         try {
-            return resourceLocationResolver.resolveResources(skillFileResource, TEMPLATES_FOLDER + "/**/*").stream()
-                    .filter(r -> r.isReadable() && r.getFilename() != null && !r.getFilename().isBlank())
-                    .map(r -> resourceLocationResolver.relativize(skillFileResource, r).orElse(null))
-                    .filter(Objects::nonNull)
-                    .map(SkillTemplate::new)
-                    .toList();
+            Map<String, Resource> resources = new LinkedHashMap<>();
+            for (Resource r : resourceLocationResolver.resolveResources(skillFileResource, folderName + "/**/*")) {
+                if (r.isReadable() && r.getFilename() != null && !r.getFilename().isBlank()) {
+                    resourceLocationResolver.relativize(skillFileResource, r)
+                            .ifPresent(rel -> {
+                                // Strip the folder name (e.g. "assets/") from the relative path
+                                String prefix = folderName + "/";
+                                String stripped = rel.startsWith(prefix) ? rel.substring(prefix.length()) : rel;
+                                resources.put(stripped, r);
+                            });
+                }
+            }
+            return resources;
         } catch (IOException e) {
-            return List.of();
+            return Map.of();
         }
     }
 

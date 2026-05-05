@@ -1,11 +1,15 @@
 package net.osgiliath.agentsdk.agent.parser;
 
 import dev.langchain4j.data.message.SystemMessage;
+import net.osgiliath.agentsdk.agent.assertions.AgentAssertionSetParser;
 import net.osgiliath.agentsdk.configuration.CodepromptConfiguration;
 import net.osgiliath.agentsdk.common.parsing.DescriptionHeader;
 import net.osgiliath.agentsdk.common.parsing.NameHeader;
 import net.osgiliath.agentsdk.configuration.MarkdownConfiguration;
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertionCheck;
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSet;
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSeverity;
 import net.osgiliath.agentsdk.skills.parser.Skill;
 import net.osgiliath.agentsdk.skills.parser.SkillsHeaders;
 import net.osgiliath.agentsdk.skills.parser.SkillParser;
@@ -64,7 +68,8 @@ class AgentParserTest {
         agentParser = new AgentParserImpl(
                 markdownParser,
                 skillResolver,
-                newMarkdownLinkedResourceResolver(commonmarkParser));
+                newMarkdownLinkedResourceResolver(commonmarkParser),
+                new AgentAssertionSetParser(resourceLocationResolver, new com.fasterxml.jackson.databind.ObjectMapper()));
     }
 
     @Test
@@ -93,6 +98,35 @@ class AgentParserTest {
         assertThat(agent.getHandoffs()).containsExactly(
                 new AgentHandoff("Hand off to Backend", "subagent-1", "Continue working on the backend for this task.", false)
         );
+    }
+
+    @Test
+    void shouldParseAgentAssertionSetsFromAdjacentAssertsFolder() {
+        when(skillResolver.resolveSkills(any())).thenReturn(List.of());
+        Agent agent = agentParser.getAgent(resourcePatternResolver.getResource("classpath:/" + SAMPLE_AGENT_FILE));
+
+        assertThat(agent.getAssertionSets()).hasSize(1);
+        assertThat(agent.getAssertionSets().getFirst().domain()).isEqualTo("bootstrap");
+        assertThat(agent.getAssertionSets().getFirst().owner()).isEqualTo("project-template-scaffolder");
+        assertThat(agent.getAssertionSets().getFirst().checks()).isNotEmpty();
+    }
+
+    @Test
+    void shouldMergeAgentAndSkillAssertionSets() {
+        Skill resolvedSkill = sampleSkill("implements_features_file", List.of(new SkillAssertionSet(
+                "skill-contract",
+                "implements_features_file",
+                "1.0.0",
+                List.of(new SkillAssertionCheck("SKILL-CHK-1", "skill check", "", "",
+                        SkillAssertionSeverity.MINOR, List.of(), List.of(), List.of(), List.of())),
+                null)));
+        when(skillResolver.resolveSkills(any())).thenReturn(List.of(resolvedSkill));
+
+        Agent agent = agentParser.getAgent(resourcePatternResolver.getResource("classpath:/" + SAMPLE_AGENT_FILE));
+
+        assertThat(agent.getAssertionSets()).hasSize(2);
+        assertThat(agent.getAssertionSets()).extracting(SkillAssertionSet::domain)
+                .contains("bootstrap", "skill-contract");
     }
 
     @Test
@@ -242,7 +276,8 @@ class AgentParserTest {
         return new AgentParserImpl(
                 markdownParser,
                 resolver,
-                newMarkdownLinkedResourceResolver(commonmarkParser));
+                newMarkdownLinkedResourceResolver(commonmarkParser),
+                new AgentAssertionSetParser(resourceLocationResolver, new com.fasterxml.jackson.databind.ObjectMapper()));
     }
 
     private MarkdownLinkedResourceResolver newMarkdownLinkedResourceResolver(Parser commonmarkParser) {
@@ -256,13 +291,17 @@ class AgentParserTest {
     }
 
     private Skill sampleSkill(String name) {
+        return sampleSkill(name, List.of());
+    }
+
+    private Skill sampleSkill(String name, List<SkillAssertionSet> assertionSets) {
         return new Skill(
                 new SkillsHeaders(name, "sample", List.of(), List.of("read"), List.of()),
                 List.of(),
                 List.of(),
                 List.of(),
                 new net.osgiliath.agentsdk.common.parsing.MarkdownContentSections(List.of()),
-                List.of());
+                assertionSets);
     }
 
 }

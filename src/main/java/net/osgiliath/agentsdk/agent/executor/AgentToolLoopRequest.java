@@ -7,6 +7,7 @@ import net.osgiliath.agentsdk.agent.parser.Agent;
 import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSet;
 
 import java.util.List;
+import java.util.Objects;
 
 public record AgentToolLoopRequest(
         Agent agent,
@@ -23,6 +24,10 @@ public record AgentToolLoopRequest(
         List<SkillAssertionSet> assertionSets) {
 
     public AgentToolLoopRequest {
+        Objects.requireNonNull(agent, "agent must not be null");
+        Objects.requireNonNull(userMessage, "userMessage must not be null");
+        Objects.requireNonNull(invocationParameters, "invocationParameters must not be null");
+        Objects.requireNonNull(baseRequest, "baseRequest must not be null");
         workspace = workspace == null ? "" : workspace;
         loopName = loopName == null ? "agent tool loop" : loopName;
         maxIterations = maxIterations <= 0 ? 1 : maxIterations;
@@ -34,7 +39,7 @@ public record AgentToolLoopRequest(
         assertionSets = assertionSets == null ? List.of() : List.copyOf(assertionSets);
     }
 
-    /** Convenience factory — no assertion sets (backwards-compatible). */
+    /** Convenience factory that forwards assertion sets parsed from the provided agent. */
     public static AgentToolLoopRequest of(
             Agent agent,
             UserMessage userMessage,
@@ -47,9 +52,13 @@ public record AgentToolLoopRequest(
             int maxRepeatPerToolCall,
             int toolCallHistoryLimit,
             BlockingToolFailureStrategy blockingToolFailureStrategy) {
+        Objects.requireNonNull(agent, "agent must not be null");
+        Objects.requireNonNull(userMessage, "userMessage must not be null");
+        Objects.requireNonNull(invocationParameters, "invocationParameters must not be null");
+        Objects.requireNonNull(baseRequest, "baseRequest must not be null");
         return new AgentToolLoopRequest(agent, userMessage, chatMemoryId, invocationParameters,
                 baseRequest, workspace, loopName, maxIterations, maxRepeatPerToolCall,
-                toolCallHistoryLimit, blockingToolFailureStrategy, List.of());
+                toolCallHistoryLimit, blockingToolFailureStrategy, agent.getAssertionSets());
     }
 }
 
