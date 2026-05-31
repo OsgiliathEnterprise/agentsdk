@@ -6,12 +6,12 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
-import net.osgiliath.agentsdk.skills.parser.Skill;
-import net.osgiliath.agentsdk.skills.parser.SkillAsset;
+import net.osgiliath.agentsdk.skills.model.Skill;
+import net.osgiliath.agentsdk.skills.model.SkillAsset;
+import net.osgiliath.agentsdk.skills.model.SkillTemplate;
 import net.osgiliath.agentsdk.skills.parser.SkillParser;
-import net.osgiliath.agentsdk.skills.parser.SkillScriptCommand;
-import net.osgiliath.agentsdk.skills.parser.SkillTemplate;
 import net.osgiliath.agentsdk.skills.parser.SkillRenderer;
+import net.osgiliath.agentsdk.skills.parser.SkillScriptCommand;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.support.ResourcePatternResolver;
 
@@ -249,6 +249,10 @@ public class SkillsParsingSteps {
                             new SkillScriptCommand("./gradlew", "./gradlew scripts/build.gradle.kts ping")
                     );
                 }
+                case "asserts" -> {
+                    assertThat(skill.getAssertionSets()).isNotEmpty();
+                    assertThat(skill.getAssertionSets().getFirst().domain()).isEqualTo("structure");
+                }
                 case "templates" -> assertThat(skill.templates()).map(SkillTemplate::uri)
                         .containsExactlyElementsOf(EXPECTED_TEMPLATE_URIS);
                 case "content", "links", "references" -> assertThat(skill.content().sections()).isNotEmpty();
@@ -284,7 +288,9 @@ public class SkillsParsingSteps {
         assertThat(renderedFlatDocument).contains("## PPTX Skill");
         assertThat(renderedFlatDocument).contains("## Instructions");
         assertThat(renderedFlatDocument).contains("## MCP Server Evaluation Guide");
+        assertThat(renderedFlatDocument).contains("## Assertions");
         assertThat(renderedStructuredDocument).contains("headers:");
+        assertThat(renderedStructuredDocument).contains("assertions:");
         assertThat(renderedStructuredDocument).contains("contentSections:");
     }
 

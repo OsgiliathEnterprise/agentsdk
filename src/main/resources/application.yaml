@@ -15,6 +15,7 @@ logging:
   level:
     root: INFO
     net.osgiliath.erp.codeprompt: DEBUG
+    net.osgiliath.agentsdk.llm.LoggingChatModelListener: DEBUG
 management:
   endpoints:
     web:

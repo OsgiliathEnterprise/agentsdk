@@ -1,0 +1,45 @@
+{
+  "domain": "structure",
+  "skill": "implements_features_file",
+  "version": "1.0.0",
+  "checks": [
+    {
+      "id": "IFF-001",
+      "title": "Features root folder exists",
+      "severity": "critical",
+      "required_paths": [
+        "features/"
+      ],
+      "signals": []
+    },
+    {
+      "id": "IFF-002",
+      "title": "Feature file contains a scenario",
+      "severity": "major",
+      "required_files": [
+        "features/sample.feature"
+      ],
+      "signals": [
+        "^Scenario"
+      ]
+    },
+    {
+      "id": "IFF-003",
+      "title": "Output format is valid",
+      "severity": "minor",
+      "rule": "The generated feature file must use valid Gherkin syntax and include at least one Given/When/Then step."
+    }
+  ],
+  "output_contract": {
+    "success_token": "Feature file written",
+    "deferred_token": "Feature file deferred",
+    "checks": [
+      {
+        "id": "IFF-OUT-001",
+        "severity": "critical",
+        "rule": "Emit success_token only when the feature file exists and contains at least one Scenario."
+      }
+    ]
+  }
+}
+

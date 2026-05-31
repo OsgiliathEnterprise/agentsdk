@@ -1,7 +1,7 @@
 Feature: MCP Tool Aliases Resolution
 
   Background:
-    Given a parsed agent from "dataset/markdown/agents/agent1.md"
+    Given a parsed agent from "dataset/markdown/tools-aliases/agent1-with-skill.md"
     And the MCP tool aliases configuration is loaded
 
   Scenario: SC1 - Alias values are used when a tool is declared in both the agent metadata and the aliases configuration

@@ -1,11 +1,10 @@
 package net.osgiliath.agentsdk.skills.parser;
 
-import net.osgiliath.agentsdk.common.parsing.DescriptionHeader;
-import net.osgiliath.agentsdk.common.parsing.LlmHeader;
-import net.osgiliath.agentsdk.common.parsing.McpHeader;
-import net.osgiliath.agentsdk.common.parsing.NameHeader;
-import net.osgiliath.agentsdk.common.parsing.ParsingHeader;
+import net.osgiliath.agentsdk.common.parsing.*;
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
+import net.osgiliath.agentsdk.skills.model.SkillDependenciesHeader;
+import net.osgiliath.agentsdk.skills.model.SkillHeader;
+import net.osgiliath.agentsdk.skills.model.SkillsHeaders;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownHeader;
 import org.junit.jupiter.api.Test;
 

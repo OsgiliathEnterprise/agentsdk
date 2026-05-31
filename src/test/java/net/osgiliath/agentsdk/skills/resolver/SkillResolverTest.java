@@ -2,7 +2,7 @@ package net.osgiliath.agentsdk.skills.resolver;
 
 import net.osgiliath.agentsdk.configuration.CodepromptConfiguration;
 import net.osgiliath.agentsdk.configuration.MarkdownConfiguration;
-import net.osgiliath.agentsdk.skills.parser.Skill;
+import net.osgiliath.agentsdk.skills.model.Skill;
 import net.osgiliath.agentsdk.skills.parser.SkillParser;
 import net.osgiliath.agentsdk.skills.parser.SkillParserImpl;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
@@ -14,8 +14,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.lang.NonNull;
 
 import java.io.IOException;
@@ -80,7 +80,8 @@ class SkillResolverTest {
         Parser commonmarkParser = new MarkdownConfiguration().markdownParser();
         MarkdownParser markdownParser = new MarkdownParserImpl(commonmarkParser);
         resourceLocationResolver = new ResourceLocationResolverImpl(new PathMatchingResourcePatternResolver());
-        SkillParser skillParser = new SkillParserImpl(markdownParser, commonmarkParser, resourceLocationResolver);
+        SkillParser skillParser = new SkillParserImpl(markdownParser, commonmarkParser, resourceLocationResolver,
+                new net.osgiliath.agentsdk.skills.assertions.SkillAssertionSetParser(resourceLocationResolver, new com.fasterxml.jackson.databind.ObjectMapper()));
 
         CodepromptConfiguration config = new CodepromptConfiguration();
         config.getAgent().setSkillFolders(List.of("classpath:dataset/markdown/skills/"));
@@ -97,10 +98,10 @@ class SkillResolverTest {
     }
 
     @Test
-    void shouldReturnEmptyListWhenNoSkillNamesGiven() {
-        List<Skill> skills = skillResolver.resolveSkills(List.of());
-
-        assertThat(skills).isEmpty();
+    void shouldThrowWhenNoSkillNamesGiven() {
+        assertThatThrownBy(() -> skillResolver.resolveSkills(List.of()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("skillNames must not be empty");
     }
 
     @Test

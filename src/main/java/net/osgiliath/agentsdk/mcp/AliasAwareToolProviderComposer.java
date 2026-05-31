@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -26,10 +27,12 @@ public class AliasAwareToolProviderComposer {
     private final McpToolAliasResolver aliasResolver;
 
     public AliasAwareToolProviderComposer(McpToolAliasResolver aliasResolver) {
-        this.aliasResolver = aliasResolver;
+        this.aliasResolver = Objects.requireNonNull(aliasResolver, "aliasResolver must not be null");
     }
 
     public ToolProviderResult compose(ToolProviderResult fullResult, List<String> logicalToolNames) {
+        Objects.requireNonNull(fullResult, "fullResult must not be null");
+        Objects.requireNonNull(logicalToolNames, "logicalToolNames must not be null");
         ToolProviderResult.Builder builder = ToolProviderResult.builder();
         Set<String> immediateReturnToolNames = new LinkedHashSet<>();
 
@@ -65,13 +68,17 @@ public class AliasAwareToolProviderComposer {
         private final ToolProviderResult fullResult;
 
         private AliasFallbackToolExecutor(String logicalToolName, List<String> aliases, ToolProviderResult fullResult) {
-            this.logicalToolName = logicalToolName;
-            this.aliases = aliases;
-            this.fullResult = fullResult;
+            this.logicalToolName = Objects.requireNonNull(logicalToolName, "logicalToolName must not be null");
+            this.aliases = Objects.requireNonNull(aliases, "aliases must not be null");
+            this.fullResult = Objects.requireNonNull(fullResult, "fullResult must not be null");
+            if (aliases.isEmpty()) {
+                throw new IllegalArgumentException("aliases must not be empty");
+            }
         }
 
         @Override
         public String execute(ToolExecutionRequest request, Object memoryId) {
+            Objects.requireNonNull(request, "request must not be null");
             RuntimeException lastFailure = null;
             List<String> failures = new ArrayList<>();
 

@@ -5,6 +5,7 @@ import dev.langchain4j.model.anthropic.AnthropicChatModel;
 import dev.langchain4j.model.anthropic.AnthropicStreamingChatModel;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.model.chat.listener.ChatModelListener;
 import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
 import dev.langchain4j.model.googleai.GoogleAiGeminiStreamingChatModel;
 import dev.langchain4j.model.mistralai.MistralAiChatModel;
@@ -18,6 +19,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 import static net.osgiliath.agentsdk.configuration.LangChain4jConfig.CHAT_MODEL_HTTP_CLIENT_BUILDER;
 import static net.osgiliath.agentsdk.configuration.LangChain4jConfig.STREAMING_CHAT_MODEL_HTTP_CLIENT_BUILDER;
 
@@ -30,10 +33,12 @@ public class ChatModelFactory {
 
     private final HttpClientBuilder streamingChatModelHttpClient;
     private final HttpClientBuilder chatModelHttpClientBuilder;
+    private final List<ChatModelListener> chatModelListeners;
 
-    public ChatModelFactory(@Qualifier(STREAMING_CHAT_MODEL_HTTP_CLIENT_BUILDER) HttpClientBuilder streamingChatModelHttpClient, @Qualifier(CHAT_MODEL_HTTP_CLIENT_BUILDER) HttpClientBuilder chatModelHttpClientBuilder) {
+    public ChatModelFactory(@Qualifier(STREAMING_CHAT_MODEL_HTTP_CLIENT_BUILDER) HttpClientBuilder streamingChatModelHttpClient, @Qualifier(CHAT_MODEL_HTTP_CLIENT_BUILDER) HttpClientBuilder chatModelHttpClientBuilder, List<ChatModelListener> chatModelListeners) {
         this.streamingChatModelHttpClient = streamingChatModelHttpClient;
         this.chatModelHttpClientBuilder = chatModelHttpClientBuilder;
+        this.chatModelListeners = chatModelListeners;
     }
 
     public ChatModel createChatModel(ModelDefinition definition) {
@@ -60,6 +65,7 @@ public class ChatModelFactory {
         AnthropicChatModel.AnthropicChatModelBuilder builder = AnthropicChatModel.builder()
                 .modelName(definition.getModelName())
                 .httpClientBuilder(chatModelHttpClientBuilder)
+                .listeners(chatModelListeners)
                 .timeout(definition.getTimeout());
         if (hasText(definition.getBaseUrl())) {
             builder.baseUrl(definition.getBaseUrl());
@@ -74,6 +80,7 @@ public class ChatModelFactory {
         AnthropicStreamingChatModel.AnthropicStreamingChatModelBuilder builder = AnthropicStreamingChatModel.builder()
                 .modelName(definition.getModelName())
                 .httpClientBuilder(chatModelHttpClientBuilder)
+                .listeners(chatModelListeners)
                 .timeout(definition.getTimeout());
         if (hasText(definition.getBaseUrl())) {
             builder.baseUrl(definition.getBaseUrl());
@@ -88,6 +95,7 @@ public class ChatModelFactory {
         OpenAiChatModel.OpenAiChatModelBuilder builder = OpenAiChatModel.builder()
                 .modelName(definition.getModelName())
                 .httpClientBuilder(chatModelHttpClientBuilder)
+                .listeners(chatModelListeners)
                 .timeout(definition.getTimeout());
         if (hasText(definition.getBaseUrl())) {
             builder.baseUrl(definition.getBaseUrl());
@@ -102,6 +110,7 @@ public class ChatModelFactory {
         OpenAiStreamingChatModel.OpenAiStreamingChatModelBuilder builder = OpenAiStreamingChatModel.builder()
                 .modelName(definition.getModelName())
                 .httpClientBuilder(streamingChatModelHttpClient)
+                .listeners(chatModelListeners)
                 .timeout(definition.getTimeout());
         if (hasText(definition.getBaseUrl())) {
             builder.baseUrl(definition.getBaseUrl());
@@ -116,6 +125,7 @@ public class ChatModelFactory {
         OllamaChatModel.OllamaChatModelBuilder builder = OllamaChatModel.builder()
                 .modelName(definition.getModelName())
                 .httpClientBuilder(chatModelHttpClientBuilder)
+                .listeners(chatModelListeners)
                 .timeout(definition.getTimeout());
         if (hasText(definition.getBaseUrl())) {
             builder.baseUrl(definition.getBaseUrl());
@@ -127,6 +137,7 @@ public class ChatModelFactory {
         OllamaStreamingChatModel.OllamaStreamingChatModelBuilder builder = OllamaStreamingChatModel.builder()
                 .modelName(definition.getModelName())
                 .httpClientBuilder(streamingChatModelHttpClient)
+                .listeners(chatModelListeners)
                 .timeout(definition.getTimeout());
         if (hasText(definition.getBaseUrl())) {
             builder.baseUrl(definition.getBaseUrl());
@@ -138,6 +149,7 @@ public class ChatModelFactory {
         GoogleAiGeminiChatModel.GoogleAiGeminiChatModelBuilder builder = GoogleAiGeminiChatModel.builder()
                 .modelName(definition.getModelName())
                 .httpClientBuilder(chatModelHttpClientBuilder)
+                .listeners(chatModelListeners)
                 .timeout(definition.getTimeout());
         if (hasText(definition.getApiKey())) {
             builder.apiKey(definition.getApiKey());
@@ -149,6 +161,7 @@ public class ChatModelFactory {
         GoogleAiGeminiStreamingChatModel.GoogleAiGeminiStreamingChatModelBuilder builder = GoogleAiGeminiStreamingChatModel.builder()
                 .modelName(definition.getModelName())
                 .httpClientBuilder(streamingChatModelHttpClient)
+                .listeners(chatModelListeners)
                 .timeout(definition.getTimeout());
         if (hasText(definition.getApiKey())) {
             builder.apiKey(definition.getApiKey());
@@ -160,6 +173,7 @@ public class ChatModelFactory {
         MistralAiChatModel.MistralAiChatModelBuilder builder = MistralAiChatModel.builder()
                 .modelName(definition.getModelName())
                 .httpClientBuilder(chatModelHttpClientBuilder)
+                .listeners(chatModelListeners)
                 .timeout(definition.getTimeout());
         if (hasText(definition.getBaseUrl())) {
             builder.baseUrl(definition.getBaseUrl());
@@ -174,6 +188,7 @@ public class ChatModelFactory {
         MistralAiStreamingChatModel.MistralAiStreamingChatModelBuilder builder = MistralAiStreamingChatModel.builder()
                 .modelName(definition.getModelName())
                 .httpClientBuilder(streamingChatModelHttpClient)
+                .listeners(chatModelListeners)
                 .timeout(definition.getTimeout());
         if (hasText(definition.getBaseUrl())) {
             builder.baseUrl(definition.getBaseUrl());

@@ -2,11 +2,10 @@ package net.osgiliath.agentsdk.skills.parser;
 
 import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.common.parsing.ParsingHeader;
-import net.osgiliath.agentsdk.utils.markdown.MarkdownFile;
-import net.osgiliath.agentsdk.utils.markdown.MarkdownHeader;
-import net.osgiliath.agentsdk.utils.markdown.MarkdownHeaders;
-import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
-import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertion;
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSetParser;
+import net.osgiliath.agentsdk.skills.model.*;
+import net.osgiliath.agentsdk.utils.markdown.*;
 import net.osgiliath.agentsdk.utils.resource.ResourceLocationResolver;
 import org.commonmark.node.AbstractVisitor;
 import org.commonmark.node.FencedCodeBlock;
@@ -19,15 +18,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Stream;
 
 /**
@@ -39,16 +30,20 @@ public class SkillParserImpl implements SkillParser {
 
     private static final String REFERENCE_FOLDER = "reference";
     private static final String TEMPLATES_FOLDER = "templates";
+    private static final String ASSETS_FOLDER = "assets";
 
     private final MarkdownParser markdownParser;
     private final Parser commonMarkParser;
     private final ResourceLocationResolver resourceLocationResolver;
+    private final SkillAssertionSetParser assertionSetParser;
 
     public SkillParserImpl(MarkdownParser markdownParser, Parser commonMarkParser,
-                           ResourceLocationResolver resourceLocationResolver) {
+                           ResourceLocationResolver resourceLocationResolver,
+                           SkillAssertionSetParser assertionSetParser) {
         this.markdownParser = markdownParser;
         this.commonMarkParser = commonMarkParser;
         this.resourceLocationResolver = resourceLocationResolver;
+        this.assertionSetParser = assertionSetParser;
     }
 
     @Override
@@ -62,12 +57,13 @@ public class SkillParserImpl implements SkillParser {
         SkillsHeaders headers = parseHeaders(markdownFile.getHeaders());
 
         List<ResolvedSkillLink> discoveredLinks = discoverLinks(skillFileResource);
-        List<SkillAsset> assets = toAssets(discoveredLinks);
+        List<SkillAsset> assets = mergeAssets(toAssets(discoveredLinks), scanAssets(skillFileResource));
         List<SkillTemplate> templates = scanTemplates(skillFileResource);
         List<SkillScriptCommand> scriptCommands = extractScriptCommands(skillFileResource);
+        List<SkillAssertion> assertionSets = assertionSetParser.parseAssertionSets(skillFileResource);
 
         MarkdownContentSections content = buildContent(markdownFile, skillFileResource);
-        return new Skill(headers, assets, templates, scriptCommands, content);
+        return new Skill(headers, assets, templates, scriptCommands, content, assertionSets);
     }
 
     private SkillsHeaders parseHeaders(MarkdownHeaders headers) {
@@ -100,6 +96,11 @@ public class SkillParserImpl implements SkillParser {
 
     private void collectLinks(Resource rootResource, Resource currentResource, Set<String> visitedResources,
                               List<ResolvedSkillLink> links) {
+        Objects.requireNonNull(rootResource, "rootResource must not be null");
+        Objects.requireNonNull(currentResource, "currentResource must not be null");
+        Objects.requireNonNull(visitedResources, "visitedResources must not be null");
+        Objects.requireNonNull(links, "links must not be null");
+
         String resourceId = describeResource(currentResource);
         if (!visitedResources.add(resourceId)) {
             return;
@@ -110,27 +111,41 @@ public class SkillParserImpl implements SkillParser {
         document.accept(new LinkCollector(localLinks));
 
         for (SkillLink link : localLinks) {
-            Resource resolved = link.external() ? null : resourceLocationResolver.resolveRelative(currentResource, link.uri()).orElse(null);
-            String normalizedUri = normalizeSkillUri(rootResource, link.uri(), resolved);
-            links.add(new ResolvedSkillLink(normalizedUri, link.external(), resolved));
+            Optional<Resource> resolvedResource = link.external()
+                    ? Optional.empty()
+                    : resourceLocationResolver.resolveRelative(currentResource, link.uri());
+            String normalizedUri = normalizeSkillUri(rootResource, link.uri(), resolvedResource);
+            links.add(new ResolvedSkillLink(normalizedUri, link.external(), resolvedResource));
 
-            if (!link.external() && resolved != null && isMarkdownResource(normalizedUri)) {
-                collectLinks(rootResource, resolved, visitedResources, links);
+            if (!link.external() && resolvedResource.isPresent() && isMarkdownResource(normalizedUri)) {
+                collectLinks(rootResource, resolvedResource.get(), visitedResources, links);
             }
         }
     }
 
     private List<ResolvedSkillLink> deduplicateLinks(List<ResolvedSkillLink> links) {
+        Objects.requireNonNull(links, "links must not be null");
         Set<String> seen = new LinkedHashSet<>();
         return links.stream().filter(link -> seen.add((link.external() ? "ext:" : "int:") + link.uri())).toList();
     }
 
     private List<SkillAsset> toAssets(List<ResolvedSkillLink> links) {
+        Objects.requireNonNull(links, "links must not be null");
         return links.stream()
                 .filter(link -> !link.external())
                 .filter(link -> !isMarkdownResource(link.uri()))
-                .map(link -> new SkillAsset(link.uri()))
+                .filter(link -> link.resolvedResource().isPresent())
+                .map(link -> new SkillAsset(link.uri(), readResource(link.resolvedResource().get())))
                 .toList();
+    }
+
+    private List<SkillAsset> mergeAssets(List<SkillAsset> first, List<SkillAsset> second) {
+        Objects.requireNonNull(first, "first must not be null");
+        Objects.requireNonNull(second, "second must not be null");
+        Map<String, SkillAsset> uniqueByUri = new LinkedHashMap<>();
+        Stream.concat(first.stream(), second.stream())
+                .forEach(asset -> uniqueByUri.putIfAbsent(asset.uri(), asset));
+        return List.copyOf(uniqueByUri.values());
     }
 
     private MarkdownContentSections buildContent(MarkdownFile markdownFile, Resource skillFileResource) {
@@ -155,6 +170,8 @@ public class SkillParserImpl implements SkillParser {
     }
 
     private List<MarkdownSection> mergeSections(List<MarkdownSection> first, List<MarkdownSection> second) {
+        Objects.requireNonNull(first, "first must not be null");
+        Objects.requireNonNull(second, "second must not be null");
         Map<String, MarkdownSection> uniqueByContent = new LinkedHashMap<>();
         Stream.concat(first.stream(), second.stream())
                 .forEach(section -> uniqueByContent.putIfAbsent(sectionKey(section), section));
@@ -174,23 +191,42 @@ public class SkillParserImpl implements SkillParser {
     }
 
     private List<SkillTemplate> scanTemplates(Resource skillFileResource) {
+        return scanFolder(skillFileResource, TEMPLATES_FOLDER).entrySet().stream()
+                .map(e -> new SkillTemplate(e.getKey(), readResource(e.getValue())))
+                .toList();
+    }
+
+    private List<SkillAsset> scanAssets(Resource skillFileResource) {
+        return scanFolder(skillFileResource, ASSETS_FOLDER).entrySet().stream()
+                .map(e -> new SkillAsset(e.getKey(), readResource(e.getValue())))
+                .toList();
+    }
+
+    private Map<String, Resource> scanFolder(Resource skillFileResource, String folderName) {
+        Objects.requireNonNull(skillFileResource, "skillFileResource must not be null");
         try {
-            return resourceLocationResolver.resolveResources(skillFileResource, TEMPLATES_FOLDER + "/**/*").stream()
-                    .filter(r -> r.isReadable() && r.getFilename() != null && !r.getFilename().isBlank())
-                    .map(r -> resourceLocationResolver.relativize(skillFileResource, r).orElse(null))
-                    .filter(Objects::nonNull)
-                    .map(SkillTemplate::new)
-                    .toList();
+            Map<String, Resource> resources = new LinkedHashMap<>();
+            for (Resource r : resourceLocationResolver.resolveResources(skillFileResource, folderName + "/**/*")) {
+                if (r.isReadable() && r.getFilename() != null && !r.getFilename().isBlank()) {
+                    resourceLocationResolver.relativize(skillFileResource, r)
+                            .ifPresent(rel -> resources.put(rel, r));
+                }
+            }
+            return resources;
         } catch (IOException e) {
-            return List.of();
+            return Map.of();
         }
     }
 
-    private String normalizeSkillUri(Resource skillFileResource, String rawUri, Resource resolvedResource) {
-        if (resolvedResource == null) {
+    private String normalizeSkillUri(Resource skillFileResource, String rawUri, Optional<Resource> resolvedResource) {
+        Objects.requireNonNull(skillFileResource, "skillFileResource must not be null");
+        Objects.requireNonNull(rawUri, "rawUri must not be null");
+        Objects.requireNonNull(resolvedResource, "resolvedResource must not be null");
+
+        if (resolvedResource.isEmpty()) {
             return rawUri;
         }
-        return resourceLocationResolver.relativize(skillFileResource, resolvedResource)
+        return resourceLocationResolver.relativize(skillFileResource, resolvedResource.get())
                 .filter(relative -> !relative.isBlank())
                 .orElse(rawUri);
     }
@@ -248,7 +284,7 @@ public class SkillParserImpl implements SkillParser {
         }
     }
 
-    private record ResolvedSkillLink(String uri, boolean external, Resource resolvedResource) {
+    private record ResolvedSkillLink(String uri, boolean external, Optional<Resource> resolvedResource) {
     }
 
     private static final class ScriptCollector extends AbstractVisitor {

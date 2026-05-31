@@ -1,6 +1,6 @@
 package net.osgiliath.agentsdk.skills.resolver;
 
-import net.osgiliath.agentsdk.skills.parser.Skill;
+import net.osgiliath.agentsdk.skills.model.Skill;
 
 import java.util.List;
 

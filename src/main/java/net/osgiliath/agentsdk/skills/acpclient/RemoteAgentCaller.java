@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -45,7 +46,10 @@ public class RemoteAgentCaller implements OutAcpAdapter {
     }
 
     public RemoteAgentCaller(RemoteClientGateway remoteClient, long processPromptTimeoutMillis) {
-        this.remoteClient = remoteClient;
+        this.remoteClient = Objects.requireNonNull(remoteClient, "remoteClient must not be null");
+        if (processPromptTimeoutMillis <= 0) {
+            throw new IllegalArgumentException("processPromptTimeoutMillis must be greater than 0");
+        }
         this.processPromptTimeoutMillis = processPromptTimeoutMillis;
     }
 
@@ -71,6 +75,7 @@ public class RemoteAgentCaller implements OutAcpAdapter {
 
     @Override
     public AcpSessionBridge createSession(String sessionId, String cwd, Map<String, String> mcpServers) {
+        Objects.requireNonNull(sessionId, "sessionId must not be null");
         String effectiveCwd = cwd == null || cwd.isBlank() ? "." : cwd;
         Map<String, String> effectiveMcpServers = mcpServers == null ? Collections.emptyMap() : mcpServers;
         log.info("Creating remote ACP session {} in {} with {} MCP server(s)", sessionId, effectiveCwd, effectiveMcpServers.size());
@@ -112,7 +117,7 @@ public class RemoteAgentCaller implements OutAcpAdapter {
         private final RemoteAcpClient delegate;
 
         private RemoteAcpClientGateway(RemoteAcpClient delegate) {
-            this.delegate = delegate;
+            this.delegate = Objects.requireNonNull(delegate, "delegate must not be null");
         }
 
         @Override
@@ -145,9 +150,9 @@ public class RemoteAgentCaller implements OutAcpAdapter {
         private final AtomicBoolean cancelled = new AtomicBoolean(false);
 
         private RemoteSession(String sessionId, String cwd, Map<String, String> mcpServers) {
-            this.sessionId = sessionId;
-            this.cwd = cwd;
-            this.mcpServers = mcpServers;
+            this.sessionId = Objects.requireNonNull(sessionId, "sessionId must not be null");
+            this.cwd = Objects.requireNonNull(cwd, "cwd must not be null");
+            this.mcpServers = Objects.requireNonNull(mcpServers, "mcpServers must not be null");
         }
 
         @Override
@@ -162,6 +167,8 @@ public class RemoteAgentCaller implements OutAcpAdapter {
 
         @Override
         public CompletableFuture<String> processPrompt(String promptText, List<ContentBlock.ResourceLink> resourceLinks) {
+            Objects.requireNonNull(promptText, "promptText must not be null");
+            Objects.requireNonNull(resourceLinks, "resourceLinks must not be null");
             CompletableFuture<String> response = new CompletableFuture<>();
             StringBuilder fullResponse = new StringBuilder();
 
@@ -188,10 +195,12 @@ public class RemoteAgentCaller implements OutAcpAdapter {
 
         @Override
         public void streamPrompt(String promptText, List<ContentBlock.ResourceLink> resourceLinks, TokenConsumer consumer) {
-            List<ContentBlock.ResourceLink> safeLinks = resourceLinks == null ? List.of() : resourceLinks;
-            log.debug("Streaming remote prompt for session {} from cwd {} with {} resource link(s)", sessionId, cwd, safeLinks.size());
+            Objects.requireNonNull(promptText, "promptText must not be null");
+            Objects.requireNonNull(resourceLinks, "resourceLinks must not be null");
+            Objects.requireNonNull(consumer, "consumer must not be null");
+            log.debug("Streaming remote prompt for session {} from cwd {} with {} resource link(s)", sessionId, cwd, resourceLinks.size());
             try {
-                remoteClient.streamPrompt(sessionId, cwd, mcpServers, promptText == null ? "" : promptText, safeLinks, consumer);
+                remoteClient.streamPrompt(sessionId, cwd, mcpServers, promptText, resourceLinks, consumer);
             } catch (Throwable error) {
                 consumer.onError(error);
             }

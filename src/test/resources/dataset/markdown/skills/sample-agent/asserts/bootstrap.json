@@ -1,0 +1,18 @@
+{
+  "agent": "project-template-scaffolder",
+  "domain": "bootstrap",
+  "version": "1.1.0",
+  "checks": [
+    {
+      "id": "AGT-BST-001",
+      "title": "Bootstrap task root path exists after skill invocation",
+      "severity": "critical",
+      "required_paths": [
+        "ai/",
+        "ai/tasks/",
+        "ai/tasks/001-Project_layout/"
+      ]
+    }
+  ]
+}
+

@@ -29,6 +29,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -64,17 +65,18 @@ public class MarkdownParserImpl implements MarkdownParser {
             FrontMatterParser frontMatterParser,
             MarkdownContentExtractor markdownContentExtractor
     ) {
-        this.parser = markdownParser;
+        this.parser = Objects.requireNonNull(markdownParser, "markdownParser must not be null");
         this.markdownRenderer = MarkdownRenderer.builder().build();
-        this.resourceLocationResolver = resourceLocationResolver;
-        this.frontMatterParser = frontMatterParser;
-        this.markdownContentExtractor = markdownContentExtractor;
+        this.resourceLocationResolver = Objects.requireNonNull(resourceLocationResolver, "resourceLocationResolver must not be null");
+        this.frontMatterParser = Objects.requireNonNull(frontMatterParser, "frontMatterParser must not be null");
+        this.markdownContentExtractor = Objects.requireNonNull(markdownContentExtractor, "markdownContentExtractor must not be null");
     }
 
     @Override
     public List<Path> listMarkdownFiles(Path folderPath) {
+        Objects.requireNonNull(folderPath, "folderPath must not be null");
         logger.debug("Listing markdown files in folder: {}", folderPath);
-        if (folderPath == null || !Files.isDirectory(folderPath)) {
+        if (!Files.isDirectory(folderPath)) {
             logger.warn("Folder path is null or not a directory: {}", folderPath);
             return List.of();
         }
@@ -97,10 +99,7 @@ public class MarkdownParserImpl implements MarkdownParser {
 
     @Override
     public Optional<MarkdownFile> getMarkdownFile(Resource fileResource) {
-        if (fileResource == null) {
-            logger.warn("Resource is null");
-            return Optional.empty();
-        }
+        Objects.requireNonNull(fileResource, "fileResource must not be null");
         if (!fileResource.exists()) {
             logger.warn("Resource does not exist: {}", fileResource.getDescription());
             return Optional.empty();
@@ -111,6 +110,7 @@ public class MarkdownParserImpl implements MarkdownParser {
 
     // FIXME: support inlining option (true or false)
     private Optional<MarkdownFile> parseMarkdownResource(Resource resource) {
+        Objects.requireNonNull(resource, "resource must not be null");
         String source = readResource(resource);
         FrontMatterSplit split = frontMatterParser.splitFrontMatterAndBody(source);
         String inlinedBody = inlineMarkdownLinks(resource, split.body(), new HashSet<>());
@@ -129,7 +129,10 @@ public class MarkdownParserImpl implements MarkdownParser {
     }
 
     private String inlineMarkdownLinks(Resource resource, String source, Set<String> visited) {
-        if (source == null || source.isBlank()) {
+        Objects.requireNonNull(resource, "resource must not be null");
+        Objects.requireNonNull(source, "source must not be null");
+        Objects.requireNonNull(visited, "visited must not be null");
+        if (source.isBlank()) {
             return "";
         }
         String resourceId = describeResource(resource);
@@ -181,6 +184,7 @@ public class MarkdownParserImpl implements MarkdownParser {
     }
 
     private Node findInsertionAnchor(Node node) {
+        Objects.requireNonNull(node, "node must not be null");
         Node current = node;
         while (current != null && !(current instanceof Block)) {
             current = current.getParent();
@@ -189,10 +193,13 @@ public class MarkdownParserImpl implements MarkdownParser {
     }
 
     private Optional<Resource> resolveLinkedResource(Resource currentResource, String destination) {
+        Objects.requireNonNull(currentResource, "currentResource must not be null");
+        Objects.requireNonNull(destination, "destination must not be null");
         return resourceLocationResolver.resolveRelative(currentResource, destination);
     }
 
     private String describeResource(Resource resource) {
+        Objects.requireNonNull(resource, "resource must not be null");
         try {
             return resource.getURL().toString();
         } catch (IOException e) {
@@ -216,9 +223,7 @@ public class MarkdownParserImpl implements MarkdownParser {
 
     @Override
     public List<MarkdownSection> getMainSections(MarkdownFile markdownFile, int maxDepth) {
-        if (markdownFile == null) {
-            return List.of();
-        }
+        Objects.requireNonNull(markdownFile, "markdownFile must not be null");
         if (maxDepth <= 0) {
             return List.of();
         }
@@ -231,6 +236,7 @@ public class MarkdownParserImpl implements MarkdownParser {
     }
 
     private MarkdownSection truncateSectionDepth(MarkdownSection section, int remainingDepth) {
+        Objects.requireNonNull(section, "section must not be null");
         if (remainingDepth <= 1) {
             return new MainSection(section.getTitle(), section.getContent(), List.of());
         }
@@ -250,7 +256,9 @@ public class MarkdownParserImpl implements MarkdownParser {
 
     @Override
     public Optional<MarkdownSection> getSection(MarkdownFile markdownFile, String sectionName) {
-        if (markdownFile == null || sectionName == null || sectionName.isBlank()) {
+        Objects.requireNonNull(markdownFile, "markdownFile must not be null");
+        Objects.requireNonNull(sectionName, "sectionName must not be null");
+        if (sectionName.isBlank()) {
             return Optional.empty();
         }
 
@@ -285,7 +293,8 @@ public class MarkdownParserImpl implements MarkdownParser {
 
     @Override
     public String renderSectionsAsMarkdown(List<MarkdownSection> sections) {
-        if (sections == null || sections.isEmpty()) {
+        Objects.requireNonNull(sections, "sections must not be null");
+        if (sections.isEmpty()) {
             return "";
         }
         StringBuilder builder = new StringBuilder();
@@ -296,6 +305,11 @@ public class MarkdownParserImpl implements MarkdownParser {
     }
 
     private void renderSectionAsMarkdown(StringBuilder builder, MarkdownSection section, int level) {
+        Objects.requireNonNull(builder, "builder must not be null");
+        Objects.requireNonNull(section, "section must not be null");
+        if (level <= 0) {
+            throw new IllegalArgumentException("level must be greater than 0");
+        }
         String heading = "#".repeat(level);
         String title = section.getTitle() == null ? "" : section.getTitle();
         if (!title.isBlank()) {
@@ -312,6 +326,8 @@ public class MarkdownParserImpl implements MarkdownParser {
     }
 
     private void appendSampleSections(boolean includeSamples, List<MarkdownSection> mainSections, StringBuilder builder) {
+        Objects.requireNonNull(mainSections, "mainSections must not be null");
+        Objects.requireNonNull(builder, "builder must not be null");
         if (includeSamples) {
             List<MarkdownSection> sampleSections = extractSampleSections(mainSections);
             for (MarkdownSection section : sampleSections) {
@@ -321,6 +337,8 @@ public class MarkdownParserImpl implements MarkdownParser {
     }
 
     private List<MarkdownSection> appendMainSections(MarkdownFile markdownFile, boolean includeSections, StringBuilder builder) {
+        Objects.requireNonNull(markdownFile, "markdownFile must not be null");
+        Objects.requireNonNull(builder, "builder must not be null");
         List<MarkdownSection> mainSections = getMainSections(markdownFile);
 
         if (includeSections) {
@@ -333,6 +351,7 @@ public class MarkdownParserImpl implements MarkdownParser {
     }
 
     private void appendHeaders(MarkdownFile markdownFile, boolean includeHeaders, StringBuilder builder) {
+        Objects.requireNonNull(builder, "builder must not be null");
         if (includeHeaders && markdownFile != null && markdownFile.getHeaders() != null) {
             for (String key : markdownFile.getHeaders().headerKeys()) {
                 Object value = markdownFile.getHeaders().header(key).orElse("");
@@ -344,6 +363,7 @@ public class MarkdownParserImpl implements MarkdownParser {
     }
 
     private String readResource(Resource resource) {
+        Objects.requireNonNull(resource, "resource must not be null");
         try (InputStream is = resource.getInputStream()) {
             return new String(is.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException e) {
@@ -353,6 +373,7 @@ public class MarkdownParserImpl implements MarkdownParser {
     }
 
     private List<MarkdownSection> extractSampleSections(List<MarkdownSection> sections) {
+        Objects.requireNonNull(sections, "sections must not be null");
         MarkdownSection samples = null;
         for (MarkdownSection section : sections) {
             if ("Samples".equals(section.getTitle())) {
@@ -369,6 +390,7 @@ public class MarkdownParserImpl implements MarkdownParser {
     }
 
     private void appendSection(StringBuilder builder, MarkdownSection section) {
+        Objects.requireNonNull(builder, "builder must not be null");
         if (section == null) {
             return;
         }
@@ -385,6 +407,7 @@ public class MarkdownParserImpl implements MarkdownParser {
     }
 
     private void appendBlock(StringBuilder builder, String block) {
+        Objects.requireNonNull(builder, "builder must not be null");
         if (block == null || block.isBlank()) {
             return;
         }

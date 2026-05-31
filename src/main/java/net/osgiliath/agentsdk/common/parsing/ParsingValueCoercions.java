@@ -5,6 +5,7 @@ import net.osgiliath.agentsdk.llm.LLMS_KIND;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 public final class ParsingValueCoercions {
@@ -13,6 +14,9 @@ public final class ParsingValueCoercions {
     }
 
     public static String requiredString(Map<String, Object> values, String key, String domain) {
+        Objects.requireNonNull(values, "values must not be null");
+        Objects.requireNonNull(key, "key must not be null");
+        Objects.requireNonNull(domain, "domain must not be null");
         String value = asString(values.get(key));
         if (value.isBlank()) {
             throw new IllegalArgumentException("Missing required " + domain + " header: " + key);
@@ -79,12 +83,14 @@ public final class ParsingValueCoercions {
     }
 
     private static Optional<LLMS_KIND> toLlmKind(String value) {
+        Objects.requireNonNull(value, "value must not be null");
         return Arrays.stream(LLMS_KIND.values())
                 .filter(kind -> kind.getName().equalsIgnoreCase(value) || kind.name().equalsIgnoreCase(value))
                 .findFirst();
     }
 
     private static String unquote(String value) {
+        Objects.requireNonNull(value, "value must not be null");
         String trimmed = stripYamlInlineComment(value).trim();
         if ((trimmed.startsWith("\"") && trimmed.endsWith("\""))
                 || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
@@ -94,20 +100,20 @@ public final class ParsingValueCoercions {
     }
 
     private static String stripYamlInlineComment(String value) {
-        String input = value == null ? "" : value;
+        Objects.requireNonNull(value, "value must not be null");
         boolean inSingle = false;
         boolean inDouble = false;
-        for (int i = 0; i < input.length(); i++) {
-            char c = input.charAt(i);
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
             if (c == '\'' && !inDouble) {
                 inSingle = !inSingle;
             } else if (c == '"' && !inSingle) {
                 inDouble = !inDouble;
             } else if (c == '#' && !inSingle && !inDouble) {
-                return input.substring(0, i).stripTrailing();
+                return value.substring(0, i).stripTrailing();
             }
         }
-        return input;
+        return value;
     }
 }
 
