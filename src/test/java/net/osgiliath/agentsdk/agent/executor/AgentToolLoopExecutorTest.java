@@ -196,7 +196,7 @@ class AgentToolLoopExecutorTest {
     }
 
     @Test
-    void shouldRotateChatMemoryIdAfterStuckRecoveryResets() {
+    void shouldReachStuckWhenAssertionRecoveryResetsExhausted() {
         SkillAssertion assertionSet = new SkillAssertion("structure", "test-skill", "1.0",
                 List.of(new SkillAssertionCheck("CHK-001", "dir exists", "", "", SkillAssertionSeverity.CRITICAL,
                         List.of("src/"), List.of(), List.of(), List.of())),
@@ -226,12 +226,8 @@ class AgentToolLoopExecutorTest {
 
         assertThat(result.exitReason()).isEqualTo(AgentToolLoopResult.ExitReason.STUCK);
         assertThat(result.exitDetails()).contains("non-productive loop");
-        ArgumentCaptor<String> memoryIdCaptor = ArgumentCaptor.forClass(String.class);
-        verify(chatRequestBuilder, atLeast(4)).buildToolProviderResult(any(), any(), memoryIdCaptor.capture(), any(), any());
-        List<String> observedMemoryIds = memoryIdCaptor.getAllValues();
-        assertThat(observedMemoryIds.get(0)).isEqualTo("mem-1");
-        assertThat(observedMemoryIds.stream().distinct()).hasSizeGreaterThan(1);
-        assertThat(observedMemoryIds.stream().anyMatch(id -> id.startsWith("mem-1-reset-1-"))).isTrue();
+        verify(chatRequestBuilder, times(1)).buildToolProviderResult(any(), any(), eq("mem-1"), any(), any());
+        verify(chatModel, atLeast(12)).chat(any(ChatRequest.class));
     }
 
     @Test

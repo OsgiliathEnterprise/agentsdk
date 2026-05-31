@@ -135,15 +135,7 @@ public class SkillParserImpl implements SkillParser {
                 .filter(link -> !link.external())
                 .filter(link -> !isMarkdownResource(link.uri()))
                 .filter(link -> link.resolvedResource().isPresent())
-                .map(link -> {
-                    String uri = link.uri();
-                    if (uri.startsWith(ASSETS_FOLDER + "/")) {
-                        uri = uri.substring(ASSETS_FOLDER.length() + 1);
-                    } else if (uri.startsWith(TEMPLATES_FOLDER + "/")) {
-                        uri = uri.substring(TEMPLATES_FOLDER.length() + 1);
-                    }
-                    return new SkillAsset(uri, readResource(link.resolvedResource().get()));
-                })
+                .map(link -> new SkillAsset(link.uri(), readResource(link.resolvedResource().get())))
                 .toList();
     }
 
@@ -217,12 +209,7 @@ public class SkillParserImpl implements SkillParser {
             for (Resource r : resourceLocationResolver.resolveResources(skillFileResource, folderName + "/**/*")) {
                 if (r.isReadable() && r.getFilename() != null && !r.getFilename().isBlank()) {
                     resourceLocationResolver.relativize(skillFileResource, r)
-                            .ifPresent(rel -> {
-                                // Strip the folder name (e.g. "assets/") from the relative path
-                                String prefix = folderName + "/";
-                                String stripped = rel.startsWith(prefix) ? rel.substring(prefix.length()) : rel;
-                                resources.put(stripped, r);
-                            });
+                            .ifPresent(rel -> resources.put(rel, r));
                 }
             }
             return resources;

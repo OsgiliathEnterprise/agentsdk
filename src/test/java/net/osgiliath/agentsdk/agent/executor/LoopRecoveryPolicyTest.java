@@ -26,14 +26,14 @@ class LoopRecoveryPolicyTest {
     @Test
     void shouldApplyResetBudgetRules() {
         assertThat(policy.canResetMemory(0)).isTrue();
-        assertThat(policy.canResetMemory(2)).isTrue();
-        assertThat(policy.canResetMemory(3)).isFalse();
+        assertThat(policy.canResetMemory(4)).isTrue();
+        assertThat(policy.canResetMemory(5)).isFalse();
     }
 
     @Test
     void shouldComputeMaxTotalIterationsFromResetBudget() {
-        assertThat(policy.maxTotalIterations(1)).isEqualTo(4);
-        assertThat(policy.maxTotalIterations(5)).isEqualTo(20);
+        assertThat(policy.maxTotalIterations(1)).isEqualTo(6);
+        assertThat(policy.maxTotalIterations(5)).isEqualTo(30);
     }
 
     @Test
