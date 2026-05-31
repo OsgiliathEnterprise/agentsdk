@@ -3,7 +3,7 @@ package net.osgiliath.agentsdk.skills.assertions;
 import java.util.List;
 
 /**
- * Evaluates a list of {@link SkillAssertionSet}s against a workspace directory.
+ * Evaluates a list of {@link SkillAssertion}s against a workspace directory.
  * Works with both filesystem and packaged resources via ResourceLocationResolver.
  */
 public interface SkillAssertionEvaluator {
@@ -17,6 +17,6 @@ public interface SkillAssertionEvaluator {
      * @param workspacePath workspace path (filesystem or resource-resolvable path)
      * @return aggregated evaluation result
      */
-    SkillAssertionEvaluation evaluate(List<SkillAssertionSet> assertionSets, String workspacePath);
+    SkillAssertionEvaluation evaluate(List<SkillAssertion> assertionSets, String workspacePath);
 }
 

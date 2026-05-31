@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Aggregated result of evaluating all {@link SkillAssertionSet}s against a workspace path.
+ * Aggregated result of evaluating all {@link SkillAssertion}s against a workspace path.
  */
 public record SkillAssertionEvaluation(
         boolean passed,
@@ -15,7 +15,9 @@ public record SkillAssertionEvaluation(
         results = results == null ? List.of() : List.copyOf(results);
     }
 
-    /** Returns {@code true} if any CRITICAL or MAJOR check failed. */
+    /**
+     * Returns {@code true} if any CRITICAL or MAJOR check failed.
+     */
     public boolean hasCriticalOrMajorFailure() {
         return results.stream()
                 .filter(SkillAssertionCheckResult::failed)

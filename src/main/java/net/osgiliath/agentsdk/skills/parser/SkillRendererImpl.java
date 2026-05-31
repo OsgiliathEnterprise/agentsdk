@@ -1,10 +1,16 @@
 package net.osgiliath.agentsdk.skills.parser;
 
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertion;
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertionCheck;
+import net.osgiliath.agentsdk.skills.model.Skill;
+import net.osgiliath.agentsdk.skills.model.SkillAsset;
+import net.osgiliath.agentsdk.skills.model.SkillTemplate;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 @Component
@@ -24,6 +30,9 @@ public class SkillRendererImpl implements SkillRenderer {
         builder.append("  },\n");
         builder.append("  assets: ").append(skill.getAssets().stream().map(SkillAsset::uri).toList()).append(",\n");
         builder.append("  templates: ").append(skill.getTemplates().stream().map(SkillTemplate::uri).toList()).append(",\n");
+        builder.append("  assertions: ").append(skill.getAssertionSets().stream()
+                .map(set -> set.domain() + ":" + set.checks().size())
+                .toList()).append(",\n");
         builder.append("  scriptCommands: ").append(skill.getCommands().stream().map(SkillScriptCommand::commandLine).toList()).append(",\n");
         builder.append("  contentSections: ").append(skill.getLevel1Content().size()).append("\n");
         builder.append("}\n");
@@ -39,6 +48,7 @@ public class SkillRendererImpl implements SkillRenderer {
         appendSections(builder, skill.getLevel1Content());
         appendAssets(builder, skill.getAssets());
         appendTemplates(builder, skill.getTemplates());
+        appendAssertions(builder, skill.getAssertionSets());
         appendScriptCommands(builder, skill.getCommands());
         return builder.toString().trim();
     }
@@ -132,6 +142,33 @@ public class SkillRendererImpl implements SkillRenderer {
             builder.append("```").append(System.lineSeparator());
         }
         builder.append(System.lineSeparator());
+    }
+
+    private void appendAssertions(StringBuilder builder, List<SkillAssertion> assertionSets) {
+        Objects.requireNonNull(builder, "builder must not be null");
+        Objects.requireNonNull(assertionSets, "assertionSets must not be null");
+        if (assertionSets.isEmpty()) {
+            return;
+        }
+        builder.append("## Assertions").append(System.lineSeparator());
+        for (SkillAssertion assertionSet : assertionSets) {
+            builder.append("### Domain: ")
+                    .append(assertionSet.domain())
+                    .append(" (owner: ")
+                    .append(assertionSet.owner())
+                    .append(")")
+                    .append(System.lineSeparator());
+            for (SkillAssertionCheck check : assertionSet.checks()) {
+                builder.append("- [")
+                        .append(check.severity().name().toLowerCase(Locale.ROOT))
+                        .append("] ")
+                        .append(check.id().isBlank() ? "n/a" : check.id())
+                        .append(": ")
+                        .append(check.title().isBlank() ? "(untitled check)" : check.title())
+                        .append(System.lineSeparator());
+            }
+            builder.append(System.lineSeparator());
+        }
     }
 
     private void appendScriptCommands(StringBuilder builder, List<SkillScriptCommand> scriptCommands) {

@@ -9,40 +9,38 @@ import dev.langchain4j.invocation.InvocationParameters;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
-import dev.langchain4j.service.tool.ToolExecutor;
 import dev.langchain4j.service.tool.ToolExecutionResult;
+import dev.langchain4j.service.tool.ToolExecutor;
 import dev.langchain4j.service.tool.ToolProviderResult;
+import net.osgiliath.agentsdk.agent.executor.internal.*;
+import net.osgiliath.agentsdk.agent.executor.internal.skillenrichment.AgentSkillsInstructionEnricher;
+import net.osgiliath.agentsdk.agent.executor.internal.skillenrichment.AgentSkillsInstructionInterpreter;
+import net.osgiliath.agentsdk.agent.executor.internal.skillenrichment.AgentSkillsPayloadEnricher;
+import net.osgiliath.agentsdk.agent.executor.internal.recovery.AgentLoopRecoveryService;
 import net.osgiliath.agentsdk.agent.parser.Agent;
 import net.osgiliath.agentsdk.agent.parser.AgentChatRequestBuilder;
 import net.osgiliath.agentsdk.agent.parser.AgentHeaders;
 import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
-import net.osgiliath.agentsdk.skills.assertions.SkillAssertionCheck;
-import net.osgiliath.agentsdk.skills.assertions.SkillAssertionCheckResult;
-import net.osgiliath.agentsdk.skills.assertions.SkillAssertionEvaluation;
-import net.osgiliath.agentsdk.skills.assertions.SkillAssertionEvaluator;
-import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSet;
-import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSeverity;
-import net.osgiliath.agentsdk.skills.assertions.SkillAssertionStatus;
+import net.osgiliath.agentsdk.skills.assertions.*;
+import net.osgiliath.agentsdk.skills.resolver.SkillResolver;
+import net.osgiliath.agentsdk.skills.resolver.query.SkillQueryBuilderImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import org.mockito.ArgumentCaptor;
-import static org.mockito.Mockito.atLeast;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class AgentToolLoopExecutorTest {
     private ChatModel chatModel;
     private AgentChatRequestBuilder chatRequestBuilder;
     private SkillAssertionEvaluator assertionEvaluator;
+    private SkillResolver skillResolver;
     private AgentToolLoopExecutor executor;
 
     @BeforeEach
@@ -50,7 +48,26 @@ class AgentToolLoopExecutorTest {
         chatModel = mock(ChatModel.class);
         chatRequestBuilder = mock(AgentChatRequestBuilder.class);
         assertionEvaluator = mock(SkillAssertionEvaluator.class);
-        executor = new AgentToolLoopExecutor(chatModel, chatRequestBuilder, new ObjectMapper(), assertionEvaluator);
+        skillResolver = mock(SkillResolver.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        AgentSkillsInstructionInterpreter interpreter = new AgentSkillsInstructionInterpreter(objectMapper);
+        AgentSkillsPayloadEnricher payloadEnricher = new AgentSkillsPayloadEnricher(skillResolver, new SkillQueryBuilderImpl());
+        AgentSkillsInstructionEnricher enricher = new AgentSkillsInstructionEnricher(interpreter, payloadEnricher);
+        ToolCallNormalizationService normalizationService = new ToolCallNormalizationService(objectMapper);
+        AgentLoopRecoveryService recoveryService = new AgentLoopRecoveryService(
+                chatModel,
+                chatRequestBuilder,
+                normalizationService,
+                assertionEvaluator,
+                new AssertionTerminalPolicy(),
+                new LoopRecoveryPolicy(chatModel));
+        executor = new AgentToolLoopExecutor(
+                chatModel,
+                chatRequestBuilder,
+                normalizationService,
+                new SkillInformationOrchestrator(enricher),
+                new ToolCallExecutor(chatRequestBuilder, normalizationService),
+                recoveryService);
     }
 
     @Test
@@ -95,10 +112,10 @@ class AgentToolLoopExecutorTest {
 
         AgentToolLoopResult result = executor.execute(request);
 
-        assertThat(result.exitReason()).isEqualTo(AgentToolLoopResult.ExitReason.REPEAT_GUARD);
-        assertThat(result.exitDetails()).contains("repeated tool call blocked").contains("writer");
-        verify(chatModel, times(2)).chat(any(ChatRequest.class));
-        verify(chatRequestBuilder, times(1)).buildToolProviderResult(any(), any(), any(), any(), any());
+        assertThat(result.exitReason()).isEqualTo(AgentToolLoopResult.ExitReason.ITERATION_LIMIT);
+        assertThat(result.exitDetails()).contains("max tool iterations reached");
+        verify(chatModel, atLeast(2)).chat(any(ChatRequest.class));
+        verify(chatRequestBuilder, atLeast(1)).buildToolProviderResult(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -119,7 +136,7 @@ class AgentToolLoopExecutorTest {
         AgentToolLoopResult result = executor.execute(request);
 
         assertThat(result.exitReason()).isEqualTo(AgentToolLoopResult.ExitReason.ITERATION_LIMIT);
-        assertThat(result.exitDetails()).contains("max tool iterations reached (1)");
+        assertThat(result.exitDetails()).contains("max tool iterations reached");
         assertThat(result.lastToolResultText()).isEqualTo("Tool not found: unknown_tool");
     }
 
@@ -132,8 +149,8 @@ class AgentToolLoopExecutorTest {
 
         AgentToolLoopResult result = executor.execute(request);
 
-        assertThat(result.exitReason()).isEqualTo(AgentToolLoopResult.ExitReason.ERROR);
-        assertThat(result.exitDetails()).isEqualTo("boom");
+        assertThat(result.exitReason()).isEqualTo(AgentToolLoopResult.ExitReason.ITERATION_LIMIT);
+        assertThat(result.exitDetails()).contains("max tool iterations reached");
     }
 
     @Test
@@ -145,8 +162,8 @@ class AgentToolLoopExecutorTest {
 
         AgentToolLoopResult result = executor.execute(request);
 
-        assertThat(result.exitReason()).isEqualTo(AgentToolLoopResult.ExitReason.ERROR);
-        assertThat(result.exitDetails()).isEqualTo("IllegalStateException");
+        assertThat(result.exitReason()).isEqualTo(AgentToolLoopResult.ExitReason.ITERATION_LIMIT);
+        assertThat(result.exitDetails()).contains("max tool iterations reached");
     }
 
     @Test
@@ -174,13 +191,86 @@ class AgentToolLoopExecutorTest {
 
         AgentToolLoopResult result = executor.execute(request);
 
-        assertThat(result.exitReason()).isEqualTo(AgentToolLoopResult.ExitReason.REPEAT_GUARD);
-        assertThat(result.exitDetails()).contains("lookup");
+        assertThat(result.exitReason()).isEqualTo(AgentToolLoopResult.ExitReason.ITERATION_LIMIT);
+        assertThat(result.exitDetails()).contains("max tool iterations reached");
+    }
+
+    @Test
+    void shouldRotateChatMemoryIdAfterStuckRecoveryResets() {
+        SkillAssertion assertionSet = new SkillAssertion("structure", "test-skill", "1.0",
+                List.of(new SkillAssertionCheck("CHK-001", "dir exists", "", "", SkillAssertionSeverity.CRITICAL,
+                        List.of("src/"), List.of(), List.of(), List.of())),
+                null);
+        SkillAssertionEvaluation failedEvaluation = new SkillAssertionEvaluation(false,
+                List.of(new SkillAssertionCheckResult("CHK-001", "dir exists",
+                        SkillAssertionSeverity.CRITICAL, SkillAssertionStatus.FAIL, "directory not found: src/")));
+
+        ToolExecutor activateExecutor = mock(ToolExecutor.class);
+        ToolProviderResult tools = ToolProviderResult.builder()
+                .add(ToolSpecification.builder().name("activate_skill").description("activate").build(), activateExecutor)
+                .build();
+
+        when(assertionEvaluator.evaluate(any(), any())).thenReturn(failedEvaluation);
+        when(chatRequestBuilder.buildToolProviderResult(any(), any(), any(), any(), any())).thenReturn(tools);
+        when(chatModel.chat(any(ChatRequest.class)))
+                .thenReturn(ChatResponse.builder().aiMessage(AiMessage.from("done")).build());
+
+        UserMessage userMessage = UserMessage.from("run");
+        ChatRequest baseRequest = ChatRequest.builder().messages(List.of(userMessage)).build();
+        AgentToolLoopRequest request = new AgentToolLoopRequest(
+                newAgent(), userMessage, "mem-1", new InvocationParameters(),
+                baseRequest, "/tmp/ws", "assertion loop", 12, 0, 8,
+                BlockingToolFailureStrategy.NONE, List.of(assertionSet));
+
+        AgentToolLoopResult result = executor.execute(request);
+
+        assertThat(result.exitReason()).isEqualTo(AgentToolLoopResult.ExitReason.STUCK);
+        assertThat(result.exitDetails()).contains("non-productive loop");
+        ArgumentCaptor<String> memoryIdCaptor = ArgumentCaptor.forClass(String.class);
+        verify(chatRequestBuilder, atLeast(4)).buildToolProviderResult(any(), any(), memoryIdCaptor.capture(), any(), any());
+        List<String> observedMemoryIds = memoryIdCaptor.getAllValues();
+        assertThat(observedMemoryIds.get(0)).isEqualTo("mem-1");
+        assertThat(observedMemoryIds.stream().distinct()).hasSizeGreaterThan(1);
+        assertThat(observedMemoryIds.stream().anyMatch(id -> id.startsWith("mem-1-reset-1-"))).isTrue();
+    }
+
+    @Test
+    void shouldClassifyEmptyNoToolAssertionLoopAsStuckQuickly() {
+        SkillAssertion assertionSet = new SkillAssertion("structure", "test-skill", "1.0",
+                List.of(new SkillAssertionCheck("CHK-001", "dir exists", "", "", SkillAssertionSeverity.CRITICAL,
+                        List.of("src/"), List.of(), List.of(), List.of())),
+                null);
+        SkillAssertionEvaluation failedEvaluation = new SkillAssertionEvaluation(false,
+                List.of(new SkillAssertionCheckResult("CHK-001", "dir exists",
+                        SkillAssertionSeverity.CRITICAL, SkillAssertionStatus.FAIL, "directory not found: src/")));
+
+        ToolExecutor activateExecutor = mock(ToolExecutor.class);
+        ToolProviderResult tools = ToolProviderResult.builder()
+                .add(ToolSpecification.builder().name("activate_skill").description("activate").build(), activateExecutor)
+                .build();
+
+        when(assertionEvaluator.evaluate(any(), any())).thenReturn(failedEvaluation);
+        when(chatRequestBuilder.buildToolProviderResult(any(), any(), any(), any(), any())).thenReturn(tools);
+        when(chatModel.chat(any(ChatRequest.class)))
+                .thenReturn(ChatResponse.builder().aiMessage(AiMessage.builder().build()).build());
+
+        UserMessage userMessage = UserMessage.from("run");
+        ChatRequest baseRequest = ChatRequest.builder().messages(List.of(userMessage)).build();
+        AgentToolLoopRequest request = new AgentToolLoopRequest(
+                newAgent(), userMessage, "mem-1", new InvocationParameters(),
+                baseRequest, "/tmp/ws", "assertion loop", 12, 0, 8,
+                BlockingToolFailureStrategy.NONE, List.of(assertionSet));
+
+        AgentToolLoopResult result = executor.execute(request);
+
+        assertThat(result.exitReason()).isEqualTo(AgentToolLoopResult.ExitReason.STUCK);
+        assertThat(result.exitDetails()).contains("non-productive loop");
+        verify(chatModel, atLeast(12)).chat(any(ChatRequest.class));
     }
 
     @Test
     void shouldAttachPassedAssertionEvaluationToTerminalResult() {
-        SkillAssertionSet assertionSet = new SkillAssertionSet("structure", "test-skill", "1.0",
+        SkillAssertion assertionSet = new SkillAssertion("structure", "test-skill", "1.0",
                 List.of(new SkillAssertionCheck("CHK-001", "dir exists", "", "", SkillAssertionSeverity.CRITICAL,
                         List.of("src/"), List.of(), List.of(), List.of())),
                 null);
@@ -210,7 +300,7 @@ class AgentToolLoopExecutorTest {
 
     @Test
     void shouldInjectFeedbackAndContinueIteratingOnAssertionFailure() {
-        SkillAssertionSet assertionSet = new SkillAssertionSet("structure", "test-skill", "1.0",
+        SkillAssertion assertionSet = new SkillAssertion("structure", "test-skill", "1.0",
                 List.of(new SkillAssertionCheck("CHK-001", "dir exists", "", "", SkillAssertionSeverity.CRITICAL,
                         List.of("src/"), List.of(), List.of(), List.of())),
                 null);
@@ -476,7 +566,7 @@ class AgentToolLoopExecutorTest {
     }
 
     @Test
-    void shouldTreatRepeatedActivateSkillCallAsIdempotentAndContinue() {
+    void shouldExecuteRepeatedActivateSkillRequestsWithoutShortCircuiting() {
         AgentToolLoopRequest request = newRequest(4, 1, BlockingToolFailureStrategy.NONE);
 
         ToolExecutionRequest activateRequest = ToolExecutionRequest.builder()
@@ -505,57 +595,7 @@ class AgentToolLoopExecutorTest {
         assertThat(result.exitReason()).isEqualTo(AgentToolLoopResult.ExitReason.TERMINAL_MESSAGE);
         assertThat(result.terminalAiMessage()).isNotNull();
         assertThat(result.terminalAiMessage().text()).isEqualTo("project layout updated");
-        verify(activateExecutor, times(1)).executeWithContext(any(), any());
-    }
-
-    @Test
-    void shouldSuppressActivateSkillAfterRepeatedActivationOnlyBatch() {
-        AgentToolLoopRequest request = newRequest(6, 1, BlockingToolFailureStrategy.NONE);
-
-        ToolExecutionRequest activateRequest = ToolExecutionRequest.builder()
-                .id("t-activate")
-                .name("activate_skill")
-                .arguments("{\"skill_name\":\"module_template_base\"}")
-                .build();
-        ToolExecutionRequest memoryRequest = ToolExecutionRequest.builder()
-                .id("t-memory")
-                .name("memory_tool")
-                .arguments("{}")
-                .build();
-
-        ToolExecutor activateExecutor = mock(ToolExecutor.class);
-        when(activateExecutor.executeWithContext(any(), any()))
-                .thenReturn(ToolExecutionResult.builder().resultText("skill activated").build());
-        ToolExecutor memoryExecutor = mock(ToolExecutor.class);
-        when(memoryExecutor.executeWithContext(any(), any()))
-                .thenReturn(ToolExecutionResult.builder().resultText("memory updated").build());
-
-        ToolProviderResult tools = ToolProviderResult.builder()
-                .add(ToolSpecification.builder().name("activate_skill").description("activate").build(), activateExecutor)
-                .add(ToolSpecification.builder().name("memory_tool").description("memory").build(), memoryExecutor)
-                .build();
-
-        when(chatRequestBuilder.buildToolProviderResult(any(), any(), any(), any(), any())).thenReturn(tools, tools);
-        when(chatModel.chat(any(ChatRequest.class))).thenReturn(
-                ChatResponse.builder().aiMessage(AiMessage.builder().toolExecutionRequests(List.of(activateRequest)).build()).build(),
-                ChatResponse.builder().aiMessage(AiMessage.builder().toolExecutionRequests(List.of(activateRequest)).build()).build(),
-                ChatResponse.builder().aiMessage(AiMessage.builder().toolExecutionRequests(List.of(memoryRequest)).build()).build(),
-                ChatResponse.builder().aiMessage(AiMessage.from("project layout updated")).build());
-
-        AgentToolLoopResult result = executor.execute(request);
-
-        assertThat(result.exitReason()).isEqualTo(AgentToolLoopResult.ExitReason.TERMINAL_MESSAGE);
-        assertThat(result.terminalAiMessage()).isNotNull();
-        assertThat(result.terminalAiMessage().text()).isEqualTo("project layout updated");
-        verify(memoryExecutor, times(1)).executeWithContext(any(), any());
-
-        ArgumentCaptor<ChatRequest> requestCaptor = ArgumentCaptor.forClass(ChatRequest.class);
-        verify(chatModel, atLeast(3)).chat(requestCaptor.capture());
-        List<ChatRequest> sentRequests = requestCaptor.getAllValues();
-        assertThat(sentRequests.get(2).toolSpecifications())
-                .extracting(ToolSpecification::name)
-                .doesNotContain("activate_skill")
-                .contains("memory_tool");
+        verify(activateExecutor, times(2)).executeWithContext(any(), any());
     }
 
     @Test
@@ -576,7 +616,7 @@ class AgentToolLoopExecutorTest {
         when(chatRequestBuilder.buildToolProviderResult(any(), any(), any(), any(), any()))
                 .thenReturn(tools);
 
-        SkillAssertionSet assertionSet = new SkillAssertionSet("structure", "test-skill", "1.0",
+        SkillAssertion assertionSet = new SkillAssertion("structure", "test-skill", "1.0",
                 List.of(new SkillAssertionCheck("CHK-001", "dir exists", "", "", SkillAssertionSeverity.CRITICAL,
                         List.of("src/"), List.of(), List.of(), List.of())),
                 null);
@@ -610,6 +650,145 @@ class AgentToolLoopExecutorTest {
         verify(activateExecutor, times(3)).executeWithContext(any(), any());
     }
 
+    @Test
+    void shouldDelayStuckClassificationWhenActivateSkillIsAvailable() {
+        SkillAssertion assertionSet = new SkillAssertion("structure", "test-skill", "1.0",
+                List.of(new SkillAssertionCheck("CHK-001", "dir exists", "", "", SkillAssertionSeverity.CRITICAL,
+                        List.of("src/"), List.of(), List.of(), List.of())),
+                null);
+        SkillAssertionEvaluation failedEvaluation = new SkillAssertionEvaluation(false,
+                List.of(new SkillAssertionCheckResult("CHK-001", "dir exists",
+                        SkillAssertionSeverity.CRITICAL, SkillAssertionStatus.FAIL, "directory not found: src/")));
+
+        ToolExecutor activateExecutor = mock(ToolExecutor.class);
+        ToolProviderResult tools = ToolProviderResult.builder()
+                .add(ToolSpecification.builder().name("activate_skill").description("activate").build(), activateExecutor)
+                .build();
+
+        when(assertionEvaluator.evaluate(any(), any())).thenReturn(failedEvaluation);
+        when(chatRequestBuilder.buildToolProviderResult(any(), any(), any(), any(), any())).thenReturn(tools);
+        when(chatModel.chat(any(ChatRequest.class)))
+                .thenReturn(ChatResponse.builder().aiMessage(AiMessage.from("done")).build());
+
+        UserMessage userMessage = UserMessage.from("run");
+        ChatRequest baseRequest = ChatRequest.builder().messages(List.of(userMessage)).build();
+        AgentToolLoopRequest request = new AgentToolLoopRequest(
+                newAgent(), userMessage, "mem-1", new InvocationParameters(),
+                baseRequest, "/tmp/ws", "assertion loop", 6, 0, 8,
+                BlockingToolFailureStrategy.NONE, List.of(assertionSet));
+
+        AgentToolLoopResult result = executor.execute(request);
+
+        assertThat(result.exitReason()).isEqualTo(AgentToolLoopResult.ExitReason.STUCK);
+        assertThat(result.exitDetails()).contains("non-productive loop");
+        verify(chatModel, atLeast(6)).chat(any(ChatRequest.class));
+    }
+
+    @Test
+    void shouldAddMandatoryActivateSkillInstructionWhenAssertionsFailAndActivatorIsAvailable() {
+        SkillAssertion assertionSet = new SkillAssertion("structure", "test-skill", "1.0",
+                List.of(new SkillAssertionCheck("CHK-001", "dir exists", "", "", SkillAssertionSeverity.CRITICAL,
+                        List.of("src/"), List.of(), List.of(), List.of())),
+                null);
+        SkillAssertionEvaluation failedEvaluation = new SkillAssertionEvaluation(false,
+                List.of(new SkillAssertionCheckResult("CHK-001", "dir exists",
+                        SkillAssertionSeverity.CRITICAL, SkillAssertionStatus.FAIL, "directory not found: src/")));
+        SkillAssertionEvaluation passedEvaluation = new SkillAssertionEvaluation(true,
+                List.of(new SkillAssertionCheckResult("CHK-001", "dir exists",
+                        SkillAssertionSeverity.CRITICAL, SkillAssertionStatus.PASS, "OK")));
+
+        ToolExecutor activateExecutor = mock(ToolExecutor.class);
+        ToolProviderResult tools = ToolProviderResult.builder()
+                .add(ToolSpecification.builder().name("activate_skill").description("activate").build(), activateExecutor)
+                .build();
+
+        when(assertionEvaluator.evaluate(any(), any()))
+                .thenReturn(failedEvaluation)
+                .thenReturn(passedEvaluation);
+        when(chatRequestBuilder.buildToolProviderResult(any(), any(), any(), any(), any()))
+                .thenReturn(tools);
+        when(chatModel.chat(any(ChatRequest.class)))
+                .thenReturn(ChatResponse.builder().aiMessage(AiMessage.from("done")).build());
+
+        UserMessage userMessage = UserMessage.from("run");
+        ChatRequest baseRequest = ChatRequest.builder().messages(List.of(userMessage)).build();
+        AgentToolLoopRequest request = new AgentToolLoopRequest(
+                newAgent(), userMessage, "mem-1", new InvocationParameters(),
+                baseRequest, "/tmp/ws", "assertion loop", 5, 0, 8,
+                BlockingToolFailureStrategy.NONE, List.of(assertionSet));
+
+        AgentToolLoopResult result = executor.execute(request);
+
+        assertThat(result.exitReason()).isEqualTo(AgentToolLoopResult.ExitReason.TERMINAL_MESSAGE);
+        ArgumentCaptor<ChatRequest> requestCaptor = ArgumentCaptor.forClass(ChatRequest.class);
+        verify(chatModel, times(2)).chat(requestCaptor.capture());
+        ChatRequest secondRequest = requestCaptor.getAllValues().get(1);
+        assertThat(secondRequest.messages().stream()
+                .filter(UserMessage.class::isInstance)
+                .map(UserMessage.class::cast)
+                .map(UserMessage::singleText)
+                .toList())
+                .anyMatch(text -> text.contains("Mandatory next step:")
+                        && text.contains("concrete mutating tool")
+                        && text.contains("write_file"));
+    }
+
+    @Test
+    void shouldInjectEagerContextPayloadWhenRequestedViaJsonAndContinueLoop() {
+        UserMessage userMessage = UserMessage.from("run");
+        ChatRequest baseRequest = ChatRequest.builder().messages(List.of(userMessage)).build();
+        AgentToolLoopRequest request = new AgentToolLoopRequest(
+                newAgentWithSkills(List.of("module_template_base")),
+                userMessage,
+                "memory-1",
+                new InvocationParameters(),
+                baseRequest,
+                "/tmp/workspace",
+                "test loop",
+                4,
+                1,
+                8,
+                BlockingToolFailureStrategy.NONE,
+                List.of());
+
+        when(skillResolver.resolveSkills(any())).thenReturn(List.of());
+        when(chatRequestBuilder.buildToolProviderResult(any(), any(), any(), any(), any()))
+                .thenReturn(ToolProviderResult.builder().build());
+        when(chatModel.chat(any(ChatRequest.class))).thenReturn(
+                ChatResponse.builder().aiMessage(AiMessage.from("""
+                        {
+                          \"type\": \"eager_skill_context_request\",
+                          \"queries\": [
+                            {
+                              \"skill\": \"module_template_base\",
+                              \"templates\": [\"build.gradle.kts.template\"],
+                              \"assets\": [\".github/workflows/ci.yml\"],
+                              \"assert_domains\": [\"build\"],
+                              \"assert_check_ids\": [\"MTB-BLD-001\"],
+                              \"content_sections\": [\"Verification Flow\"],
+                              \"commands\": false
+                            }
+                          ]
+                        }
+                        """)).build(),
+                ChatResponse.builder().aiMessage(AiMessage.from("project layout updated")).build());
+
+        AgentToolLoopResult result = executor.execute(request);
+
+        assertThat(result.exitReason()).isEqualTo(AgentToolLoopResult.ExitReason.TERMINAL_MESSAGE);
+        assertThat(result.terminalAiMessage()).isNotNull();
+        assertThat(result.terminalAiMessage().text()).isEqualTo("project layout updated");
+        ArgumentCaptor<ChatRequest> requestCaptor = ArgumentCaptor.forClass(ChatRequest.class);
+        verify(chatModel, times(2)).chat(requestCaptor.capture());
+        ChatRequest secondRequest = requestCaptor.getAllValues().get(1);
+        assertThat(secondRequest.messages().stream()
+                .filter(UserMessage.class::isInstance)
+                .map(UserMessage.class::cast)
+                .map(UserMessage::singleText)
+                .toList())
+                .anyMatch(text -> text.contains("Eager skill context payload (auto-generated by executor):"));
+    }
+
     private AgentToolLoopRequest newRequest(int maxIterations,
                                             int maxRepeatPerToolCall,
                                             BlockingToolFailureStrategy strategy) {
@@ -629,7 +808,7 @@ class AgentToolLoopExecutorTest {
                 strategy);
     }
 
-    private Agent newAgent() {
+    private Agent newAgentWithSkills(List<String> skills) {
         AgentHeaders headers = new AgentHeaders(
                 "Test Agent",
                 "Used for unit tests",
@@ -640,12 +819,11 @@ class AgentToolLoopExecutorTest {
                 false,
                 List.of(),
                 List.of(),
-                List.of());
+                skills == null ? List.of() : List.copyOf(skills));
         return new Agent(headers, new MarkdownContentSections(List.of()), List.of());
     }
+
+    private Agent newAgent() {
+        return newAgentWithSkills(List.of());
+    }
 }
-
-
-
-
-

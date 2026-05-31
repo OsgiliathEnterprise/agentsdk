@@ -1,12 +1,12 @@
 package net.osgiliath.agentsdk.skills.converter;
 
-import dev.langchain4j.skills.Skill;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.invocation.InvocationContext;
 import dev.langchain4j.invocation.InvocationParameters;
 import dev.langchain4j.service.tool.ToolProvider;
 import dev.langchain4j.service.tool.ToolProviderRequest;
 import dev.langchain4j.service.tool.ToolProviderResult;
+import dev.langchain4j.skills.Skill;
 import net.osgiliath.agentsdk.configuration.LangChain4jConfig;
 import net.osgiliath.agentsdk.mcp.AliasAwareToolProviderComposer;
 import net.osgiliath.agentsdk.skills.parser.SkillRenderer;
@@ -33,7 +33,7 @@ public class MarkdownSkillsToLangChainSkillConverterImpl implements MarkdownSkil
     }
 
     @Override
-    public Skill convert(net.osgiliath.agentsdk.skills.parser.Skill markdownSkill) {
+    public Skill convert(net.osgiliath.agentsdk.skills.model.Skill markdownSkill) {
         Objects.requireNonNull(markdownSkill, "markdownSkill must not be null");
         List<String> declaredToolNames = markdownSkill.getMcps().stream()
                 .map(String::trim)

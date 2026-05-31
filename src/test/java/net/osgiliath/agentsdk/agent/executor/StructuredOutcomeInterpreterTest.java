@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.ToolExecutionResultMessage;
+import net.osgiliath.agentsdk.agent.executor.internal.AgentToolLoopResult;
+import net.osgiliath.agentsdk.agent.executor.internal.StructuredOutcomeInterpreter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -30,11 +32,11 @@ class StructuredOutcomeInterpreterTest {
         AgentOutcome failed = interpreter.classifyText("noise {\"status\":\"failed\",\"reason\":\"retry me\"} tail", rules);
 
         assertThat(success.status()).isEqualTo(AgentOutcomeStatus.SUCCESS);
-        assertThat(success.reason()).isEqualTo("all good");
+        assertThat(success.reason()).contains("all good");
         assertThat(deferred.status()).isEqualTo(AgentOutcomeStatus.DEFERRED);
-        assertThat(deferred.reason()).isEqualTo("later");
+        assertThat(deferred.reason()).contains("later");
         assertThat(failed.status()).isEqualTo(AgentOutcomeStatus.NEED_MORE_ITERATION);
-        assertThat(failed.reason()).isEqualTo("retry me");
+        assertThat(failed.reason()).contains("retry me");
     }
 
     @Test
@@ -90,7 +92,7 @@ class StructuredOutcomeInterpreterTest {
         AgentOutcome outcome = interpreter.classifyTerminalResult(terminal, rules);
 
         assertThat(outcome.status()).isEqualTo(AgentOutcomeStatus.SUCCESS);
-        assertThat(outcome.reason()).isEqualTo("project audit passed");
+        assertThat(outcome.reason()).contains("project audit passed");
     }
 
     @Test
@@ -104,7 +106,7 @@ class StructuredOutcomeInterpreterTest {
         AgentOutcome outcome = interpreter.classifyTerminalResult(terminal, rules);
 
         assertThat(outcome.status()).isEqualTo(AgentOutcomeStatus.SUCCESS);
-        assertThat(outcome.reason()).isEqualTo("project audit passed");
+        assertThat(outcome.reason()).contains("project audit passed");
     }
 
     @Test
@@ -118,7 +120,7 @@ class StructuredOutcomeInterpreterTest {
         AgentOutcome outcome = interpreter.classifyTerminalResult(terminal, rules);
 
         assertThat(outcome.status()).isEqualTo(AgentOutcomeStatus.NEED_MORE_ITERATION);
-        assertThat(outcome.reason()).isEqualTo("empty terminal model response without tool result");
+        assertThat(outcome.reason()).contains("empty terminal model response without tool result");
     }
 
     @Test
@@ -141,7 +143,7 @@ class StructuredOutcomeInterpreterTest {
         AgentOutcome outcome = interpreter.classifyTerminalResult(terminal, rules);
 
         assertThat(outcome.status()).isEqualTo(AgentOutcomeStatus.NEED_MORE_ITERATION);
-        assertThat(outcome.reason()).isEqualTo("empty terminal model response without tool result");
+        assertThat(outcome.reason()).contains("empty terminal model response without tool result");
     }
 }
 

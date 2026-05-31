@@ -2,8 +2,8 @@ package net.osgiliath.agentsdk.agent.parser;
 
 import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
-import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSet;
-import net.osgiliath.agentsdk.skills.parser.SkillsHeaders;
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertion;
+import net.osgiliath.agentsdk.skills.model.SkillsHeaders;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
 
 import java.util.Collection;
@@ -14,7 +14,7 @@ public record Agent(
         AgentHeaders headers,
         MarkdownContentSections content,
         Collection<SkillsHeaders> skillHeaders,
-        List<SkillAssertionSet> assertionSets
+        List<SkillAssertion> assertionSets
 ) {
 
     public Agent(AgentHeaders headers,
@@ -77,7 +77,7 @@ public record Agent(
         return skillHeaders;
     }
 
-    public List<SkillAssertionSet> getAssertionSets() {
+    public List<SkillAssertion> getAssertionSets() {
         return assertionSets;
     }
 

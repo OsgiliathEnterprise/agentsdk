@@ -2,16 +2,16 @@ package net.osgiliath.agentsdk.agent.parser;
 
 import dev.langchain4j.data.message.SystemMessage;
 import net.osgiliath.agentsdk.agent.assertions.AgentAssertionSetParser;
-import net.osgiliath.agentsdk.configuration.CodepromptConfiguration;
 import net.osgiliath.agentsdk.common.parsing.DescriptionHeader;
 import net.osgiliath.agentsdk.common.parsing.NameHeader;
+import net.osgiliath.agentsdk.configuration.CodepromptConfiguration;
 import net.osgiliath.agentsdk.configuration.MarkdownConfiguration;
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertion;
 import net.osgiliath.agentsdk.skills.assertions.SkillAssertionCheck;
-import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSet;
 import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSeverity;
-import net.osgiliath.agentsdk.skills.parser.Skill;
-import net.osgiliath.agentsdk.skills.parser.SkillsHeaders;
+import net.osgiliath.agentsdk.skills.model.Skill;
+import net.osgiliath.agentsdk.skills.model.SkillsHeaders;
 import net.osgiliath.agentsdk.skills.parser.SkillParser;
 import net.osgiliath.agentsdk.skills.parser.SkillParserImpl;
 import net.osgiliath.agentsdk.skills.resolver.SkillResolver;
@@ -23,7 +23,6 @@ import net.osgiliath.agentsdk.utils.resource.*;
 import org.commonmark.parser.Parser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.Resource;
@@ -35,10 +34,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @SpringBootTest
 class AgentParserTest {
@@ -113,7 +109,7 @@ class AgentParserTest {
 
     @Test
     void shouldMergeAgentAndSkillAssertionSets() {
-        Skill resolvedSkill = sampleSkill("implements_features_file", List.of(new SkillAssertionSet(
+        Skill resolvedSkill = sampleSkill("implements_features_file", List.of(new SkillAssertion(
                 "skill-contract",
                 "implements_features_file",
                 "1.0.0",
@@ -125,7 +121,7 @@ class AgentParserTest {
         Agent agent = agentParser.getAgent(resourcePatternResolver.getResource("classpath:/" + SAMPLE_AGENT_FILE));
 
         assertThat(agent.getAssertionSets()).hasSize(2);
-        assertThat(agent.getAssertionSets()).extracting(SkillAssertionSet::domain)
+        assertThat(agent.getAssertionSets()).extracting(SkillAssertion::domain)
                 .contains("bootstrap", "skill-contract");
     }
 
@@ -294,7 +290,7 @@ class AgentParserTest {
         return sampleSkill(name, List.of());
     }
 
-    private Skill sampleSkill(String name, List<SkillAssertionSet> assertionSets) {
+    private Skill sampleSkill(String name, List<SkillAssertion> assertionSets) {
         return new Skill(
                 new SkillsHeaders(name, "sample", List.of(), List.of("read"), List.of()),
                 List.of(),

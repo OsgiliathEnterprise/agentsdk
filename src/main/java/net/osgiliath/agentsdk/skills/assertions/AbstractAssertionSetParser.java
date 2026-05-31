@@ -31,7 +31,7 @@ public abstract class AbstractAssertionSetParser {
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
     }
 
-    public List<SkillAssertionSet> parseAssertionSets(Resource markdownResource) {
+    public List<SkillAssertion> parseAssertionSets(Resource markdownResource) {
         Objects.requireNonNull(markdownResource, "markdownResource must not be null");
         List<Resource> assertResources;
         try {
@@ -52,7 +52,7 @@ public abstract class AbstractAssertionSetParser {
 
     protected abstract String ownerKind();
 
-    private Optional<SkillAssertionSet> parseOne(Resource resource) {
+    private Optional<SkillAssertion> parseOne(Resource resource) {
         Objects.requireNonNull(resource, "resource must not be null");
         try (InputStream is = resource.getInputStream()) {
             RawAssertionFile raw = objectMapper.readValue(is, RawAssertionFile.class);
@@ -73,10 +73,10 @@ public abstract class AbstractAssertionSetParser {
             List<SkillAssertionCheck> checks,
             @JsonProperty("output_contract") SkillAssertionOutputContract outputContract
     ) {
-        SkillAssertionSet toAssertionSet() {
+        SkillAssertion toAssertionSet() {
             String owner = (skill != null && !skill.isBlank()) ? skill
                     : (agent != null && !agent.isBlank()) ? agent : "";
-            return new SkillAssertionSet(
+            return new SkillAssertion(
                     domain == null ? "" : domain,
                     owner,
                     version == null ? "" : version,

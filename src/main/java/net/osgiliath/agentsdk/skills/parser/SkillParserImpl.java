@@ -2,13 +2,10 @@ package net.osgiliath.agentsdk.skills.parser;
 
 import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.common.parsing.ParsingHeader;
-import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSet;
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertion;
 import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSetParser;
-import net.osgiliath.agentsdk.utils.markdown.MarkdownFile;
-import net.osgiliath.agentsdk.utils.markdown.MarkdownHeader;
-import net.osgiliath.agentsdk.utils.markdown.MarkdownHeaders;
-import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
-import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
+import net.osgiliath.agentsdk.skills.model.*;
+import net.osgiliath.agentsdk.utils.markdown.*;
 import net.osgiliath.agentsdk.utils.resource.ResourceLocationResolver;
 import org.commonmark.node.AbstractVisitor;
 import org.commonmark.node.FencedCodeBlock;
@@ -21,15 +18,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Stream;
 
 /**
@@ -71,7 +60,7 @@ public class SkillParserImpl implements SkillParser {
         List<SkillAsset> assets = mergeAssets(toAssets(discoveredLinks), scanAssets(skillFileResource));
         List<SkillTemplate> templates = scanTemplates(skillFileResource);
         List<SkillScriptCommand> scriptCommands = extractScriptCommands(skillFileResource);
-        List<SkillAssertionSet> assertionSets = assertionSetParser.parseAssertionSets(skillFileResource);
+        List<SkillAssertion> assertionSets = assertionSetParser.parseAssertionSets(skillFileResource);
 
         MarkdownContentSections content = buildContent(markdownFile, skillFileResource);
         return new Skill(headers, assets, templates, scriptCommands, content, assertionSets);

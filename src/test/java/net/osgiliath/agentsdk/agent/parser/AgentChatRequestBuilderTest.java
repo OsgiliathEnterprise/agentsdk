@@ -9,8 +9,8 @@ import dev.langchain4j.invocation.InvocationContext;
 import dev.langchain4j.invocation.InvocationParameters;
 import dev.langchain4j.mcp.McpToolProvider;
 import dev.langchain4j.model.chat.request.ChatRequest;
-import dev.langchain4j.service.tool.ToolExecutor;
 import dev.langchain4j.service.tool.ToolExecutionResult;
+import dev.langchain4j.service.tool.ToolExecutor;
 import dev.langchain4j.service.tool.ToolProviderRequest;
 import dev.langchain4j.service.tool.ToolProviderResult;
 import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
@@ -19,8 +19,8 @@ import net.osgiliath.agentsdk.llm.LLMS_KIND;
 import net.osgiliath.agentsdk.mcp.AliasAwareToolProviderComposer;
 import net.osgiliath.agentsdk.mcp.McpToolAliasResolverImpl;
 import net.osgiliath.agentsdk.skills.converter.MarkdownSkillsToLangChainSkillConverter;
-import net.osgiliath.agentsdk.skills.parser.Skill;
-import net.osgiliath.agentsdk.skills.parser.SkillsHeaders;
+import net.osgiliath.agentsdk.skills.model.Skill;
+import net.osgiliath.agentsdk.skills.model.SkillsHeaders;
 import net.osgiliath.agentsdk.skills.resolver.SkillResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,9 +32,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class AgentChatRequestBuilderTest {
 

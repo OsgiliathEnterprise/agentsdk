@@ -8,11 +8,11 @@ import dev.langchain4j.invocation.InvocationContext;
 import dev.langchain4j.invocation.InvocationParameters;
 import dev.langchain4j.mcp.McpToolProvider;
 import dev.langchain4j.model.chat.request.ChatRequest;
-import dev.langchain4j.skills.Skills;
-import dev.langchain4j.skills.Skill;
 import dev.langchain4j.service.tool.ToolProvider;
 import dev.langchain4j.service.tool.ToolProviderRequest;
 import dev.langchain4j.service.tool.ToolProviderResult;
+import dev.langchain4j.skills.Skill;
+import dev.langchain4j.skills.Skills;
 import net.osgiliath.agentsdk.configuration.LangChain4jConfig;
 import net.osgiliath.agentsdk.mcp.AliasAwareToolProviderComposer;
 import net.osgiliath.agentsdk.skills.converter.MarkdownSkillsToLangChainSkillConverter;
@@ -21,12 +21,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * Facade for building fully-hydrated {@link ChatRequest} instances from agents.
@@ -159,7 +154,7 @@ public class AgentChatRequestBuilder {
     }
 
     private SystemMessage augmentSystemPromptWithSkills(SystemMessage baseSystemMessage, Agent agent) {
-        List<net.osgiliath.agentsdk.skills.parser.Skill> resolvedSkills = resolveSkills(agent);
+        List<net.osgiliath.agentsdk.skills.model.Skill> resolvedSkills = resolveSkills(agent);
         if (resolvedSkills.isEmpty()) {
             return baseSystemMessage;
         }
@@ -177,7 +172,7 @@ public class AgentChatRequestBuilder {
         return SystemMessage.from(augmentedText.trim());
     }
 
-    private List<net.osgiliath.agentsdk.skills.parser.Skill> resolveSkills(Agent agent) {
+    private List<net.osgiliath.agentsdk.skills.model.Skill> resolveSkills(Agent agent) {
         return skillResolver.resolveSkills(agent.getSkillsName());
     }
 

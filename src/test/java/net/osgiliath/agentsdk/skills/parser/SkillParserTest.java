@@ -6,8 +6,11 @@ import ch.qos.logback.core.read.ListAppender;
 import net.osgiliath.agentsdk.configuration.MarkdownConfiguration;
 import net.osgiliath.agentsdk.llm.LLMS_KIND;
 
-import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSet;
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertion;
 import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSetParser;
+import net.osgiliath.agentsdk.skills.model.Skill;
+import net.osgiliath.agentsdk.skills.model.SkillAsset;
+import net.osgiliath.agentsdk.skills.model.SkillTemplate;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParserImpl;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
@@ -345,8 +348,8 @@ class SkillParserTest {
     void shouldParseAssertionChecks() {
         Skill skill = skillParser.getSkill(resourceResolver.getResource(SKILL_FILE));
 
-        List<SkillAssertionSet> sets = skill.getAssertionSets();
-        assertThat(sets).flatMap(SkillAssertionSet::checks)
+        List<SkillAssertion> sets = skill.getAssertionSets();
+        assertThat(sets).flatMap(SkillAssertion::checks)
                 .extracting(c -> c.id())
                 .contains("IFF-001", "IFF-002", "IFF-003");
     }
@@ -364,11 +367,11 @@ class SkillParserTest {
     void shouldClassifyMechanicalVsRuleOnlyChecks() {
         Skill skill = skillParser.getSkill(resourceResolver.getResource(SKILL_FILE));
 
-        List<SkillAssertionSet> sets = skill.getAssertionSets();
-        assertThat(sets).flatMap(SkillAssertionSet::checks)
+        List<SkillAssertion> sets = skill.getAssertionSets();
+        assertThat(sets).flatMap(SkillAssertion::checks)
                 .filteredOn(c -> "IFF-001".equals(c.id()))
                 .allMatch(net.osgiliath.agentsdk.skills.assertions.SkillAssertionCheck::isMechanical);
-        assertThat(sets).flatMap(SkillAssertionSet::checks)
+        assertThat(sets).flatMap(SkillAssertion::checks)
                 .filteredOn(c -> "IFF-003".equals(c.id()))
                 .noneMatch(net.osgiliath.agentsdk.skills.assertions.SkillAssertionCheck::isMechanical);
     }

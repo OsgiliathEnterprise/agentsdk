@@ -13,6 +13,8 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 
 import java.net.http.HttpClient;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
@@ -42,6 +44,7 @@ public class LangChain4jConfig {
     @Bean(CHAT_MODEL_HTTP_CLIENT_BUILDER)
     public HttpClientBuilder jdkHttpClientBuilder() {
         HttpClient.Builder httpClientBuilder = HttpClient.newBuilder()
+                .connectTimeout(Duration.of(2, ChronoUnit.MINUTES))
                 .version(HttpClient.Version.HTTP_1_1);
         return JdkHttpClient.builder()
                 .httpClientBuilder(httpClientBuilder);
@@ -50,6 +53,7 @@ public class LangChain4jConfig {
     @Bean(STREAMING_CHAT_MODEL_HTTP_CLIENT_BUILDER)
     public HttpClientBuilder jdkStreamingHttpClientBuilder() {
         HttpClient.Builder httpClientBuilder = HttpClient.newBuilder()
+                .connectTimeout(Duration.of(2, ChronoUnit.MINUTES))
                 .version(HttpClient.Version.HTTP_1_1);
 
         return JdkHttpClient.builder()

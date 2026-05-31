@@ -3,8 +3,10 @@ package net.osgiliath.agentsdk.agent.executor;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.invocation.InvocationParameters;
 import dev.langchain4j.model.chat.request.ChatRequest;
+import net.osgiliath.agentsdk.agent.executor.internal.AgentToolLoopRequest;
+import net.osgiliath.agentsdk.agent.executor.internal.AgentToolLoopResult;
 import net.osgiliath.agentsdk.agent.parser.Agent;
-import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSet;
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertion;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -56,7 +58,7 @@ class AgentExecutorValueObjectsTest {
 
     @Test
     void shouldCarryAgentAssertionSetsWhenUsingFactory() {
-        SkillAssertionSet assertionSet = new SkillAssertionSet("domain", "owner", "1.0", List.of(), null);
+        SkillAssertion assertionSet = new SkillAssertion("domain", "owner", "1.0", List.of(), null);
         Agent agent = mock(Agent.class);
         when(agent.getAssertionSets()).thenReturn(List.of(assertionSet));
 

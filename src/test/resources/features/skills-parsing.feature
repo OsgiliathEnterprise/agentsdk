@@ -61,6 +61,7 @@ Feature: Skills Parsing
       | assets     |
       | references |
       | scripts    |
+      | asserts    |
       | templates  |
       | content    |
 

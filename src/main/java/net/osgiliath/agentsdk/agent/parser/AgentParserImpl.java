@@ -4,26 +4,16 @@ import dev.langchain4j.data.message.SystemMessage;
 import net.osgiliath.agentsdk.agent.assertions.AgentAssertionSetParser;
 import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.common.parsing.ParsingHeader;
-import net.osgiliath.agentsdk.skills.assertions.SkillAssertionSet;
-import net.osgiliath.agentsdk.skills.parser.Skill;
-import net.osgiliath.agentsdk.skills.parser.SkillsHeaders;
+import net.osgiliath.agentsdk.skills.assertions.SkillAssertion;
+import net.osgiliath.agentsdk.skills.model.Skill;
+import net.osgiliath.agentsdk.skills.model.SkillsHeaders;
 import net.osgiliath.agentsdk.skills.resolver.SkillResolver;
-import net.osgiliath.agentsdk.utils.markdown.MarkdownFile;
-import net.osgiliath.agentsdk.utils.markdown.MarkdownHeader;
-import net.osgiliath.agentsdk.utils.markdown.MarkdownHeaders;
-import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
-import net.osgiliath.agentsdk.utils.markdown.MarkdownSection;
+import net.osgiliath.agentsdk.utils.markdown.*;
 import net.osgiliath.agentsdk.utils.resource.MarkdownLinkedResourceResolver;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Stream;
 
 @Component
@@ -64,7 +54,7 @@ public class AgentParserImpl implements AgentParser {
         List<SkillsHeaders> skillHeaders = resolvedSkills.stream()
                 .map(Skill::headers)
                 .toList();
-        List<SkillAssertionSet> assertionSets = Stream.concat(
+        List<SkillAssertion> assertionSets = Stream.concat(
                         assertionSetParser.parseAssertionSets(agentResource).stream(),
                         resolvedSkills.stream().flatMap(skill -> skill.getAssertionSets().stream()))
                 .toList();

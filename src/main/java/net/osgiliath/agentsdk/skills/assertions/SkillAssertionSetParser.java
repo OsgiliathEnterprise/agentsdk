@@ -11,19 +11,20 @@ import java.util.Objects;
 
 /**
  * Parses all {@code asserts/*.json} files adjacent to a skill's {@code SKILL.md} resource
- * into a list of {@link SkillAssertionSet} objects.
+ * into a list of {@link SkillAssertion} objects.
  */
 @Component
 public class SkillAssertionSetParser extends AbstractAssertionSetParser {
 
     private static final Logger log = LoggerFactory.getLogger(SkillAssertionSetParser.class);
+
     public SkillAssertionSetParser(ResourceLocationResolver resourceLocationResolver,
                                    ObjectMapper objectMapper) {
         super(resourceLocationResolver, objectMapper);
     }
 
     @Override
-    public java.util.List<SkillAssertionSet> parseAssertionSets(Resource skillFileResource) {
+    public java.util.List<SkillAssertion> parseAssertionSets(Resource skillFileResource) {
         Objects.requireNonNull(skillFileResource, "skillFileResource must not be null");
         return super.parseAssertionSets(skillFileResource);
     }

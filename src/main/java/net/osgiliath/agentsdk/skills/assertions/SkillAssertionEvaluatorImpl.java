@@ -40,20 +40,34 @@ import java.util.stream.Stream;
 public class SkillAssertionEvaluatorImpl implements SkillAssertionEvaluator {
 
     private static final Logger log = LoggerFactory.getLogger(SkillAssertionEvaluatorImpl.class);
-    private final ResourceLocationResolver resourceLocationResolver;
-
     /**
      * Pattern matching task folder names of the form {@code NNN-Name} (at least one digit, a dash,
      * then at least one non-dash character).
      */
     private static final Pattern TASK_FOLDER_PATTERN = Pattern.compile("^\\d+-[^-].+$");
+    private final ResourceLocationResolver resourceLocationResolver;
 
     public SkillAssertionEvaluatorImpl(ResourceLocationResolver resourceLocationResolver) {
         this.resourceLocationResolver = resourceLocationResolver;
     }
 
+    private static SkillAssertionCheckResult pass(SkillAssertionCheck check) {
+        return new SkillAssertionCheckResult(check.id(), check.title(), check.severity(),
+                SkillAssertionStatus.PASS, "OK");
+    }
+
+    private static SkillAssertionCheckResult fail(SkillAssertionCheck check, String reason) {
+        return new SkillAssertionCheckResult(check.id(), check.title(), check.severity(),
+                SkillAssertionStatus.FAIL, reason);
+    }
+
+    private static SkillAssertionCheckResult notEvaluated(SkillAssertionCheck check, String reason) {
+        return new SkillAssertionCheckResult(check.id(), check.title(), check.severity(),
+                SkillAssertionStatus.NOT_EVALUATED, reason);
+    }
+
     @Override
-    public SkillAssertionEvaluation evaluate(List<SkillAssertionSet> assertionSets, String workspacePath) {
+    public SkillAssertionEvaluation evaluate(List<SkillAssertion> assertionSets, String workspacePath) {
         Objects.requireNonNull(assertionSets, "assertionSets must not be null");
         Objects.requireNonNull(workspacePath, "workspacePath must not be null");
 
@@ -65,7 +79,7 @@ public class SkillAssertionEvaluatorImpl implements SkillAssertionEvaluator {
         }
 
         List<SkillAssertionCheckResult> results = new ArrayList<>();
-        for (SkillAssertionSet set : assertionSets) {
+        for (SkillAssertion set : assertionSets) {
             for (SkillAssertionCheck check : set.checks()) {
                 results.add(evaluateCheck(check, resolvedPath.get()));
             }
@@ -115,7 +129,7 @@ public class SkillAssertionEvaluatorImpl implements SkillAssertionEvaluator {
             return notEvaluated(check, "rule-only check — evaluated by the LLM");
         }
 
-    // 1. required_paths
+        // 1. required_paths
         for (String relativePath : check.requiredPaths()) {
             if (!anyPathMatches(workspacePath, relativePath, true)) {
                 return fail(check, "required directory not found: " + relativePath);
@@ -240,7 +254,8 @@ public class SkillAssertionEvaluatorImpl implements SkillAssertionEvaluator {
                 if (isDirectory ? Files.isDirectory(directPath) : Files.isRegularFile(directPath)) {
                     return true;
                 }
-            } catch (Exception e) {}
+            } catch (Exception e) {
+            }
         }
 
         // 2. Normalize relativePath for regex: remove trailing slash
@@ -258,21 +273,6 @@ public class SkillAssertionEvaluatorImpl implements SkillAssertionEvaluator {
         }
 
         return false;
-    }
-
-    private static SkillAssertionCheckResult pass(SkillAssertionCheck check) {
-        return new SkillAssertionCheckResult(check.id(), check.title(), check.severity(),
-                SkillAssertionStatus.PASS, "OK");
-    }
-
-    private static SkillAssertionCheckResult fail(SkillAssertionCheck check, String reason) {
-        return new SkillAssertionCheckResult(check.id(), check.title(), check.severity(),
-                SkillAssertionStatus.FAIL, reason);
-    }
-
-    private static SkillAssertionCheckResult notEvaluated(SkillAssertionCheck check, String reason) {
-        return new SkillAssertionCheckResult(check.id(), check.title(), check.severity(),
-                SkillAssertionStatus.NOT_EVALUATED, reason);
     }
 }
 

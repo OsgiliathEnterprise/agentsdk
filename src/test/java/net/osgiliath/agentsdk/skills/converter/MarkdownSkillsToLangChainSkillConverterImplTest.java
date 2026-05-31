@@ -6,21 +6,21 @@ import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.invocation.InvocationContext;
 import dev.langchain4j.invocation.InvocationParameters;
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
-import dev.langchain4j.skills.Skills;
 import dev.langchain4j.service.tool.ToolProvider;
 import dev.langchain4j.service.tool.ToolProviderResult;
+import dev.langchain4j.skills.Skills;
+import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.configuration.CodepromptConfiguration;
 import net.osgiliath.agentsdk.configuration.MarkdownConfiguration;
-import net.osgiliath.agentsdk.common.parsing.MarkdownContentSections;
 import net.osgiliath.agentsdk.mcp.AliasAwareToolProviderComposer;
 import net.osgiliath.agentsdk.mcp.McpToolAliasResolver;
 import net.osgiliath.agentsdk.mcp.McpToolAliasResolverImpl;
-import net.osgiliath.agentsdk.skills.parser.Skill;
+import net.osgiliath.agentsdk.skills.model.Skill;
+import net.osgiliath.agentsdk.skills.model.SkillsHeaders;
 import net.osgiliath.agentsdk.skills.parser.SkillParser;
 import net.osgiliath.agentsdk.skills.parser.SkillParserImpl;
 import net.osgiliath.agentsdk.skills.parser.SkillRenderer;
 import net.osgiliath.agentsdk.skills.parser.SkillRendererImpl;
-import net.osgiliath.agentsdk.skills.parser.SkillsHeaders;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParser;
 import net.osgiliath.agentsdk.utils.markdown.MarkdownParserImpl;
 import net.osgiliath.agentsdk.utils.resource.ResourceLocationResolver;
@@ -47,6 +47,33 @@ class MarkdownSkillsToLangChainSkillConverterImplTest {
     private SkillParser skillParser;
     private SkillRenderer skillRenderer;
     private MarkdownSkillsToLangChainSkillConverter converter;
+
+    private static ToolSpecification spec(String name) {
+        return ToolSpecification.builder()
+                .name(name)
+                .description("tool " + name)
+                .parameters(JsonObjectSchema.builder().build())
+                .build();
+    }
+
+    private static ToolExecutionRequest toolRequest(String name) {
+        return ToolExecutionRequest.builder()
+                .id("id-1")
+                .name(name)
+                .arguments("{}")
+                .build();
+    }
+
+    private static dev.langchain4j.service.tool.ToolProviderRequest toolProviderRequest() {
+        return dev.langchain4j.service.tool.ToolProviderRequest.builder()
+                .userMessage(UserMessage.from("test-tools"))
+                .invocationContext(InvocationContext.builder()
+                        .chatMemoryId("test-memory")
+                        .invocationParameters(new InvocationParameters())
+                        .timestampNow()
+                        .build())
+                .build();
+    }
 
     @BeforeEach
     void setUp() {
@@ -142,32 +169,5 @@ class MarkdownSkillsToLangChainSkillConverterImplTest {
         assertThat(langChainSkill.content()).isEqualTo(skillRenderer.renderFlat(markdownSkill));
         assertThat(langChainSkill.toolProviders()).isEmpty();
         assertThat(langChainSkill.resources()).isEmpty();
-    }
-
-    private static ToolSpecification spec(String name) {
-        return ToolSpecification.builder()
-                .name(name)
-                .description("tool " + name)
-                .parameters(JsonObjectSchema.builder().build())
-                .build();
-    }
-
-    private static ToolExecutionRequest toolRequest(String name) {
-        return ToolExecutionRequest.builder()
-                .id("id-1")
-                .name(name)
-                .arguments("{}")
-                .build();
-    }
-
-    private static dev.langchain4j.service.tool.ToolProviderRequest toolProviderRequest() {
-        return dev.langchain4j.service.tool.ToolProviderRequest.builder()
-                .userMessage(UserMessage.from("test-tools"))
-                .invocationContext(InvocationContext.builder()
-                        .chatMemoryId("test-memory")
-                        .invocationParameters(new InvocationParameters())
-                        .timestampNow()
-                        .build())
-                .build();
     }
 }
